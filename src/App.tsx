@@ -3,16 +3,18 @@ import ShiftTable from './components/ShiftTable';
 import PCSettingPage from './components/PCSettingPage';
 import StoreSettingPage from './components/StoreSettingPage';
 import ExportModal from './components/ExportModal';
+import DatabaseSchemaPage from './components/DatabaseSchemaPage';
 import { mockStores, mockPromoters, mockShifts, shiftDates, generateStoreCounts } from './data/mockData';
 import type { Store } from './types/types';
 import './App.css';
 
-type TabKey = 'shift' | 'pc-setting' | 'store-setting';
+type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'db-schema';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'shift', label: 'Shift Table' },
   { key: 'pc-setting', label: 'PC Setting' },
   { key: 'store-setting', label: 'Store Setting' },
+  { key: 'db-schema', label: 'Database Schema' },
 ];
 
 function App() {
@@ -86,6 +88,9 @@ function App() {
         )}
         {activeTab === 'store-setting' && (
           <StoreSettingPage stores={stores} onStoresChange={setStores} />
+        )}
+        {activeTab === 'db-schema' && (
+          <DatabaseSchemaPage stores={stores} promoters={mockPromoters} shifts={shifts} />
         )}
       </main>
 
