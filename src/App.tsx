@@ -28,9 +28,10 @@ function App() {
     [stores, shifts]
   );
 
-  const handleShiftChange = useCallback((promoterId: string, date: string, newType: string, timeRange?: string) => {
+  const handleShiftChange = useCallback((promoterId: string, date: string, newType: string, timeRange?: string, note?: string) => {
     setShifts((prev) => {
       const key = `${promoterId}_${date}`;
+      const existing = prev.find((s) => `${s.promoterId}_${s.date}` === key);
       const filtered = prev.filter((s) => `${s.promoterId}_${s.date}` !== key);
       if (!newType) return filtered;
       return [
@@ -41,6 +42,7 @@ function App() {
           date,
           type: newType,
           timeRange,
+          note: note !== undefined ? note : existing?.note,
         },
       ];
     });

@@ -129,30 +129,39 @@
   background-color: var(--row-promoter-hover);
 }
 
-/* Shift Select Dropdown */
-.shift-select {
+/* Note styles */
+.shift-note {
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shift-note-empty {
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.cell:hover .shift-note-empty {
+  opacity: 0.5;
+}
+.shift-note-has {
+  color: #2563eb;
+  font-weight: 600;
+}
+.shift-note-input {
   width: 100%;
-  padding: 2px 4px;
-  border: 1px solid transparent;
-  background: transparent;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
+  padding: 1px 3px;
+  border: 1px solid #2563eb;
+  border-radius: 3px;
+  font-size: 9px;
   font-family: var(--font-sans);
   text-align: center;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  color: inherit;
   outline: none;
-}
-.shift-select:hover {
-  border-color: var(--border-color);
-  background: rgba(255,255,255,0.5);
-}
-.shift-select:focus {
-  border-color: #2563eb;
-  background: rgba(255,255,255,0.7);
+  background: white;
+  box-sizing: border-box;
 }
 
 /* Shift Colors — store-based */
@@ -179,8 +188,8 @@
 .shift-off { background-color: var(--shift-off); color: white; }
 .shift-sl { background-color: #fde68a; color: var(--text-primary); }
 
-.shift-off .shift-select,
-.shift-lop .shift-select { color: inherit; }
+.shift-off .shift-picker-trigger,
+.shift-lop .shift-picker-trigger { color: inherit; }
 
 .zero-count { color: var(--text-muted); opacity: 0.5; }
 .active-count { color: #16a34a; font-weight: bold; }

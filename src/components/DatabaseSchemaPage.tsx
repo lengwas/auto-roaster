@@ -42,6 +42,7 @@ CREATE TABLE shifts (
   date         DATE NOT NULL,
   shift_type   TEXT NOT NULL,  -- store code ('VDM') or 'Off','LOP','SL'
   time_range   TEXT,           -- '16:00-23:00' (nullable for Off/LOP/SL)
+  note         TEXT,           -- optional note per shift
   created_at   TIMESTAMPTZ DEFAULT now(),
   updated_at   TIMESTAMPTZ DEFAULT now(),
   UNIQUE(promoter_id, date)   -- 1 shift per person per day
@@ -92,12 +93,13 @@ GROUP BY p.name
 ORDER BY p.name;
 
 -- 5. Upsert shift (assign/change shift)
-INSERT INTO shifts (promoter_id, date, shift_type, time_range)
-VALUES ('...', '2024-03-15', 'VDM', '16:00-23:00')
+INSERT INTO shifts (promoter_id, date, shift_type, time_range, note)
+VALUES ('...', '2024-03-15', 'VDM', '16:00-23:00', 'arrived late')
 ON CONFLICT (promoter_id, date)
 DO UPDATE SET
   shift_type = EXCLUDED.shift_type,
   time_range = EXCLUDED.time_range,
+  note = EXCLUDED.note,
   updated_at = now();
 
 -- 6. ลบ shift (clear assignment)
@@ -148,6 +150,7 @@ WHERE promoter_id = '...' AND date = '2024-03-15';`;
             <div className="erd-col"><span className="erd-key">date</span> DATE</div>
             <div className="erd-col">shift_type TEXT</div>
             <div className="erd-col">time_range TEXT?</div>
+            <div className="erd-col">note TEXT?</div>
             <div className="erd-col erd-constraint">UNIQUE(promoter_id, date)</div>
           </div>
         </div>

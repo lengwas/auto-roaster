@@ -24,6 +24,7 @@ export interface Shift {
   date: string; // YYYY-MM-DD
   type: ShiftType;
   timeRange?: string; // e.g. "16:00-23:00"
+  note?: string;
 }
 
 // Stores the aggregated counts for each store per day

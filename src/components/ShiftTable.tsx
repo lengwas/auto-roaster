@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { Store, Promoter, Shift, StoreCount } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
+import ShiftPicker from './ShiftPicker';
 import './ShiftTable.css';
 
 interface ShiftTableProps {
@@ -9,7 +10,7 @@ interface ShiftTableProps {
   shifts: Shift[];
   storeCounts: StoreCount[];
   dates: string[];
-  onShiftChange?: (promoterId: string, date: string, newType: string, timeRange?: string) => void;
+  onShiftChange?: (promoterId: string, date: string, newType: string, timeRange?: string, note?: string) => void;
 }
 
 const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -46,6 +47,9 @@ function getTodayStr(): string {
 }
 
 const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange }: ShiftTableProps) => {
+  const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
+  const [noteText, setNoteText] = useState('');
+
   const shiftMap = new Map<string, Shift>();
   shifts.forEach((s) => {
     shiftMap.set(`${s.promoterId}_${s.date}`, s);
@@ -56,7 +60,6 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
     countMap.set(`${sc.storeId}_${sc.date}`, sc.count);
   });
 
-  // Build store lookup for time ranges
   const storeByCode = new Map<string, Store>();
   stores.filter(s => s.active).forEach(s => storeByCode.set(s.code, s));
 
@@ -68,18 +71,41 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const handleChange = useCallback((promoterId: string, date: string, value: string) => {
     if (!onShiftChange) return;
     if (value === '-') {
-      onShiftChange(promoterId, date, '', undefined);
+      onShiftChange(promoterId, date, '', undefined, undefined);
       return;
     }
     if (SPECIAL_SHIFTS.includes(value as typeof SPECIAL_SHIFTS[number])) {
-      onShiftChange(promoterId, date, value, undefined);
+      onShiftChange(promoterId, date, value, undefined, undefined);
       return;
     }
-    // It's a store code — get time range from store
     const store = storeByCode.get(value);
     const timeRange = store ? `${store.openTime}-${store.closeTime}` : undefined;
-    onShiftChange(promoterId, date, value, timeRange);
+    onShiftChange(promoterId, date, value, timeRange, undefined);
   }, [onShiftChange, storeByCode]);
+
+  const handleNoteClick = (key: string, currentNote: string) => {
+    setEditingNote(key);
+    setNoteText(currentNote);
+  };
+
+  const handleNoteSave = (promoterId: string, date: string) => {
+    if (!onShiftChange) return;
+    const shift = shiftMap.get(`${promoterId}_${date}`);
+    if (shift) {
+      onShiftChange(promoterId, date, shift.type, shift.timeRange, noteText);
+    }
+    setEditingNote(null);
+    setNoteText('');
+  };
+
+  const handleNoteKeyDown = (e: React.KeyboardEvent, promoterId: string, date: string) => {
+    if (e.key === 'Enter') {
+      handleNoteSave(promoterId, date);
+    } else if (e.key === 'Escape') {
+      setEditingNote(null);
+      setNoteText('');
+    }
+  };
 
   return (
     <div className="table-container">
@@ -171,32 +197,41 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
             {dates.map((dateStr) => {
               const shift = shiftMap.get(`${promoter.id}_${dateStr}`);
               const shiftClass = shift ? getShiftClass(shift.type) : '';
+              const cellKey = `${promoter.id}_${dateStr}`;
+              const isEditingNote = editingNote === cellKey;
               return (
                 <div
                   key={dateStr}
                   className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass}`}
                 >
-                  <select
-                    className="shift-select"
+                  <ShiftPicker
                     value={shift?.type || '-'}
-                    onChange={(e) => handleChange(promoter.id, dateStr, e.target.value)}
-                  >
-                    <option value="-">-</option>
-                    <optgroup label="Stores">
-                      {activeStores.map((store) => (
-                        <option key={store.id} value={store.code}>
-                          {store.code}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Other">
-                      {SPECIAL_SHIFTS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </optgroup>
-                  </select>
+                    stores={activeStores}
+                    onChange={(val) => handleChange(promoter.id, dateStr, val)}
+                  />
                   {shift?.timeRange && (
                     <span className="shift-time">{shift.timeRange}</span>
+                  )}
+                  {shift && shift.type && shift.type !== '-' && (
+                    isEditingNote ? (
+                      <input
+                        className="shift-note-input"
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        onBlur={() => handleNoteSave(promoter.id, dateStr)}
+                        onKeyDown={(e) => handleNoteKeyDown(e, promoter.id, dateStr)}
+                        placeholder="note..."
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className={`shift-note ${shift.note ? 'shift-note-has' : 'shift-note-empty'}`}
+                        onClick={() => handleNoteClick(cellKey, shift.note || '')}
+                        title={shift.note || 'Click to add note'}
+                      >
+                        {shift.note || '+'}
+                      </span>
+                    )
                   )}
                 </div>
               );
