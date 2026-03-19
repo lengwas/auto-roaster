@@ -144,6 +144,16 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
               />
             </div>
             <div className="form-field">
+              <label>Extra Allowance</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. +10 AED"
+                value={form.extraAllowance}
+                onChange={(e) => setForm({ ...form, extraAllowance: e.target.value })}
+              />
+            </div>
+            <div className="form-field">
               <label>Open Time</label>
               <input
                 type="time"
@@ -159,16 +169,6 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
                 className="form-input"
                 value={form.closeTime}
                 onChange={(e) => setForm({ ...form, closeTime: e.target.value })}
-              />
-            </div>
-            <div className="form-field">
-              <label>Extra Allowance</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. +10 AED"
-                value={form.extraAllowance}
-                onChange={(e) => setForm({ ...form, extraAllowance: e.target.value })}
               />
             </div>
             <div className="form-field">
