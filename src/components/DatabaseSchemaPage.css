@@ -211,6 +211,119 @@
   font-style: italic;
 }
 
+/* Flat View */
+.flat-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.flat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.flat-search {
+  flex: 1;
+  max-width: 320px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.flat-search:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+.flat-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.flat-table-wrap {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.flat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.flat-table thead {
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.flat-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-color);
+}
+.flat-table td {
+  padding: 7px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+.flat-table tbody tr:hover {
+  background: #f8fafc;
+}
+.flat-row-special {
+  opacity: 0.6;
+}
+.flat-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.flat-badge-store {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.flat-badge-off {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.flat-badge-lop {
+  background: #fef3c7;
+  color: #92400e;
+}
+.flat-badge-sl {
+  background: #fce7f3;
+  color: #9d174d;
+}
+.flat-note {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+}
+.flat-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+}
+.flat-page-info {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* SQL blocks */
 .sql-block {
   background: #1e293b;

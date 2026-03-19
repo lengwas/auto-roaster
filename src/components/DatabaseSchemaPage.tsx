@@ -1,6 +1,17 @@
+import { useMemo, useState } from 'react';
+import type { Store, Promoter, Shift } from '../types/types';
 import './DatabaseSchemaPage.css';
 
-const DatabaseSchemaPage = () => {
+interface DatabaseSchemaPageProps {
+  stores: Store[];
+  promoters: Promoter[];
+  shifts: Shift[];
+}
+
+const SPECIAL_SHIFTS = new Set(['Off', 'LOP', 'SL']);
+const PAGE_SIZE = 50;
+
+const DatabaseSchemaPage = ({ stores, promoters, shifts }: DatabaseSchemaPageProps) => {
 
   // SQL CREATE statements
   const sqlSchema = `-- Supabase / PostgreSQL Schema
@@ -156,11 +167,107 @@ WHERE cl.promoter_id = '...'
   AND cl.date = '2024-03-15'
 ORDER BY cl.changed_at DESC;`;
 
+  const storeMap = useMemo(() => {
+    const m = new Map<string, Store>();
+    stores.forEach(s => m.set(s.code, s));
+    return m;
+  }, [stores]);
+
+  const promoterMap = useMemo(() => {
+    const m = new Map<string, Promoter>();
+    promoters.forEach(p => m.set(p.id, p));
+    return m;
+  }, [promoters]);
+
+  // Build flat rows sorted by date
+  const flatRows = useMemo(() => {
+    return [...shifts]
+      .sort((a, b) => a.date.localeCompare(b.date) || (promoterMap.get(a.promoterId)?.name || '').localeCompare(promoterMap.get(b.promoterId)?.name || ''))
+      .map(s => {
+        const promoter = promoterMap.get(s.promoterId);
+        const store = storeMap.get(s.type);
+        return {
+          date: s.date,
+          promoter: promoter?.name || s.promoterId,
+          shiftType: s.type,
+          storeName: store?.name || (SPECIAL_SHIFTS.has(s.type) ? s.type : '-'),
+          openTime: store?.openTime || '-',
+          closeTime: store?.closeTime || '-',
+          timeRange: s.timeRange || '-',
+          note: s.note || '',
+        };
+      });
+  }, [shifts, storeMap, promoterMap]);
+
+  const [flatPage, setFlatPage] = useState(0);
+  const [flatSearch, setFlatSearch] = useState('');
+
+  const filteredFlat = useMemo(() => {
+    if (!flatSearch.trim()) return flatRows;
+    const q = flatSearch.toLowerCase();
+    return flatRows.filter(r =>
+      r.date.includes(q) || r.promoter.toLowerCase().includes(q) ||
+      r.shiftType.toLowerCase().includes(q) || r.storeName.toLowerCase().includes(q)
+    );
+  }, [flatRows, flatSearch]);
+
+  const totalPages = Math.ceil(filteredFlat.length / PAGE_SIZE);
+  const pagedFlat = filteredFlat.slice(flatPage * PAGE_SIZE, (flatPage + 1) * PAGE_SIZE);
+
   return (
     <div className="schema-page">
       <div className="schema-header">
-        <h2>Database Schema (Supabase)</h2>
+        <h2>Database</h2>
         <p>Recommended: Flat/Normalized — store only assigned shifts, 1 row per person per day</p>
+      </div>
+
+      {/* Flat View Table */}
+      <div className="schema-section">
+        <h3>Shift Data (Flat View)</h3>
+        <p className="flat-desc">1 row = 1 person + 1 day — sorted by date</p>
+        <div className="flat-toolbar">
+          <input
+            type="text"
+            className="flat-search"
+            placeholder="Search date, promoter, store..."
+            value={flatSearch}
+            onChange={(e) => { setFlatSearch(e.target.value); setFlatPage(0); }}
+          />
+          <span className="flat-count">{filteredFlat.length.toLocaleString()} rows</span>
+        </div>
+        <div className="flat-table-wrap">
+          <table className="flat-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Promoter</th>
+                <th>Shift Type</th>
+                <th>Store Name</th>
+                <th>Time Range</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedFlat.map((r, i) => (
+                <tr key={`${r.date}_${r.promoter}_${i}`} className={SPECIAL_SHIFTS.has(r.shiftType) ? 'flat-row-special' : ''}>
+                  <td>{r.date}</td>
+                  <td>{r.promoter}</td>
+                  <td><span className={`flat-badge flat-badge-${SPECIAL_SHIFTS.has(r.shiftType) ? r.shiftType.toLowerCase() : 'store'}`}>{r.shiftType}</span></td>
+                  <td>{r.storeName}</td>
+                  <td>{r.timeRange}</td>
+                  <td className="flat-note">{r.note || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {totalPages > 1 && (
+          <div className="flat-pagination">
+            <button className="btn btn-small btn-ghost" disabled={flatPage === 0} onClick={() => setFlatPage(p => p - 1)}>← Prev</button>
+            <span className="flat-page-info">Page {flatPage + 1} / {totalPages}</span>
+            <button className="btn btn-small btn-ghost" disabled={flatPage >= totalPages - 1} onClick={() => setFlatPage(p => p + 1)}>Next →</button>
+          </div>
+        )}
       </div>
 
       {/* Visual diagram */}

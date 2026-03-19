@@ -14,7 +14,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'shift', label: 'Shift Table' },
   { key: 'pc-setting', label: 'PC Setting' },
   { key: 'store-setting', label: 'Store Setting' },
-  { key: 'db-schema', label: 'Database Schema' },
+  { key: 'db-schema', label: 'Database' },
 ];
 
 function App() {
@@ -101,7 +101,11 @@ function App() {
           <StoreSettingPage stores={stores} onStoresChange={setStores} />
         )}
         {activeTab === 'db-schema' && (
-          <DatabaseSchemaPage />
+          <DatabaseSchemaPage
+            stores={stores}
+            promoters={mockPromoters}
+            shifts={shifts}
+          />
         )}
       </main>
 
