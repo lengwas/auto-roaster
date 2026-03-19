@@ -141,6 +141,7 @@ const ExportModal = ({ promoters, shifts, stores, dates, onClose }: ExportModalP
   }, [selectedPromoters, filteredDates, shiftMap, exportFormat, startDate, endDate]);
 
   // --- Image export ---
+  // Clone card to off-screen container at full height to avoid clipping
   const handleExportImage = async (promoter?: Promoter) => {
     const container = cardContainerRef.current;
     if (!container) return;
@@ -150,23 +151,47 @@ const ExportModal = ({ promoters, shifts, stores, dates, onClose }: ExportModalP
       const targets = promoter ? [promoter] : selectedPromoters;
 
       for (const p of targets) {
-        // Find the card element
         const cardEl = container.querySelector(`[data-promoter-id="${p.id}"]`) as HTMLElement;
         if (!cardEl) continue;
 
-        const canvas = await html2canvas(cardEl, {
+        // Clone card to a temporary off-screen container (no overflow clipping)
+        const offscreen = document.createElement('div');
+        offscreen.style.position = 'fixed';
+        offscreen.style.left = '-9999px';
+        offscreen.style.top = '0';
+        offscreen.style.width = '480px';
+        offscreen.style.overflow = 'visible';
+        offscreen.style.zIndex = '-1';
+
+        const clone = cardEl.cloneNode(true) as HTMLElement;
+        // Remove download button from clone
+        const btnWrap = clone.querySelector('.card-download-btn-wrap');
+        if (btnWrap) btnWrap.remove();
+
+        offscreen.appendChild(clone);
+        document.body.appendChild(offscreen);
+
+        // Wait for rendering
+        await new Promise((r) => setTimeout(r, 50));
+
+        const canvas = await html2canvas(clone, {
           backgroundColor: '#ffffff',
           scale: 2,
           logging: false,
           useCORS: true,
+          scrollY: 0,
+          scrollX: 0,
+          windowWidth: 520,
+          windowHeight: clone.scrollHeight + 40,
         });
+
+        document.body.removeChild(offscreen);
 
         const link = document.createElement('a');
         link.download = `schedule_${p.name.replace(/\s+/g, '_')}_${startDate}_${endDate}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
 
-        // Small delay between downloads
         if (targets.length > 1) {
           await new Promise((r) => setTimeout(r, 300));
         }
