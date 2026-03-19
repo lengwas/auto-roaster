@@ -129,7 +129,7 @@
   background-color: var(--row-promoter-hover);
 }
 
-/* Note styles — double-click to add, hover to see */
+/* Note — double-click to add, hover to see tooltip */
 .has-note {
   position: relative;
 }
@@ -144,18 +144,95 @@
   border-radius: 50%;
   pointer-events: none;
 }
-.shift-note-input {
-  width: 100%;
-  padding: 1px 3px;
-  border: 1px solid #2563eb;
-  border-radius: 3px;
-  font-size: 9px;
-  font-family: var(--font-sans);
-  text-align: center;
-  outline: none;
-  background: white;
-  box-sizing: border-box;
+
+/* Hover tooltip */
+.note-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  max-width: 200px;
+  z-index: 40;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  line-height: 1.4;
 }
+.note-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1e293b;
+}
+.has-note:hover .note-tooltip {
+  display: block;
+}
+
+/* Note edit overlay */
+.note-overlay {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  z-index: 50;
+  padding: 10px;
+}
+.note-textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  outline: none;
+  resize: vertical;
+  min-height: 60px;
+  box-sizing: border-box;
+  line-height: 1.4;
+}
+.note-textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.1);
+}
+.note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+.note-btn {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+}
+.note-btn-cancel {
+  background: #f1f5f9;
+  color: var(--text-secondary);
+}
+.note-btn-cancel:hover { background: #e2e8f0; }
+.note-btn-save {
+  background: #2563eb;
+  color: white;
+}
+.note-btn-save:hover { background: #1d4ed8; }
 
 /* Shift Colors — store-based */
 .shift-vdm { background-color: #fca5a5; }

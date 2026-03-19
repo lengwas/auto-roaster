@@ -52,12 +52,30 @@ CREATE TABLE shifts (
 CREATE INDEX idx_shifts_date ON shifts(date);
 CREATE INDEX idx_shifts_promoter ON shifts(promoter_id);
 CREATE INDEX idx_shifts_type ON shifts(shift_type);
-CREATE INDEX idx_shifts_date_type ON shifts(date, shift_type);`;
+CREATE INDEX idx_shifts_date_type ON shifts(date, shift_type);
+
+-- 5. Shift change log (audit trail)
+CREATE TABLE shift_change_log (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shift_id     UUID REFERENCES shifts(id) ON DELETE SET NULL,
+  promoter_id  UUID REFERENCES promoters(id) ON DELETE CASCADE,
+  date         DATE NOT NULL,
+  old_type     TEXT,            -- previous shift_type (NULL = new)
+  new_type     TEXT,            -- new shift_type (NULL = deleted)
+  old_note     TEXT,
+  new_note     TEXT,
+  changed_by   TEXT NOT NULL,   -- user email or name
+  changed_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_changelog_promoter ON shift_change_log(promoter_id);
+CREATE INDEX idx_changelog_date ON shift_change_log(date);
+CREATE INDEX idx_changelog_changed_at ON shift_change_log(changed_at);`;
 
   const sqlQueries = `-- Common Queries
 
 -- 1. ดึงตารางกะของคนเดียว (เช่น ส่งแจ้งตารางกะ)
-SELECT s.date, s.shift_type, s.time_range,
+SELECT s.date, s.shift_type, s.time_range, s.note,
        st.name as store_name
 FROM shifts s
 LEFT JOIN stores st ON st.code = s.shift_type
@@ -104,7 +122,18 @@ DO UPDATE SET
 
 -- 6. ลบ shift (clear assignment)
 DELETE FROM shifts
-WHERE promoter_id = '...' AND date = '2024-03-15';`;
+WHERE promoter_id = '...' AND date = '2024-03-15';
+
+-- 7. บันทึก log เมื่อเปลี่ยนกะ
+INSERT INTO shift_change_log (shift_id, promoter_id, date, old_type, new_type, old_note, new_note, changed_by)
+VALUES ('...', '...', '2024-03-15', 'VDM', 'HDM', NULL, 'moved store', 'admin@company.com');
+
+-- 8. ดู log การเปลี่ยนกะของคนเดียว
+SELECT cl.changed_at, cl.old_type, cl.new_type, cl.old_note, cl.new_note, cl.changed_by
+FROM shift_change_log cl
+WHERE cl.promoter_id = '...'
+  AND cl.date = '2024-03-15'
+ORDER BY cl.changed_at DESC;`;
 
   return (
     <div className="schema-page">
@@ -152,6 +181,20 @@ WHERE promoter_id = '...' AND date = '2024-03-15';`;
             <div className="erd-col">time_range TEXT?</div>
             <div className="erd-col">note TEXT?</div>
             <div className="erd-col erd-constraint">UNIQUE(promoter_id, date)</div>
+          </div>
+
+          <div className="erd-table">
+            <div className="erd-title">shift_change_log</div>
+            <div className="erd-col"><span className="erd-pk">id</span> UUID PK</div>
+            <div className="erd-col"><span className="erd-fk">shift_id</span> UUID FK?</div>
+            <div className="erd-col"><span className="erd-fk">promoter_id</span> UUID FK</div>
+            <div className="erd-col">date DATE</div>
+            <div className="erd-col">old_type TEXT?</div>
+            <div className="erd-col">new_type TEXT?</div>
+            <div className="erd-col">old_note TEXT?</div>
+            <div className="erd-col">new_note TEXT?</div>
+            <div className="erd-col">changed_by TEXT</div>
+            <div className="erd-col">changed_at TIMESTAMPTZ</div>
           </div>
         </div>
       </div>

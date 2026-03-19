@@ -99,11 +99,14 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   };
 
   const handleNoteKeyDown = (e: React.KeyboardEvent, promoterId: string, date: string) => {
-    if (e.key === 'Enter') {
-      handleNoteSave(promoterId, date);
-    } else if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       setEditingNote(null);
       setNoteText('');
+    }
+    // Enter inside textarea creates newline; save via button or blur
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleNoteSave(promoterId, date);
     }
   };
 
@@ -203,7 +206,6 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                 <div
                   key={dateStr}
                   className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass} ${shift?.note ? 'has-note' : ''}`}
-                  title={shift?.note || undefined}
                   onDoubleClick={() => {
                     if (shift && shift.type && shift.type !== '-') {
                       handleNoteClick(cellKey, shift.note || '');
@@ -218,16 +220,25 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                   {shift?.timeRange && (
                     <span className="shift-time">{shift.timeRange}</span>
                   )}
+                  {shift?.note && (
+                    <span className="note-tooltip">{shift.note}</span>
+                  )}
                   {shift && shift.type && shift.type !== '-' && isEditingNote && (
-                    <input
-                      className="shift-note-input"
-                      value={noteText}
-                      onChange={(e) => setNoteText(e.target.value)}
-                      onBlur={() => handleNoteSave(promoter.id, dateStr)}
-                      onKeyDown={(e) => handleNoteKeyDown(e, promoter.id, dateStr)}
-                      placeholder="note..."
-                      autoFocus
-                    />
+                    <div className="note-overlay" onClick={(e) => e.stopPropagation()}>
+                      <textarea
+                        className="note-textarea"
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        onKeyDown={(e) => handleNoteKeyDown(e, promoter.id, dateStr)}
+                        placeholder="Add note..."
+                        autoFocus
+                        rows={3}
+                      />
+                      <div className="note-actions">
+                        <button className="note-btn note-btn-cancel" onClick={() => { setEditingNote(null); setNoteText(''); }}>Cancel</button>
+                        <button className="note-btn note-btn-save" onClick={() => handleNoteSave(promoter.id, dateStr)}>Save</button>
+                      </div>
+                    </div>
                   )}
                 </div>
               );
