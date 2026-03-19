@@ -1,0 +1,130 @@
+.pc-section {
+  margin-bottom: 32px;
+}
+.pc-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.pc-section-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+/* Preference grid */
+.expand-row td {
+  padding: 12px 16px !important;
+  background: #f8fafc;
+}
+.pref-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pref-chip {
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 60px;
+}
+.pref-chip:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.pref-chip-code {
+  font-size: 12px;
+  font-weight: 700;
+}
+.pref-chip-label {
+  font-size: 10px;
+  font-weight: 600;
+}
+.pref-none {
+  border-color: #e2e8f0;
+  color: var(--text-muted);
+}
+.pref-none .pref-chip-label { color: var(--text-muted); }
+.pref-must {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #15803d;
+}
+.pref-must .pref-chip-label { color: #16a34a; }
+.pref-preferred {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1e40af;
+}
+.pref-preferred .pref-chip-label { color: #2563eb; }
+.pref-banned {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.pref-banned .pref-chip-label { color: #dc2626; }
+
+.pref-summary {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Conflict form */
+.conflict-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.conflict-select {
+  width: 180px;
+}
+.conflict-reason {
+  width: 200px;
+}
+.conflict-vs {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Conflict list */
+.conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.conflict-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+.conflict-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.conflict-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.conflict-reason-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+}

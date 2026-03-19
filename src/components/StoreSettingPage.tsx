@@ -14,6 +14,7 @@ const EMPTY_STORE: Omit<Store, 'id'> = {
   openTime: '10:00',
   closeTime: '22:00',
   extraAllowance: '',
+  maxCapacity: undefined,
 };
 
 const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => {
@@ -42,6 +43,7 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
       openTime: store.openTime,
       closeTime: store.closeTime,
       extraAllowance: store.extraAllowance || '',
+      maxCapacity: store.maxCapacity,
     });
     setEditingId(store.id);
     setShowForm(true);
@@ -55,7 +57,7 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
       onStoresChange(
         stores.map((s) =>
           s.id === editingId
-            ? { ...s, ...form, extraAllowance: form.extraAllowance || undefined }
+            ? { ...s, ...form, extraAllowance: form.extraAllowance || undefined, maxCapacity: form.maxCapacity || undefined }
             : s
         )
       );
@@ -69,6 +71,7 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
         openTime: form.openTime,
         closeTime: form.closeTime,
         extraAllowance: form.extraAllowance || undefined,
+        maxCapacity: form.maxCapacity || undefined,
       };
       onStoresChange([...stores, newStore]);
     }
@@ -172,6 +175,17 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
               />
             </div>
             <div className="form-field">
+              <label>Max Capacity</label>
+              <input
+                type="number"
+                className="form-input"
+                placeholder="e.g. 4"
+                min={1}
+                value={form.maxCapacity ?? ''}
+                onChange={(e) => setForm({ ...form, maxCapacity: e.target.value ? Number(e.target.value) : undefined })}
+              />
+            </div>
+            <div className="form-field">
               <label>Visible in Shift Table</label>
               <button
                 type="button"
@@ -209,6 +223,7 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
               <th style={{ width: 90 }}>Close</th>
               <th style={{ width: 80 }}>Hours</th>
               <th style={{ width: 120 }}>Allowance</th>
+              <th style={{ width: 70 }}>Max</th>
               <th style={{ width: 140 }}>Actions</th>
             </tr>
           </thead>
@@ -253,6 +268,13 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
                     )}
                   </td>
                   <td className="cell-center">
+                    {store.maxCapacity ? (
+                      <span className="hours-badge">{store.maxCapacity}</span>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </td>
+                  <td className="cell-center">
                     <button className="btn btn-small btn-ghost" onClick={() => openEditForm(store)}>
                       Edit
                     </button>
@@ -265,7 +287,7 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="cell-center text-muted" style={{ padding: '32px' }}>
+                <td colSpan={10} className="cell-center text-muted" style={{ padding: '32px' }}>
                   No stores found
                 </td>
               </tr>

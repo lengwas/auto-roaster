@@ -14,6 +14,7 @@ CREATE TABLE stores (
   open_time   TIME NOT NULL,
   close_time  TIME NOT NULL,
   extra_allowance TEXT,
+  max_capacity   INT,            -- max promoters per day (NULL = unlimited)
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -70,7 +71,27 @@ CREATE TABLE shift_change_log (
 
 CREATE INDEX idx_changelog_promoter ON shift_change_log(promoter_id);
 CREATE INDEX idx_changelog_date ON shift_change_log(date);
-CREATE INDEX idx_changelog_changed_at ON shift_change_log(changed_at);`;
+CREATE INDEX idx_changelog_changed_at ON shift_change_log(changed_at);
+
+-- 6. Store preferences per promoter (must/preferred/banned)
+CREATE TABLE promoter_store_preferences (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  promoter_id  UUID REFERENCES promoters(id) ON DELETE CASCADE,
+  store_id     UUID REFERENCES stores(id) ON DELETE CASCADE,
+  preference   TEXT NOT NULL CHECK (preference IN ('must','preferred','banned')),
+  UNIQUE(promoter_id, store_id)
+);
+
+-- 7. Promoter conflicts (pairs that should not work same store same day)
+CREATE TABLE promoter_conflicts (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  promoter_a_id  UUID REFERENCES promoters(id) ON DELETE CASCADE,
+  promoter_b_id  UUID REFERENCES promoters(id) ON DELETE CASCADE,
+  reason         TEXT,
+  created_at     TIMESTAMPTZ DEFAULT now(),
+  CHECK (promoter_a_id < promoter_b_id),
+  UNIQUE(promoter_a_id, promoter_b_id)
+);`;
 
   const sqlQueries = `-- Common Queries
 
@@ -155,6 +176,7 @@ ORDER BY cl.changed_at DESC;`;
             <div className="erd-col">open_time TIME</div>
             <div className="erd-col">close_time TIME</div>
             <div className="erd-col">extra_allowance TEXT?</div>
+            <div className="erd-col">max_capacity INT?</div>
           </div>
 
           <div className="erd-table">
@@ -195,6 +217,24 @@ ORDER BY cl.changed_at DESC;`;
             <div className="erd-col">new_note TEXT?</div>
             <div className="erd-col">changed_by TEXT</div>
             <div className="erd-col">changed_at TIMESTAMPTZ</div>
+          </div>
+
+          <div className="erd-table">
+            <div className="erd-title">promoter_store_preferences</div>
+            <div className="erd-col"><span className="erd-pk">id</span> UUID PK</div>
+            <div className="erd-col"><span className="erd-fk">promoter_id</span> UUID FK</div>
+            <div className="erd-col"><span className="erd-fk">store_id</span> UUID FK</div>
+            <div className="erd-col">preference TEXT</div>
+            <div className="erd-col erd-constraint">UNIQUE(promoter_id, store_id)</div>
+          </div>
+
+          <div className="erd-table">
+            <div className="erd-title">promoter_conflicts</div>
+            <div className="erd-col"><span className="erd-pk">id</span> UUID PK</div>
+            <div className="erd-col"><span className="erd-fk">promoter_a_id</span> UUID FK</div>
+            <div className="erd-col"><span className="erd-fk">promoter_b_id</span> UUID FK</div>
+            <div className="erd-col">reason TEXT?</div>
+            <div className="erd-col erd-constraint">CHECK(a_id &lt; b_id)</div>
           </div>
         </div>
       </div>

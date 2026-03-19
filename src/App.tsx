@@ -4,8 +4,8 @@ import PCSettingPage from './components/PCSettingPage';
 import StoreSettingPage from './components/StoreSettingPage';
 import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
-import { mockStores, mockPromoters, mockShifts, shiftDates, generateStoreCounts } from './data/mockData';
-import type { Store } from './types/types';
+import { mockStores, mockPromoters, mockShifts, shiftDates, generateStoreCounts, mockStorePreferences, mockPromoterConflicts } from './data/mockData';
+import type { Store, StorePreference, PromoterConflict } from './types/types';
 import './App.css';
 
 type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'db-schema';
@@ -22,6 +22,8 @@ function App() {
   const [stores, setStores] = useState<Store[]>(mockStores);
   const [shifts, setShifts] = useState(mockShifts);
   const [showExport, setShowExport] = useState(false);
+  const [storePreferences, setStorePreferences] = useState<StorePreference[]>(mockStorePreferences);
+  const [promoterConflicts, setPromoterConflicts] = useState<PromoterConflict[]>(mockPromoterConflicts);
 
   const storeCounts = useMemo(
     () => generateStoreCounts(stores, shiftDates, shifts),
@@ -86,7 +88,14 @@ function App() {
           />
         )}
         {activeTab === 'pc-setting' && (
-          <PCSettingPage promoters={mockPromoters} />
+          <PCSettingPage
+            promoters={mockPromoters}
+            stores={stores}
+            storePreferences={storePreferences}
+            onPreferencesChange={setStorePreferences}
+            promoterConflicts={promoterConflicts}
+            onConflictsChange={setPromoterConflicts}
+          />
         )}
         {activeTab === 'store-setting' && (
           <StoreSettingPage stores={stores} onStoresChange={setStores} />

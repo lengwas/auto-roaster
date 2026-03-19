@@ -1,9 +1,9 @@
-import type { Store, Promoter, Shift, StoreCount } from '../types/types';
+import type { Store, Promoter, Shift, StoreCount, StorePreference, PromoterConflict } from '../types/types';
 
 export const mockStores: Store[] = [
   { id: '1', code: 'AIR', name: 'Airport City', active: true, openTime: '10:00', closeTime: '22:00' },
-  { id: '2', code: 'VDM', name: 'Vox Deira Mall', active: true, openTime: '16:00', closeTime: '23:00' },
-  { id: '3', code: 'VME', name: 'Vox Mall of Emirates', active: true, openTime: '14:00', closeTime: '23:00' },
+  { id: '2', code: 'VDM', name: 'Vox Deira Mall', active: true, openTime: '16:00', closeTime: '23:00', maxCapacity: 4 },
+  { id: '3', code: 'VME', name: 'Vox Mall of Emirates', active: true, openTime: '14:00', closeTime: '23:00', maxCapacity: 2 },
   { id: '4', code: 'VDH', name: 'Vox Dubai Hills', active: true, extraAllowance: '+10 AED', openTime: '15:00', closeTime: '23:00' },
   { id: '5', code: 'VNK', name: 'Vox Nakheel', active: true, extraAllowance: '+15 AED', openTime: '14:00', closeTime: '22:00' },
   { id: '6', code: 'VYM', name: 'Vox Yas Mall', active: true, openTime: '13:00', closeTime: '22:00' },
@@ -162,3 +162,27 @@ export const generateStoreCounts = (stores: Store[], dates: string[], shifts: Sh
 };
 
 export const storeCounts = generateStoreCounts(mockStores, shiftDates, mockShifts);
+
+// Mock store preferences
+export const mockStorePreferences: StorePreference[] = [
+  { promoterId: 'p1', storeCode: 'VDM', preference: 'must' },
+  { promoterId: 'p1', storeCode: 'JDM', preference: 'preferred' },
+  { promoterId: 'p1', storeCode: 'VNK', preference: 'banned' },
+  { promoterId: 'p2', storeCode: 'VME', preference: 'must' },
+  { promoterId: 'p2', storeCode: 'AIR', preference: 'banned' },
+  { promoterId: 'p3', storeCode: 'AIR', preference: 'must' },
+  { promoterId: 'p3', storeCode: 'VRM', preference: 'preferred' },
+  { promoterId: 'p4', storeCode: 'VDH', preference: 'must' },
+  { promoterId: 'p5', storeCode: 'VME', preference: 'preferred' },
+  { promoterId: 'p5', storeCode: 'VDM', preference: 'banned' },
+  { promoterId: 'p6', storeCode: 'SDM', preference: 'must' },
+  { promoterId: 'p7', storeCode: 'VYM', preference: 'must' },
+  { promoterId: 'p7', storeCode: 'VAY', preference: 'preferred' },
+];
+
+// Mock promoter conflicts
+export const mockPromoterConflicts: PromoterConflict[] = [
+  { id: 'c1', promoterAId: 'p1', promoterBId: 'p10', reason: 'Personal conflict' },
+  { id: 'c2', promoterAId: 'p5', promoterBId: 'p11', reason: 'Same skill set — avoid overlap' },
+  { id: 'c3', promoterAId: 'p3', promoterBId: 'p16', reason: 'Schedule clash history' },
+];
