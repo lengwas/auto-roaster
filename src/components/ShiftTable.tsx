@@ -185,7 +185,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                     <optgroup label="Stores">
                       {activeStores.map((store) => (
                         <option key={store.id} value={store.code}>
-                          {store.code} ({store.openTime}-{store.closeTime})
+                          {store.code}
                         </option>
                       ))}
                     </optgroup>
