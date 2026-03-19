@@ -19,6 +19,12 @@ const DatabaseSchemaPage = ({ stores, promoters, shifts }: DatabaseSchemaPagePro
     return m;
   }, [promoters]);
 
+  const storeMap = useMemo(() => {
+    const m = new Map<string, Store>();
+    stores.forEach((s) => m.set(s.code, s));
+    return m;
+  }, [stores]);
+
   // Only shifts that are actually assigned (not empty)
   const assignedShifts = useMemo(
     () => shifts.filter((s) => s.type && s.type !== '-'),
@@ -207,40 +213,41 @@ WHERE promoter_id = '...' AND date = '2024-03-15';`;
         </div>
       </div>
 
-      {/* Live data preview */}
+      {/* Flat view: 1 row = 1 day = 1 person = 1 store = 1 open = 1 close */}
       <div className="schema-section">
-        <h3>Live Data Preview — shifts table</h3>
+        <h3>Flat View — 1 row = 1 day + 1 person + 1 store + open + close</h3>
         <p className="schema-hint">
-          Showing {sampleShifts.length} of {assignedShifts.toLocaleString()} assigned rows
-          ({promoters.filter(p => p.active).length} promoters)
+          Showing {sampleShifts.length} of {assignedShifts.toLocaleString()} assigned rows — only people with assigned shifts are stored
         </p>
         <div className="schema-table-wrap">
           <table className="schema-table">
             <thead>
               <tr>
-                <th>id</th>
-                <th>promoter_id</th>
-                <th>promoter (name)</th>
                 <th>date</th>
+                <th>promoter</th>
                 <th>shift_type</th>
-                <th>time_range</th>
+                <th>store_name</th>
+                <th>open_time</th>
+                <th>close_time</th>
               </tr>
             </thead>
             <tbody>
               {sampleShifts.map((s) => {
                 const p = promoterMap.get(s.promoterId);
+                const store = storeMap.get(s.type);
+                const isSpecial = s.type === 'Off' || s.type === 'LOP' || s.type === 'SL';
                 return (
                   <tr key={s.id}>
-                    <td className="mono">{s.id.substring(0, 12)}...</td>
-                    <td className="mono">{s.promoterId}</td>
-                    <td>{p?.name || '-'}</td>
                     <td className="mono">{s.date}</td>
+                    <td>{p?.name || '-'}</td>
                     <td>
-                      <span className={`type-badge type-${s.type === 'Off' || s.type === 'LOP' || s.type === 'SL' ? 'special' : 'store'}`}>
+                      <span className={`type-badge type-${isSpecial ? 'special' : 'store'}`}>
                         {s.type}
                       </span>
                     </td>
-                    <td className="mono">{s.timeRange || 'NULL'}</td>
+                    <td>{isSpecial ? <span className="mono null-text">—</span> : (store?.name || s.type)}</td>
+                    <td className="mono">{isSpecial ? <span className="null-text">—</span> : (store?.openTime || '-')}</td>
+                    <td className="mono">{isSpecial ? <span className="null-text">—</span> : (store?.closeTime || '-')}</td>
                   </tr>
                 );
               })}
@@ -249,14 +256,13 @@ WHERE promoter_id = '...' AND date = '2024-03-15';`;
         </div>
       </div>
 
-      {/* Stores table preview */}
+      {/* Stores reference table */}
       <div className="schema-section">
-        <h3>Live Data Preview — stores table</h3>
+        <h3>Reference — stores table</h3>
         <div className="schema-table-wrap">
           <table className="schema-table">
             <thead>
               <tr>
-                <th>id</th>
                 <th>code</th>
                 <th>name</th>
                 <th>active</th>
@@ -268,7 +274,6 @@ WHERE promoter_id = '...' AND date = '2024-03-15';`;
             <tbody>
               {stores.map((s) => (
                 <tr key={s.id} className={!s.active ? 'row-dim' : ''}>
-                  <td className="mono">{s.id}</td>
                   <td><span className="type-badge type-store">{s.code}</span></td>
                   <td>{s.name}</td>
                   <td>{s.active ? 'true' : 'false'}</td>

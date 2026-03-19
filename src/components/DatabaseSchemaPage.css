@@ -206,6 +206,11 @@
   color: #64748b;
 }
 
+.null-text {
+  color: #94a3b8;
+  font-style: italic;
+}
+
 /* SQL blocks */
 .sql-block {
   background: #1e293b;
