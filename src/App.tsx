@@ -90,7 +90,7 @@ function App() {
           <StoreSettingPage stores={stores} onStoresChange={setStores} />
         )}
         {activeTab === 'db-schema' && (
-          <DatabaseSchemaPage stores={stores} promoters={mockPromoters} shifts={shifts} />
+          <DatabaseSchemaPage />
         )}
       </main>
 

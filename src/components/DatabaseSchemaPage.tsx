@@ -1,37 +1,6 @@
-import { useMemo } from 'react';
-import type { Store, Promoter, Shift } from '../types/types';
 import './DatabaseSchemaPage.css';
 
-interface DatabaseSchemaPageProps {
-  stores: Store[];
-  promoters: Promoter[];
-  shifts: Shift[];
-}
-
-// Show only a sample of shifts for the preview
-const SAMPLE_LIMIT = 20;
-
-const DatabaseSchemaPage = ({ stores, promoters, shifts }: DatabaseSchemaPageProps) => {
-  // Build lookups
-  const promoterMap = useMemo(() => {
-    const m = new Map<string, Promoter>();
-    promoters.forEach((p) => m.set(p.id, p));
-    return m;
-  }, [promoters]);
-
-  const storeMap = useMemo(() => {
-    const m = new Map<string, Store>();
-    stores.forEach((s) => m.set(s.code, s));
-    return m;
-  }, [stores]);
-
-  // Only shifts that are actually assigned (not empty)
-  const assignedShifts = useMemo(
-    () => shifts.filter((s) => s.type && s.type !== '-'),
-    [shifts]
-  );
-
-  const sampleShifts = assignedShifts.slice(0, SAMPLE_LIMIT);
+const DatabaseSchemaPage = () => {
 
   // SQL CREATE statements
   const sqlSchema = `-- Supabase / PostgreSQL Schema
@@ -210,80 +179,6 @@ WHERE promoter_id = '...' AND date = '2024-03-15';`;
               <li>ไม่ standard, ไม่แนะนำ</li>
             </ul>
           </div>
-        </div>
-      </div>
-
-      {/* Flat view: 1 row = 1 day = 1 person = 1 store = 1 open = 1 close */}
-      <div className="schema-section">
-        <h3>Flat View — 1 row = 1 day + 1 person + 1 store + open + close</h3>
-        <p className="schema-hint">
-          Showing {sampleShifts.length} of {assignedShifts.toLocaleString()} assigned rows — only people with assigned shifts are stored
-        </p>
-        <div className="schema-table-wrap">
-          <table className="schema-table">
-            <thead>
-              <tr>
-                <th>date</th>
-                <th>promoter</th>
-                <th>shift_type</th>
-                <th>store_name</th>
-                <th>open_time</th>
-                <th>close_time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sampleShifts.map((s) => {
-                const p = promoterMap.get(s.promoterId);
-                const store = storeMap.get(s.type);
-                const isSpecial = s.type === 'Off' || s.type === 'LOP' || s.type === 'SL';
-                return (
-                  <tr key={s.id}>
-                    <td className="mono">{s.date}</td>
-                    <td>{p?.name || '-'}</td>
-                    <td>
-                      <span className={`type-badge type-${isSpecial ? 'special' : 'store'}`}>
-                        {s.type}
-                      </span>
-                    </td>
-                    <td>{isSpecial ? <span className="mono null-text">—</span> : (store?.name || s.type)}</td>
-                    <td className="mono">{isSpecial ? <span className="null-text">—</span> : (store?.openTime || '-')}</td>
-                    <td className="mono">{isSpecial ? <span className="null-text">—</span> : (store?.closeTime || '-')}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Stores reference table */}
-      <div className="schema-section">
-        <h3>Reference — stores table</h3>
-        <div className="schema-table-wrap">
-          <table className="schema-table">
-            <thead>
-              <tr>
-                <th>code</th>
-                <th>name</th>
-                <th>active</th>
-                <th>open_time</th>
-                <th>close_time</th>
-                <th>extra_allowance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stores.map((s) => (
-                <tr key={s.id} className={!s.active ? 'row-dim' : ''}>
-                  <td><span className="type-badge type-store">{s.code}</span></td>
-                  <td>{s.name}</td>
-                  <td>{s.active ? 'true' : 'false'}</td>
-                  <td className="mono">{s.openTime}</td>
-                  <td className="mono">{s.closeTime}</td>
-                  <td className="mono">{s.extraAllowance || 'NULL'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
 
