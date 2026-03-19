@@ -20,6 +20,9 @@
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
+.modal-wide {
+  width: 860px;
+}
 
 .modal-header {
   display: flex;
@@ -210,3 +213,184 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ================================ */
+/* Schedule Card (Image Export)     */
+/* ================================ */
+.card-preview-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.schedule-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 480px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.card-header {
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  color: white;
+  padding: 18px 20px;
+}
+.card-name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  margin-bottom: 4px;
+}
+.card-date-range {
+  font-size: 13px;
+  opacity: 0.85;
+  font-weight: 500;
+}
+
+.card-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.card-table thead {
+  background: #f8fafc;
+}
+.card-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  border-bottom: 2px solid #e2e8f0;
+}
+.card-th-day { width: 50px; }
+.card-th-date { width: 55px; }
+.card-th-assignment { }
+.card-th-time { width: 90px; text-align: right; }
+
+.card-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12.5px;
+  color: #334155;
+}
+
+.card-td-day {
+  font-weight: 600;
+  color: #64748b;
+}
+.card-td-date {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  color: #64748b;
+}
+.card-td-time {
+  text-align: right;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Row types */
+.card-row-work .card-td-assignment {
+  color: #166534;
+  font-weight: 600;
+}
+.card-row-off {
+  background: #fef2f2;
+}
+.card-row-off .card-td-assignment {
+  color: #991b1b;
+  font-weight: 600;
+}
+.card-row-lop {
+  background: #fffbeb;
+}
+.card-row-lop .card-td-assignment {
+  color: #92400e;
+  font-weight: 600;
+}
+.card-row-sl {
+  background: #fdf2f8;
+}
+.card-row-sl .card-td-assignment {
+  color: #9d174d;
+  font-weight: 600;
+}
+.card-row-none .card-td-assignment {
+  color: #94a3b8;
+}
+.card-row-weekend {
+  background-color: #f8fafc;
+}
+.card-row-weekend.card-row-off {
+  background-color: #fef2f2;
+}
+.card-row-weekend.card-row-lop {
+  background-color: #fffbeb;
+}
+.card-row-weekend.card-row-sl {
+  background-color: #fdf2f8;
+}
+
+/* Colored dot indicators */
+.card-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.card-dot-work { background: #22c55e; }
+.card-dot-off { background: #ef4444; }
+.card-dot-lop { background: #f59e0b; }
+.card-dot-sl { background: #ec4899; }
+.card-dot-none { background: #cbd5e1; }
+
+.card-note {
+  font-weight: 400;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+/* Card footer */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+.card-legend {
+  display: flex;
+  gap: 12px;
+}
+.card-legend-item {
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+}
+.card-summary {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Download button (hidden in export) */
+.card-download-btn-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  background: var(--bg-surface);
+}
+/* html2canvas will capture .schedule-card, this button is outside the card boundary */
