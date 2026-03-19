@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Store } from '../types/types';
 import './SettingPage.css';
 

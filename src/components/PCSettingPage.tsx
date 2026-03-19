@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Promoter } from '../types/types';
 import './SettingPage.css';
 

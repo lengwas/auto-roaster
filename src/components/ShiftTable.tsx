@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Store, Promoter, Shift, StoreCount } from '../types/types';
 import './ShiftTable.css';
 
