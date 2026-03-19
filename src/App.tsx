@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import ShiftTable from './components/ShiftTable';
 import PCSettingPage from './components/PCSettingPage';
 import StoreSettingPage from './components/StoreSettingPage';
+import ExportModal from './components/ExportModal';
 import { mockStores, mockPromoters, mockShifts, shiftDates, generateStoreCounts } from './data/mockData';
 import type { Store } from './types/types';
 import './App.css';
@@ -18,6 +19,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('shift');
   const [stores, setStores] = useState<Store[]>(mockStores);
   const [shifts, setShifts] = useState(mockShifts);
+  const [showExport, setShowExport] = useState(false);
 
   const storeCounts = useMemo(
     () => generateStoreCounts(stores, shiftDates, shifts),
@@ -50,7 +52,9 @@ function App() {
           <p className="app-subtitle">Shift Assignment & Store Allocation</p>
         </div>
         <div className="header-right">
-          <button className="btn-export">Export Data</button>
+          <button className="btn-export" onClick={() => setShowExport(true)}>
+            Export Data
+          </button>
         </div>
       </header>
 
@@ -84,6 +88,16 @@ function App() {
           <StoreSettingPage stores={stores} onStoresChange={setStores} />
         )}
       </main>
+
+      {showExport && (
+        <ExportModal
+          promoters={mockPromoters}
+          shifts={shifts}
+          stores={stores}
+          dates={shiftDates}
+          onClose={() => setShowExport(false)}
+        />
+      )}
     </div>
   );
 }
