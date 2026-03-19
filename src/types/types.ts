@@ -4,6 +4,8 @@ export interface Store {
   name: string;
   active: boolean;
   extraAllowance?: string;
+  openTime: string;  // e.g. "10:00"
+  closeTime: string; // e.g. "23:00"
 }
 
 export interface Promoter {
@@ -14,7 +16,7 @@ export interface Promoter {
   workingDays: string;
 }
 
-export type ShiftType = 'VDM' | 'VDH' | 'VME' | 'BDM' | 'JME' | 'AIR' | 'VAY' | 'LOP' | 'Off' | 'SL';
+export type ShiftType = string; // store code or 'LOP' | 'Off' | 'SL'
 
 export interface Shift {
   id: string;
@@ -30,3 +32,6 @@ export interface StoreCount {
   date: string;
   count: number;
 }
+
+// Special shift options that aren't stores
+export const SPECIAL_SHIFTS = ['Off', 'LOP', 'SL'] as const;

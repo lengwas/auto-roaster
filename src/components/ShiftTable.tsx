@@ -1,4 +1,6 @@
+import { useCallback } from 'react';
 import type { Store, Promoter, Shift, StoreCount } from '../types/types';
+import { SPECIAL_SHIFTS } from '../types/types';
 import './ShiftTable.css';
 
 interface ShiftTableProps {
@@ -7,6 +9,7 @@ interface ShiftTableProps {
   shifts: Shift[];
   storeCounts: StoreCount[];
   dates: string[];
+  onShiftChange?: (promoterId: string, date: string, newType: string, timeRange?: string) => void;
 }
 
 const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -23,20 +26,18 @@ function formatDate(dateStr: string): { day: string; date: string; dow: string; 
   };
 }
 
+const SHIFT_COLOR_MAP: Record<string, string> = {
+  VDM: 'shift-vdm', VDH: 'shift-vdh', VME: 'shift-vme',
+  BDM: 'shift-bdm', JME: 'shift-jme', AIR: 'shift-air',
+  VAY: 'shift-vay', VYM: 'shift-vym', VRM: 'shift-vrm',
+  VMF: 'shift-vmf', VMN: 'shift-vmn', VNK: 'shift-vnk',
+  JDM: 'shift-jdm', JDH: 'shift-jdh', SDM: 'shift-sdm',
+  HDM: 'shift-hdm',
+  LOP: 'shift-lop', Off: 'shift-off', SL: 'shift-sl',
+};
+
 function getShiftClass(type: string): string {
-  const map: Record<string, string> = {
-    VDM: 'shift-vdm',
-    VDH: 'shift-vdh',
-    VME: 'shift-vme',
-    BDM: 'shift-bdm',
-    JME: 'shift-jme',
-    AIR: 'shift-air',
-    VAY: 'shift-vay',
-    LOP: 'shift-lop',
-    Off: 'shift-off',
-    SL: 'shift-sl',
-  };
-  return map[type] || '';
+  return SHIFT_COLOR_MAP[type] || 'shift-store-default';
 }
 
 function getTodayStr(): string {
@@ -44,7 +45,7 @@ function getTodayStr(): string {
   return d.toISOString().split('T')[0];
 }
 
-const ShiftTable: React.FC<ShiftTableProps> = ({ stores, promoters, shifts, storeCounts, dates }) => {
+const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange }: ShiftTableProps) => {
   const shiftMap = new Map<string, Shift>();
   shifts.forEach((s) => {
     shiftMap.set(`${s.promoterId}_${s.date}`, s);
@@ -55,30 +56,47 @@ const ShiftTable: React.FC<ShiftTableProps> = ({ stores, promoters, shifts, stor
     countMap.set(`${sc.storeId}_${sc.date}`, sc.count);
   });
 
+  // Build store lookup for time ranges
+  const storeByCode = new Map<string, Store>();
+  stores.filter(s => s.active).forEach(s => storeByCode.set(s.code, s));
+
   const dateInfos = dates.map(formatDate);
   const todayStr = getTodayStr();
+
+  const activeStores = stores.filter(s => s.active);
+
+  const handleChange = useCallback((promoterId: string, date: string, value: string) => {
+    if (!onShiftChange) return;
+    if (value === '-') {
+      onShiftChange(promoterId, date, '', undefined);
+      return;
+    }
+    if (SPECIAL_SHIFTS.includes(value as typeof SPECIAL_SHIFTS[number])) {
+      onShiftChange(promoterId, date, value, undefined);
+      return;
+    }
+    // It's a store code — get time range from store
+    const store = storeByCode.get(value);
+    const timeRange = store ? `${store.openTime}-${store.closeTime}` : undefined;
+    onShiftChange(promoterId, date, value, timeRange);
+  }, [onShiftChange, storeByCode]);
 
   return (
     <div className="table-container">
       <div className="shift-grid">
         {/* ===== HEADER SECTION (Sticky Top) ===== */}
         <div className="header-section">
-          {/* Row 1: Date numbers */}
           <div className="grid-row header-date-row">
             <div className="cell cell-fixed-left col-name">Locked</div>
             <div className="cell cell-fixed-left-2 col-stores"></div>
             <div className="cell cell-fixed-left-3 col-day"></div>
             {dates.map((dateStr, i) => (
-              <div
-                key={dateStr}
-                className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''}`}
-              >
+              <div key={dateStr} className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''}`}>
                 {dateInfos[i].date}
               </div>
             ))}
           </div>
 
-          {/* Row 2: Day of week */}
           <div className="grid-row header-dow-row">
             <div className="cell cell-fixed-left col-name" style={{ fontWeight: 700 }}>Name</div>
             <div className="cell cell-fixed-left-2 col-stores" style={{ fontWeight: 700 }}>Stores</div>
@@ -115,7 +133,8 @@ const ShiftTable: React.FC<ShiftTableProps> = ({ stores, promoters, shifts, stor
                 <div className="cell cell-fixed-left-2 col-stores" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)' }}>
                   {store.name}
                 </div>
-                <div className="cell cell-fixed-left-3 col-day" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)' }}>
+                <div className="cell cell-fixed-left-3 col-day" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  {store.openTime}-{store.closeTime}
                 </div>
                 {dates.map((dateStr) => {
                   const count = countMap.get(`${store.id}_${dateStr}`) ?? 0;
@@ -136,7 +155,7 @@ const ShiftTable: React.FC<ShiftTableProps> = ({ stores, promoters, shifts, stor
           })}
         </div>
 
-        {/* ===== PROMOTER SECTION (Scrollable) ===== */}
+        {/* ===== PROMOTER SECTION (Scrollable with dropdowns) ===== */}
         <div className="section-spacer">Promoters ({promoters.filter(p => p.active).length} Active)</div>
         {promoters.filter(p => p.active).map((promoter) => (
           <div key={promoter.id} className="grid-row promoter-row">
@@ -157,15 +176,27 @@ const ShiftTable: React.FC<ShiftTableProps> = ({ stores, promoters, shifts, stor
                   key={dateStr}
                   className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass}`}
                 >
-                  {shift ? (
-                    <div className="shift-cell-content">
-                      <span className="shift-type">{shift.type}</span>
-                      {shift.timeRange && (
-                        <span className="shift-time">{shift.timeRange}</span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-dash">-</span>
+                  <select
+                    className="shift-select"
+                    value={shift?.type || '-'}
+                    onChange={(e) => handleChange(promoter.id, dateStr, e.target.value)}
+                  >
+                    <option value="-">-</option>
+                    <optgroup label="Stores">
+                      {activeStores.map((store) => (
+                        <option key={store.id} value={store.code}>
+                          {store.code} ({store.openTime}-{store.closeTime})
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Other">
+                      {SPECIAL_SHIFTS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  {shift?.timeRange && (
+                    <span className="shift-time">{shift.timeRange}</span>
                   )}
                 </div>
               );

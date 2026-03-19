@@ -1,22 +1,22 @@
 import type { Store, Promoter, Shift, StoreCount } from '../types/types';
 
 export const mockStores: Store[] = [
-  { id: '1', code: 'AIR', name: 'Airport City', active: true },
-  { id: '2', code: 'VDM', name: 'Vox Deira Mall', active: true },
-  { id: '3', code: 'VME', name: 'Vox Mall of Emirates', active: true },
-  { id: '4', code: 'VDH', name: 'Vox Dubai Hills', active: true, extraAllowance: '+10 AED' },
-  { id: '5', code: 'VNK', name: 'Vox Nakheel', active: true, extraAllowance: '+15 AED' },
-  { id: '6', code: 'VYM', name: 'Vox Yas Mall', active: true },
-  { id: '7', code: 'VAY', name: 'Vox Al Ain', active: true },
-  { id: '8', code: 'VRM', name: 'Vox Reel Mall', active: true },
-  { id: '9', code: 'VMF', name: 'Vox Mirdif', active: true },
-  { id: '10', code: 'VMN', name: 'Vox Marina', active: true },
-  { id: '11', code: 'JDM', name: 'Jumbo Deira', active: true },
-  { id: '12', code: 'JME', name: 'Jumbo MOE', active: true },
-  { id: '13', code: 'JDH', name: 'Jumbo Dubai Hills', active: true, extraAllowance: '+10 AED' },
-  { id: '14', code: 'SDM', name: 'Sharaf DG Mall', active: true },
-  { id: '15', code: 'BDM', name: 'Best Al Barsha', active: true },
-  { id: '16', code: 'HDM', name: 'Home Deira', active: true },
+  { id: '1', code: 'AIR', name: 'Airport City', active: true, openTime: '10:00', closeTime: '22:00' },
+  { id: '2', code: 'VDM', name: 'Vox Deira Mall', active: true, openTime: '16:00', closeTime: '23:00' },
+  { id: '3', code: 'VME', name: 'Vox Mall of Emirates', active: true, openTime: '14:00', closeTime: '23:00' },
+  { id: '4', code: 'VDH', name: 'Vox Dubai Hills', active: true, extraAllowance: '+10 AED', openTime: '15:00', closeTime: '23:00' },
+  { id: '5', code: 'VNK', name: 'Vox Nakheel', active: true, extraAllowance: '+15 AED', openTime: '14:00', closeTime: '22:00' },
+  { id: '6', code: 'VYM', name: 'Vox Yas Mall', active: true, openTime: '13:00', closeTime: '22:00' },
+  { id: '7', code: 'VAY', name: 'Vox Al Ain', active: true, openTime: '13:00', closeTime: '21:00' },
+  { id: '8', code: 'VRM', name: 'Vox Reel Mall', active: true, openTime: '14:00', closeTime: '22:00' },
+  { id: '9', code: 'VMF', name: 'Vox Mirdif', active: true, openTime: '15:00', closeTime: '23:00' },
+  { id: '10', code: 'VMN', name: 'Vox Marina', active: true, openTime: '14:00', closeTime: '23:00' },
+  { id: '11', code: 'JDM', name: 'Jumbo Deira', active: true, openTime: '10:00', closeTime: '22:00' },
+  { id: '12', code: 'JME', name: 'Jumbo MOE', active: true, openTime: '10:00', closeTime: '22:00' },
+  { id: '13', code: 'JDH', name: 'Jumbo Dubai Hills', active: true, extraAllowance: '+10 AED', openTime: '10:00', closeTime: '22:00' },
+  { id: '14', code: 'SDM', name: 'Sharaf DG Mall', active: true, openTime: '10:00', closeTime: '22:00' },
+  { id: '15', code: 'BDM', name: 'Best Al Barsha', active: true, openTime: '10:00', closeTime: '23:00' },
+  { id: '16', code: 'HDM', name: 'Home Deira', active: true, openTime: '10:00', closeTime: '22:00' },
 ];
 
 export const mockPromoters: Promoter[] = [
@@ -55,20 +55,6 @@ const getDates = (startDate: Date, days: number) => {
 
 export const shiftDates = getDates(new Date('2024-03-01'), 92); // Mar 1 - May 31
 
-// Shift types and their store associations
-const SHIFT_TYPES: Array<{ type: Shift['type']; timeRange?: string }> = [
-  { type: 'VDM', timeRange: '16:00-23:00' },
-  { type: 'VDH', timeRange: '15:00-22:00' },
-  { type: 'VME', timeRange: '14:00-22:00' },
-  { type: 'BDM', timeRange: '16:00-23:00' },
-  { type: 'JME', timeRange: '13:00-21:00' },
-  { type: 'AIR', timeRange: '10:00-18:00' },
-  { type: 'VAY', timeRange: '13:00-20:00' },
-  { type: 'LOP' },
-  { type: 'Off' },
-  { type: 'SL' },
-];
-
 // Seeded pseudo-random for consistent data
 function seededRandom(seed: number) {
   let s = seed;
@@ -79,7 +65,7 @@ function seededRandom(seed: number) {
 }
 
 // Generate realistic shifts for all promoters across all dates
-function generateShifts(promoters: Promoter[], dates: string[]): Shift[] {
+function generateShifts(promoters: Promoter[], stores: Store[], dates: string[]): Shift[] {
   const shifts: Shift[] = [];
   let id = 1;
   const rand = seededRandom(42);
@@ -87,6 +73,10 @@ function generateShifts(promoters: Promoter[], dates: string[]): Shift[] {
   const dayOffMap: Record<string, number> = {
     'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6,
   };
+
+  // Build store lookup for time ranges
+  const storeMap = new Map<string, Store>();
+  stores.forEach(s => storeMap.set(s.code, s));
 
   promoters.forEach((promoter) => {
     const dayOff = dayOffMap[promoter.workingDays] ?? -1;
@@ -116,30 +106,29 @@ function generateShifts(promoters: Promoter[], dates: string[]): Shift[] {
       // Assign a store shift based on the promoter's stores
       const storeLabels = promoter.storesLabel.split(',').map(s => s.trim()).filter(Boolean);
       if (storeLabels.length > 0) {
-        // Pick from their assigned stores
         const storeCode = storeLabels[Math.floor(rand() * storeLabels.length)];
-        const shiftDef = SHIFT_TYPES.find(st => st.type === storeCode);
-        if (shiftDef) {
+        const store = storeMap.get(storeCode);
+        if (store) {
           shifts.push({
             id: `s${id++}`,
             promoterId: promoter.id,
             date: dateStr,
-            type: shiftDef.type,
-            timeRange: shiftDef.timeRange,
+            type: store.code,
+            timeRange: `${store.openTime}-${store.closeTime}`,
           });
           return;
         }
       }
 
-      // Fallback: pick a random working shift
-      const workingShifts = SHIFT_TYPES.filter(s => s.type !== 'Off' && s.type !== 'LOP' && s.type !== 'SL');
-      const pick = workingShifts[Math.floor(rand() * workingShifts.length)];
+      // Fallback: pick a random active store
+      const activeStores = stores.filter(s => s.active);
+      const pick = activeStores[Math.floor(rand() * activeStores.length)];
       shifts.push({
         id: `s${id++}`,
         promoterId: promoter.id,
         date: dateStr,
-        type: pick.type,
-        timeRange: pick.timeRange,
+        type: pick.code,
+        timeRange: `${pick.openTime}-${pick.closeTime}`,
       });
     });
   });
@@ -147,16 +136,16 @@ function generateShifts(promoters: Promoter[], dates: string[]): Shift[] {
   return shifts;
 }
 
-export const mockShifts = generateShifts(mockPromoters, shiftDates);
+export const mockShifts = generateShifts(mockPromoters, mockStores, shiftDates);
 
 // Generate store counts from actual shift assignments
 export const generateStoreCounts = (stores: Store[], dates: string[], shifts: Shift[]): StoreCount[] => {
   const counts: StoreCount[] = [];
+  const specialShifts = new Set(['Off', 'LOP', 'SL']);
 
-  // Count how many promoters are assigned to each store code per date
   const shiftCountMap = new Map<string, number>();
   shifts.forEach((shift) => {
-    if (shift.type !== 'Off' && shift.type !== 'LOP' && shift.type !== 'SL') {
+    if (!specialShifts.has(shift.type)) {
       const key = `${shift.type}_${shift.date}`;
       shiftCountMap.set(key, (shiftCountMap.get(key) || 0) + 1);
     }

@@ -190,3 +190,24 @@
   color: var(--text-muted);
   font-size: 13px;
 }
+
+.time-badge {
+  display: inline-block;
+  background: #f0fdf4;
+  color: #166534;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hours-badge {
+  display: inline-block;
+  background: #eff6ff;
+  color: #1e40af;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+}

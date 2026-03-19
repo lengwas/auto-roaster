@@ -5,7 +5,7 @@ interface PCSettingPageProps {
   promoters: Promoter[];
 }
 
-const PCSettingPage: React.FC<PCSettingPageProps> = ({ promoters }) => {
+const PCSettingPage = ({ promoters }: PCSettingPageProps) => {
   return (
     <div className="setting-page">
       <div className="setting-header">
