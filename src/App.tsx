@@ -3,6 +3,7 @@ import ShiftTable from './components/ShiftTable';
 import PCSettingPage from './components/PCSettingPage';
 import StoreSettingPage from './components/StoreSettingPage';
 import { mockStores, mockPromoters, mockShifts, shiftDates, generateStoreCounts } from './data/mockData';
+import type { Store } from './types/types';
 import './App.css';
 
 type TabKey = 'shift' | 'pc-setting' | 'store-setting';
@@ -15,18 +16,19 @@ const TABS: { key: TabKey; label: string }[] = [
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('shift');
+  const [stores, setStores] = useState<Store[]>(mockStores);
   const [shifts, setShifts] = useState(mockShifts);
 
   const storeCounts = useMemo(
-    () => generateStoreCounts(mockStores, shiftDates, shifts),
-    [shifts]
+    () => generateStoreCounts(stores, shiftDates, shifts),
+    [stores, shifts]
   );
 
   const handleShiftChange = useCallback((promoterId: string, date: string, newType: string, timeRange?: string) => {
     setShifts((prev) => {
       const key = `${promoterId}_${date}`;
       const filtered = prev.filter((s) => `${s.promoterId}_${s.date}` !== key);
-      if (!newType) return filtered; // cleared
+      if (!newType) return filtered;
       return [
         ...filtered,
         {
@@ -67,7 +69,7 @@ function App() {
       <main className="app-main">
         {activeTab === 'shift' && (
           <ShiftTable
-            stores={mockStores}
+            stores={stores}
             promoters={mockPromoters}
             shifts={shifts}
             storeCounts={storeCounts}
@@ -79,7 +81,7 @@ function App() {
           <PCSettingPage promoters={mockPromoters} />
         )}
         {activeTab === 'store-setting' && (
-          <StoreSettingPage stores={mockStores} />
+          <StoreSettingPage stores={stores} onStoresChange={setStores} />
         )}
       </main>
     </div>

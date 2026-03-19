@@ -211,3 +211,117 @@
   font-weight: 600;
   font-size: 12px;
 }
+
+/* Badge muted variant */
+.badge-muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Toggle Button */
+.toggle-btn {
+  font-family: var(--font-sans);
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle-on {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+.toggle-on:hover {
+  background: #bbf7d0;
+}
+.toggle-off {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+.toggle-off:hover {
+  background: #e2e8f0;
+}
+.toggle-sm {
+  padding: 3px 10px;
+  font-size: 11px;
+}
+
+/* Inactive row */
+.row-inactive {
+  opacity: 0.5;
+}
+.row-inactive:hover {
+  opacity: 0.8;
+}
+
+/* Danger ghost button */
+.btn-danger-ghost {
+  background: transparent;
+  color: #dc2626;
+  padding: 6px 12px;
+}
+.btn-danger-ghost:hover {
+  background: #fef2f2;
+}
+
+/* Form Card */
+.form-card {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.form-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.form-input {
+  font-family: var(--font-sans);
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.form-actions .btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
