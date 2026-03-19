@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-primary: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-hover: #f1f5f9;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --border-color: #e2e8f0;
+  
+  /* UAE PC Shift Specific Colors */
+  --header-locked: #fde047; /* Yellow */
+  --header-satun: #f87171; /* Red for SUN */
+  --header-day: #e2e8f0;
+
+  --row-store: #dcfce7; /* Greenish for air/vdm/vme */
+  --row-store-alt: #fee2e2; /* Reddish for +10 AED offsets */
+  --row-promoter-hover: #f1f5f9;
+  
+  --shift-vdh: #fecdd3; /* Pinkish */
+  --shift-vme: #ddd6fe; /* Purpleish */
+  --shift-bdm: #bbf7d0; /* Green */
+  --shift-jme: #fef08a; /* Yellow */
+  --shift-lop: #cbd5e1; /* Gray */
+  --shift-off: #9ca3af; /* Dark Gray */
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar specific */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

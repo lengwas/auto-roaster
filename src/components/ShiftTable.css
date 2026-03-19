@@ -1,0 +1,169 @@
+.table-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  position: relative;
+  font-size: 14px;
+}
+
+.shift-grid {
+  display: flex;
+  flex-direction: column;
+  min-width: max-content;
+}
+
+/* Rows definition */
+.grid-row {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Header section stickiness */
+.header-section {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--bg-surface);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.store-section {
+  position: sticky;
+  top: 82px;
+  z-index: 10;
+  background-color: var(--bg-surface);
+  border-bottom: 2px solid #94a3b8;
+}
+
+/* Base Cell */
+.cell {
+  padding: 10px 14px;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Cells that stick to the left */
+.cell-fixed-left {
+  position: sticky;
+  left: 0;
+  background-color: inherit;
+  z-index: 2;
+  justify-content: flex-start;
+}
+
+.cell-fixed-left-2 {
+  position: sticky;
+  left: 180px;
+  background-color: inherit;
+  z-index: 2;
+  justify-content: flex-start;
+}
+
+.cell-fixed-left-3 {
+  position: sticky;
+  left: 360px;
+  background-color: inherit;
+  z-index: 2;
+  justify-content: center;
+}
+
+/* Specific Cell Widths */
+.col-name { width: 180px; font-weight: 600; font-size: 14px; }
+.col-stores { width: 180px; color: var(--text-secondary); font-size: 13px; }
+.col-day { width: 80px; font-weight: 500; font-size: 13px; }
+.col-date { width: 90px; font-size: 13px; }
+
+/* Colors for specific elements */
+.header-date-row { background-color: var(--header-locked); font-weight: bold; font-size: 13px; }
+.header-day-row { background-color: var(--bg-surface); color: var(--text-secondary); }
+.header-dow-row { color: var(--text-primary); font-size: 13px; }
+
+/* Weekend day-of-week text color (subtle, no bg change) */
+.dow-sun { color: #dc2626; }
+.dow-sat { color: #dc2626; }
+
+/* Today column highlight */
+.col-today {
+  background-color: #dbeafe !important;
+  border-left: 2px solid #2563eb;
+  border-right: 2px solid #2563eb;
+}
+.header-date-row .col-today {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+.text-dash { color: var(--text-muted); }
+
+.extra-allowance {
+  font-size: 11px;
+  color: #dc2626;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+/* Promoter row hover */
+.promoter-row:hover {
+  background-color: var(--row-promoter-hover);
+}
+.promoter-row .cell-fixed-left,
+.promoter-row .cell-fixed-left-2,
+.promoter-row .cell-fixed-left-3 {
+  background-color: var(--bg-surface);
+}
+.promoter-row:hover .cell-fixed-left,
+.promoter-row:hover .cell-fixed-left-2,
+.promoter-row:hover .cell-fixed-left-3 {
+  background-color: var(--row-promoter-hover);
+}
+
+/* Shift Colors */
+.shift-vdm { background-color: #fca5a5; }
+.shift-vdh { background-color: var(--shift-vdh); }
+.shift-vme { background-color: var(--shift-vme); }
+.shift-bdm { background-color: var(--shift-bdm); }
+.shift-jme { background-color: var(--shift-jme); }
+.shift-air { background-color: #fdba74; }
+.shift-vay { background-color: #c4b5fd; }
+.shift-lop { background-color: var(--shift-lop); color: var(--text-secondary); }
+.shift-off { background-color: var(--shift-off); color: white; }
+.shift-sl { background-color: #fde68a; color: var(--text-primary); }
+
+.zero-count { color: var(--text-muted); opacity: 0.5; }
+.active-count { color: #16a34a; font-weight: bold; }
+
+/* Shift cell content layout */
+.shift-cell-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.3;
+}
+.shift-type {
+  font-weight: 700;
+  font-size: 13px;
+}
+.shift-time {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Table Section spacer */
+.section-spacer {
+  height: 36px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
