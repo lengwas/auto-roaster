@@ -202,7 +202,13 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
               return (
                 <div
                   key={dateStr}
-                  className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass}`}
+                  className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass} ${shift?.note ? 'has-note' : ''}`}
+                  title={shift?.note || undefined}
+                  onDoubleClick={() => {
+                    if (shift && shift.type && shift.type !== '-') {
+                      handleNoteClick(cellKey, shift.note || '');
+                    }
+                  }}
                 >
                   <ShiftPicker
                     value={shift?.type || '-'}
@@ -212,26 +218,16 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                   {shift?.timeRange && (
                     <span className="shift-time">{shift.timeRange}</span>
                   )}
-                  {shift && shift.type && shift.type !== '-' && (
-                    isEditingNote ? (
-                      <input
-                        className="shift-note-input"
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        onBlur={() => handleNoteSave(promoter.id, dateStr)}
-                        onKeyDown={(e) => handleNoteKeyDown(e, promoter.id, dateStr)}
-                        placeholder="note..."
-                        autoFocus
-                      />
-                    ) : (
-                      <span
-                        className={`shift-note ${shift.note ? 'shift-note-has' : 'shift-note-empty'}`}
-                        onClick={() => handleNoteClick(cellKey, shift.note || '')}
-                        title={shift.note || 'Click to add note'}
-                      >
-                        {shift.note || '+'}
-                      </span>
-                    )
+                  {shift && shift.type && shift.type !== '-' && isEditingNote && (
+                    <input
+                      className="shift-note-input"
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      onBlur={() => handleNoteSave(promoter.id, dateStr)}
+                      onKeyDown={(e) => handleNoteKeyDown(e, promoter.id, dateStr)}
+                      placeholder="note..."
+                      autoFocus
+                    />
                   )}
                 </div>
               );

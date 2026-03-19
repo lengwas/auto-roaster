@@ -129,27 +129,20 @@
   background-color: var(--row-promoter-hover);
 }
 
-/* Note styles */
-.shift-note {
-  font-size: 9px;
-  line-height: 1;
-  cursor: pointer;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Note styles — double-click to add, hover to see */
+.has-note {
+  position: relative;
 }
-.shift-note-empty {
-  color: var(--text-muted);
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-.cell:hover .shift-note-empty {
-  opacity: 0.5;
-}
-.shift-note-has {
-  color: #2563eb;
-  font-weight: 600;
+.has-note::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  background: #2563eb;
+  border-radius: 50%;
+  pointer-events: none;
 }
 .shift-note-input {
   width: 100%;
