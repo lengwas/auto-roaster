@@ -15,6 +15,8 @@ const EMPTY_STORE: Omit<Store, 'id'> = {
   closeTime: '22:00',
   extraAllowance: '',
   maxCapacity: undefined,
+  platform: '',
+  warehouse: '',
 };
 
 const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => {
@@ -44,6 +46,8 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
       closeTime: store.closeTime,
       extraAllowance: store.extraAllowance || '',
       maxCapacity: store.maxCapacity,
+      platform: store.platform || '',
+      warehouse: store.warehouse || '',
     });
     setEditingId(store.id);
     setShowForm(true);
@@ -53,16 +57,20 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
     if (!form.code.trim() || !form.name.trim()) return;
 
     if (editingId) {
-      // Update existing
       onStoresChange(
         stores.map((s) =>
           s.id === editingId
-            ? { ...s, ...form, extraAllowance: form.extraAllowance || undefined, maxCapacity: form.maxCapacity || undefined }
+            ? {
+                ...s, ...form,
+                extraAllowance: form.extraAllowance || undefined,
+                maxCapacity: form.maxCapacity || undefined,
+                platform: (form.platform as string) || undefined,
+                warehouse: (form.warehouse as string) || undefined,
+              }
             : s
         )
       );
     } else {
-      // Add new
       const newStore: Store = {
         id: `store_${Date.now()}`,
         code: form.code.trim().toUpperCase(),
@@ -72,6 +80,8 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
         closeTime: form.closeTime,
         extraAllowance: form.extraAllowance || undefined,
         maxCapacity: form.maxCapacity || undefined,
+        platform: (form.platform as string) || undefined,
+        warehouse: (form.warehouse as string) || undefined,
       };
       onStoresChange([...stores, newStore]);
     }
@@ -186,6 +196,26 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
               />
             </div>
             <div className="form-field">
+              <label>Platform (Orders mapping)</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Virgin - Dubai Mall"
+                value={(form.platform as string) || ''}
+                onChange={(e) => setForm({ ...form, platform: e.target.value })}
+              />
+            </div>
+            <div className="form-field">
+              <label>Warehouse (Orders mapping)</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. VIR - DBM"
+                value={(form.warehouse as string) || ''}
+                onChange={(e) => setForm({ ...form, warehouse: e.target.value })}
+              />
+            </div>
+            <div className="form-field">
               <label>Visible in Shift Table</label>
               <button
                 type="button"
@@ -216,15 +246,17 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
           <thead>
             <tr>
               <th style={{ width: 50 }}>#</th>
-              <th style={{ width: 90 }}>Code</th>
-              <th style={{ width: 200 }}>Store Name</th>
-              <th style={{ width: 110 }}>Shift Table</th>
-              <th style={{ width: 90 }}>Open</th>
-              <th style={{ width: 90 }}>Close</th>
-              <th style={{ width: 80 }}>Hours</th>
-              <th style={{ width: 120 }}>Allowance</th>
-              <th style={{ width: 70 }}>Max</th>
-              <th style={{ width: 140 }}>Actions</th>
+              <th style={{ width: 70 }}>Code</th>
+              <th style={{ width: 160 }}>Store Name</th>
+              <th style={{ width: 90 }}>Shift Table</th>
+              <th style={{ width: 80 }}>Open</th>
+              <th style={{ width: 80 }}>Close</th>
+              <th style={{ width: 70 }}>Hours</th>
+              <th style={{ width: 100 }}>Allowance</th>
+              <th style={{ width: 50 }}>Max</th>
+              <th style={{ width: 180 }}>Platform</th>
+              <th style={{ width: 120 }}>Warehouse</th>
+              <th style={{ width: 120 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -274,6 +306,12 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
                       <span className="text-muted">-</span>
                     )}
                   </td>
+                  <td className="cell-name" style={{ fontSize: '12px' }}>
+                    {store.platform || <span className="text-muted">-</span>}
+                  </td>
+                  <td style={{ fontSize: '12px' }}>
+                    {store.warehouse || <span className="text-muted">-</span>}
+                  </td>
                   <td className="cell-center">
                     <button className="btn btn-small btn-ghost" onClick={() => openEditForm(store)}>
                       Edit
@@ -287,7 +325,7 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="cell-center text-muted" style={{ padding: '32px' }}>
+                <td colSpan={12} className="cell-center text-muted" style={{ padding: '32px' }}>
                   No stores found
                 </td>
               </tr>

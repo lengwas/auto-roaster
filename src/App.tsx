@@ -4,8 +4,11 @@ import PCSettingPage from './components/PCSettingPage';
 import StoreSettingPage from './components/StoreSettingPage';
 import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
-import { mockStores, mockPromoters, mockShifts, shiftDates, generateStoreCounts, mockStorePreferences, mockPromoterConflicts } from './data/mockData';
-import type { Store, StorePreference, PromoterConflict } from './types/types';
+import { mockShifts, shiftDates, generateStoreCounts, mockStorePreferences, mockPromoterConflicts } from './data/mockData';
+import { useStores } from './hooks/useStores';
+import { usePromoters } from './hooks/usePromoters';
+import { useSpecialDates } from './hooks/useSpecialDates';
+import type { StorePreference, PromoterConflict } from './types/types';
 import './App.css';
 
 type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'db-schema';
@@ -19,7 +22,9 @@ const TABS: { key: TabKey; label: string }[] = [
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('shift');
-  const [stores, setStores] = useState<Store[]>(mockStores);
+  const { stores, setStores } = useStores();
+  const { promoters } = usePromoters();
+  const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
   const [shifts, setShifts] = useState(mockShifts);
   const [showExport, setShowExport] = useState(false);
   const [storePreferences, setStorePreferences] = useState<StorePreference[]>(mockStorePreferences);
@@ -80,16 +85,19 @@ function App() {
         {activeTab === 'shift' && (
           <ShiftTable
             stores={stores}
-            promoters={mockPromoters}
+            promoters={promoters}
             shifts={shifts}
             storeCounts={storeCounts}
             dates={shiftDates}
             onShiftChange={handleShiftChange}
+            specialDates={specialDates}
+            onMarkDate={(date, label, color) => markDate(date, label, color)}
+            onUnmarkDate={(date) => unmarkDate(date)}
           />
         )}
         {activeTab === 'pc-setting' && (
           <PCSettingPage
-            promoters={mockPromoters}
+            promoters={promoters}
             stores={stores}
             storePreferences={storePreferences}
             onPreferencesChange={setStorePreferences}
@@ -103,7 +111,7 @@ function App() {
         {activeTab === 'db-schema' && (
           <DatabaseSchemaPage
             stores={stores}
-            promoters={mockPromoters}
+            promoters={promoters}
             shifts={shifts}
           />
         )}
@@ -111,7 +119,7 @@ function App() {
 
       {showExport && (
         <ExportModal
-          promoters={mockPromoters}
+          promoters={promoters}
           shifts={shifts}
           stores={stores}
           dates={shiftDates}

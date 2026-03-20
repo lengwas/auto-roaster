@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Store, Promoter, Shift, StoreCount } from '../types/types';
+import type { Store, Promoter, Shift, StoreCount, SpecialDate } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
 import './ShiftTable.css';
@@ -11,6 +11,23 @@ interface ShiftTableProps {
   storeCounts: StoreCount[];
   dates: string[];
   onShiftChange?: (promoterId: string, date: string, newType: string, timeRange?: string, note?: string) => void;
+  specialDates?: SpecialDate[];
+  onMarkDate?: (date: string, label: string, color: string) => void;
+  onUnmarkDate?: (date: string) => void;
+}
+
+const PRESET_COLORS = [
+  { label: 'Holiday', color: '#ef4444' },
+  { label: 'Event', color: '#f59e0b' },
+  { label: 'Promo', color: '#8b5cf6' },
+  { label: 'Note', color: '#3b82f6' },
+  { label: 'Payday', color: '#10b981' },
+];
+
+interface DateMarkPopup {
+  date: string;
+  label: string;
+  color: string;
 }
 
 const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -46,9 +63,18 @@ function getTodayStr(): string {
   return d.toISOString().split('T')[0];
 }
 
-const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange }: ShiftTableProps) => {
+const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange, specialDates = [], onMarkDate, onUnmarkDate }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
   const [noteText, setNoteText] = useState('');
+  const [popup, setPopup] = useState<DateMarkPopup | null>(null);
+
+  const specialMap = new Map<string, SpecialDate>();
+  specialDates.forEach(sd => specialMap.set(sd.date, sd));
+
+  const openDatePopup = (dateStr: string) => {
+    const existing = specialMap.get(dateStr);
+    setPopup({ date: dateStr, label: existing?.label || '', color: existing?.color || '#f59e0b' });
+  };
 
   const shiftMap = new Map<string, Shift>();
   shifts.forEach((s) => {
@@ -112,6 +138,60 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
 
   return (
     <div className="table-container">
+      {/* Date Mark Popup */}
+      {popup && (
+        <div className="date-mark-overlay" onClick={() => setPopup(null)}>
+          <div className="date-mark-popup" onClick={e => e.stopPropagation()}>
+            <div className="date-mark-title">Mark Date: {popup.date}</div>
+            <div className="date-mark-presets">
+              {PRESET_COLORS.map(p => (
+                <button
+                  key={p.color}
+                  className="date-mark-preset"
+                  style={{ backgroundColor: p.color, outline: popup.color === p.color ? '2px solid #000' : 'none' }}
+                  onClick={() => setPopup({ ...popup, label: popup.label || p.label, color: p.color })}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <input
+              className="date-mark-input"
+              type="text"
+              placeholder="Label (e.g. National Day)"
+              value={popup.label}
+              onChange={e => setPopup({ ...popup, label: e.target.value })}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <input
+                type="color"
+                value={popup.color}
+                onChange={e => setPopup({ ...popup, color: e.target.value })}
+                style={{ width: 36, height: 32, cursor: 'pointer', border: 'none', borderRadius: 4 }}
+              />
+              <button
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                onClick={() => { onMarkDate?.(popup.date, popup.label, popup.color); setPopup(null); }}
+                disabled={!popup.label.trim()}
+              >
+                Save
+              </button>
+              {specialMap.has(popup.date) && (
+                <button
+                  className="btn btn-danger-ghost"
+                  onClick={() => { onUnmarkDate?.(popup.date); setPopup(null); }}
+                >
+                  Remove
+                </button>
+              )}
+              <button className="btn btn-ghost" onClick={() => setPopup(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="shift-grid">
         {/* ===== HEADER SECTION (Sticky Top) ===== */}
         <div className="header-section">
@@ -119,26 +199,39 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
             <div className="cell cell-fixed-left col-name">Locked</div>
             <div className="cell cell-fixed-left-2 col-stores"></div>
             <div className="cell cell-fixed-left-3 col-day"></div>
-            {dates.map((dateStr, i) => (
-              <div key={dateStr} className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''}`}>
-                {dateInfos[i].date}
-              </div>
-            ))}
+            {dates.map((dateStr, i) => {
+              const special = specialMap.get(dateStr);
+              return (
+                <div
+                  key={dateStr}
+                  className={`cell col-date date-header-cell ${dateStr === todayStr ? 'col-today' : ''}`}
+                  style={special ? { backgroundColor: special.color + '33', borderTop: `3px solid ${special.color}` } : {}}
+                  onClick={() => openDatePopup(dateStr)}
+                  title={special ? special.label : 'Click to mark this date'}
+                >
+                  {dateInfos[i].date}
+                  {special && <span className="date-mark-dot" style={{ backgroundColor: special.color }} title={special.label} />}
+                </div>
+              );
+            })}
           </div>
 
           <div className="grid-row header-dow-row">
             <div className="cell cell-fixed-left col-name" style={{ fontWeight: 700 }}>Name</div>
             <div className="cell cell-fixed-left-2 col-stores" style={{ fontWeight: 700 }}>Stores</div>
             <div className="cell cell-fixed-left-3 col-day" style={{ fontWeight: 700 }}>Day Off</div>
-            {dates.map((dateStr, i) => (
-              <div
-                key={dateStr}
-                className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${dateInfos[i].isSun ? 'dow-sun' : ''} ${dateInfos[i].isSat ? 'dow-sat' : ''}`}
-                style={{ fontWeight: 600 }}
-              >
-                {dateInfos[i].dow}
-              </div>
-            ))}
+            {dates.map((dateStr, i) => {
+              const special = specialMap.get(dateStr);
+              return (
+                <div
+                  key={dateStr}
+                  className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${dateInfos[i].isSun ? 'dow-sun' : ''} ${dateInfos[i].isSat ? 'dow-sat' : ''}`}
+                  style={{ fontWeight: 600, ...(special ? { backgroundColor: special.color + '22' } : {}) }}
+                >
+                  {special ? <span style={{ color: special.color, fontWeight: 700 }}>{special.label.slice(0, 4)}</span> : dateInfos[i].dow}
+                </div>
+              );
+            })}
           </div>
         </div>
 
