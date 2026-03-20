@@ -40,7 +40,7 @@ function App() {
       const key = `${promoterId}_${date}`;
       const existing = prev.find((s) => `${s.promoterId}_${s.date}` === key);
       const filtered = prev.filter((s) => `${s.promoterId}_${s.date}` !== key);
-      if (!newType) return filtered;
+      if (!newType && !note) return filtered;
       return [
         ...filtered,
         {

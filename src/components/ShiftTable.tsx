@@ -136,9 +136,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const handleNoteSave = (promoterId: string, date: string) => {
     if (!onShiftChange) return;
     const shift = shiftMap.get(`${promoterId}_${date}`);
-    if (shift) {
-      onShiftChange(promoterId, date, shift.type, shift.timeRange, noteText);
-    }
+    onShiftChange(promoterId, date, shift?.type || '', shift?.timeRange, noteText);
     setEditingNote(null);
     setNoteText('');
   };
@@ -156,15 +154,14 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   };
 
   return (
-    <div className="table-container">
-      {/* Filter Panel */}
+    <div className="shift-table-root">
+      {/* Filter Panel — sidebar, not overlay */}
       {filterOpen && (
-        <div className="filter-overlay" onClick={() => setFilterOpen(false)}>
-          <div className="filter-panel" onClick={e => e.stopPropagation()}>
-            <div className="filter-panel-header">
-              <span>Filter</span>
-              <button className="filter-close-btn" onClick={() => setFilterOpen(false)}>✕</button>
-            </div>
+        <div className="filter-panel">
+          <div className="filter-panel-header">
+            <span>Filter</span>
+            <button className="filter-close-btn" onClick={() => setFilterOpen(false)}>✕</button>
+          </div>
 
             <div className="filter-section">
               <div className="filter-section-title">
@@ -219,9 +216,9 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
               ))}
             </div>
           </div>
-        </div>
       )}
 
+      <div className="table-container">
       {/* Filter Button */}
       <div className="filter-toolbar">
         <button className="filter-btn" onClick={() => setFilterOpen(true)}>
@@ -393,11 +390,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                 <div
                   key={dateStr}
                   className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass} ${shift?.note ? 'has-note' : ''}`}
-                  onDoubleClick={() => {
-                    if (shift && shift.type && shift.type !== '-') {
-                      handleNoteClick(cellKey, shift.note || '');
-                    }
-                  }}
+                  onDoubleClick={() => handleNoteClick(cellKey, shift?.note || '')}
                 >
                   <ShiftPicker
                     value={shift?.type || '-'}
@@ -432,6 +425,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
             })}
           </div>
         ))}
+      </div>
       </div>
     </div>
   );
