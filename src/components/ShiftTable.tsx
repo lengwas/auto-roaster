@@ -67,6 +67,20 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
   const [noteText, setNoteText] = useState('');
   const [popup, setPopup] = useState<DateMarkPopup | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [hiddenStoreIds, setHiddenStoreIds] = useState<Set<string>>(new Set());
+  const [hiddenPromoterIds, setHiddenPromoterIds] = useState<Set<string>>(new Set());
+
+  const toggleStore = (id: string) => setHiddenStoreIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const togglePromoter = (id: string) => setHiddenPromoterIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   const specialMap = new Map<string, SpecialDate>();
   specialDates.forEach(sd => specialMap.set(sd.date, sd));
@@ -93,6 +107,9 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const todayStr = getTodayStr();
 
   const activeStores = stores.filter(s => s.active);
+  const visibleStores = stores.filter(s => !hiddenStoreIds.has(s.id));
+  const activePromoters = promoters.filter(p => p.active);
+  const visiblePromoters = activePromoters.filter(p => !hiddenPromoterIds.has(p.id));
 
   const handleChange = useCallback((promoterId: string, date: string, value: string) => {
     if (!onShiftChange) return;
@@ -138,6 +155,71 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
 
   return (
     <div className="table-container">
+      {/* Filter Panel */}
+      {filterOpen && (
+        <div className="filter-overlay" onClick={() => setFilterOpen(false)}>
+          <div className="filter-panel" onClick={e => e.stopPropagation()}>
+            <div className="filter-panel-header">
+              <span>Filter</span>
+              <button className="filter-close-btn" onClick={() => setFilterOpen(false)}>✕</button>
+            </div>
+
+            <div className="filter-section">
+              <div className="filter-section-title">
+                Stores
+                <span className="filter-section-actions">
+                  <button onClick={() => setHiddenStoreIds(new Set())}>All</button>
+                  <button onClick={() => setHiddenStoreIds(new Set(stores.map(s => s.id)))}>None</button>
+                </span>
+              </div>
+              {stores.map(s => (
+                <label key={s.id} className="filter-item">
+                  <input
+                    type="checkbox"
+                    checked={!hiddenStoreIds.has(s.id)}
+                    onChange={() => toggleStore(s.id)}
+                  />
+                  <span className="filter-item-code">{s.code}</span>
+                  <span className="filter-item-name">{s.name}</span>
+                  {!s.active && <span className="filter-inactive-badge">inactive</span>}
+                </label>
+              ))}
+            </div>
+
+            <div className="filter-section">
+              <div className="filter-section-title">
+                Promoters
+                <span className="filter-section-actions">
+                  <button onClick={() => setHiddenPromoterIds(new Set())}>All</button>
+                  <button onClick={() => setHiddenPromoterIds(new Set(activePromoters.map(p => p.id)))}>None</button>
+                </span>
+              </div>
+              {activePromoters.map(p => (
+                <label key={p.id} className="filter-item">
+                  <input
+                    type="checkbox"
+                    checked={!hiddenPromoterIds.has(p.id)}
+                    onChange={() => togglePromoter(p.id)}
+                  />
+                  <span className="filter-item-name">{p.name}</span>
+                  {p.storesLabel && <span className="filter-item-stores">{p.storesLabel}</span>}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Button */}
+      <div className="filter-toolbar">
+        <button className="filter-btn" onClick={() => setFilterOpen(true)}>
+          ▼ Filter
+          {(hiddenStoreIds.size > 0 || hiddenPromoterIds.size > 0) && (
+            <span className="filter-badge">{hiddenStoreIds.size + hiddenPromoterIds.size}</span>
+          )}
+        </button>
+      </div>
+
       {/* Date Mark Popup */}
       {popup && (
         <div className="date-mark-overlay" onClick={() => setPopup(null)}>
@@ -237,8 +319,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
 
         {/* ===== STORE SECTION (Sticky below header) ===== */}
         <div className="store-section">
-          <div className="section-spacer">Stores ({stores.length})</div>
-          {stores.map((store) => {
+          <div className="section-spacer">Stores ({visibleStores.length}{hiddenStoreIds.size > 0 ? ` / ${stores.length}` : ''})</div>
+          {visibleStores.map((store) => {
             const hasExtra = !!store.extraAllowance;
             return (
               <div
@@ -278,8 +360,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
         </div>
 
         {/* ===== PROMOTER SECTION (Scrollable with dropdowns) ===== */}
-        <div className="section-spacer">Promoters ({promoters.filter(p => p.active).length} Active)</div>
-        {promoters.filter(p => p.active).map((promoter) => (
+        <div className="section-spacer">Promoters ({visiblePromoters.length}{hiddenPromoterIds.size > 0 ? ` / ${activePromoters.length}` : ''} Active)</div>
+        {visiblePromoters.map((promoter) => (
           <div key={promoter.id} className="grid-row promoter-row">
             <div className="cell cell-fixed-left col-name">
               {promoter.name}

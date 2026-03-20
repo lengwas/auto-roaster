@@ -6,6 +6,152 @@
   font-size: 14px;
 }
 
+/* ===== Filter Toolbar ===== */
+.filter-toolbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  min-width: 100%;
+}
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+.filter-btn:hover { background: #f1f5f9; }
+.filter-badge {
+  background: #2563eb;
+  color: white;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ===== Filter Panel (Right-side drawer) ===== */
+.filter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.15);
+}
+.filter-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  background: white;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.filter-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 15px;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
+}
+.filter-close-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.filter-close-btn:hover { background: #f1f5f9; }
+.filter-section {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.filter-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px 8px;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+.filter-section-actions {
+  display: flex;
+  gap: 6px;
+}
+.filter-section-actions button {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+}
+.filter-section-actions button:hover { background: #f1f5f9; color: var(--text-primary); }
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.filter-item:hover { background: #f8fafc; }
+.filter-item input[type="checkbox"] { cursor: pointer; flex-shrink: 0; }
+.filter-item-code {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-primary);
+  min-width: 36px;
+}
+.filter-item-name {
+  color: var(--text-primary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filter-item-stores {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.filter-inactive-badge {
+  font-size: 10px;
+  color: #6b7280;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
 /* Date mark popup */
 .date-mark-overlay {
   position: fixed;
@@ -84,7 +230,7 @@
 /* Header section stickiness */
 .header-section {
   position: sticky;
-  top: 0;
+  top: 37px; /* below filter toolbar */
   z-index: 20;
   background-color: var(--bg-surface);
   box-shadow: 0 2px 4px rgba(0,0,0,0.08);
@@ -92,7 +238,7 @@
 
 .store-section {
   position: sticky;
-  top: 82px;
+  top: 119px; /* header (82px) + filter toolbar (37px) */
   z-index: 10;
   background-color: var(--bg-surface);
   border-bottom: 2px solid #94a3b8;
