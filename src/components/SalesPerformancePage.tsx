@@ -138,9 +138,16 @@ const SalesPerformancePage = ({
   const { orders, loading, error } = useOrders(6);
 
   // ── lookups ──────────────────────────────────────────────────────────────
+  // Match orders.warehouse against both stores.warehouse AND stores.platform
+  // (real orders use the platform value, e.g. "Virgin - Dubai Mall")
   const storeByWarehouse = useMemo(() => {
     const m = new Map<string, Store>();
-    stores.forEach(s => { if (s.warehouse) m.set(s.warehouse.toLowerCase().trim(), s); });
+    stores.forEach(s => {
+      if (s.warehouse) m.set(s.warehouse.toLowerCase().trim(), s);
+      if (s.platform)  m.set(s.platform.toLowerCase().trim(), s);
+      // also index by store code for direct-code orders
+      m.set(s.code.toLowerCase(), s);
+    });
     return m;
   }, [stores]);
 
