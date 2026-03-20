@@ -1,48 +1,78 @@
 import type { Store, Promoter, Shift, StoreCount, StorePreference, PromoterConflict } from '../types/types';
 
 export const mockStores: Store[] = [
-  { id: '1', code: 'AIR', name: 'Airport City', active: true, openTime: '10:00', closeTime: '22:00' },
-  { id: '2', code: 'VDM', name: 'Vox Deira Mall', active: true, openTime: '16:00', closeTime: '23:00', maxCapacity: 4 },
-  { id: '3', code: 'VME', name: 'Vox Mall of Emirates', active: true, openTime: '14:00', closeTime: '23:00', maxCapacity: 2 },
-  { id: '4', code: 'VDH', name: 'Vox Dubai Hills', active: true, extraAllowance: '+10 AED', openTime: '15:00', closeTime: '23:00' },
-  { id: '5', code: 'VNK', name: 'Vox Nakheel', active: true, extraAllowance: '+15 AED', openTime: '14:00', closeTime: '22:00' },
-  { id: '6', code: 'VYM', name: 'Vox Yas Mall', active: true, openTime: '13:00', closeTime: '22:00' },
-  { id: '7', code: 'VAY', name: 'Vox Al Ain', active: true, openTime: '13:00', closeTime: '21:00' },
-  { id: '8', code: 'VRM', name: 'Vox Reel Mall', active: true, openTime: '14:00', closeTime: '22:00' },
-  { id: '9', code: 'VMF', name: 'Vox Mirdif', active: true, openTime: '15:00', closeTime: '23:00' },
-  { id: '10', code: 'VMN', name: 'Vox Marina', active: true, openTime: '14:00', closeTime: '23:00' },
-  { id: '11', code: 'JDM', name: 'Jumbo Deira', active: true, openTime: '10:00', closeTime: '22:00' },
-  { id: '12', code: 'JME', name: 'Jumbo MOE', active: true, openTime: '10:00', closeTime: '22:00' },
-  { id: '13', code: 'JDH', name: 'Jumbo Dubai Hills', active: true, extraAllowance: '+10 AED', openTime: '10:00', closeTime: '22:00' },
-  { id: '14', code: 'SDM', name: 'Sharaf DG Mall', active: true, openTime: '10:00', closeTime: '22:00' },
-  { id: '15', code: 'BDM', name: 'Best Al Barsha', active: true, openTime: '10:00', closeTime: '23:00' },
-  { id: '16', code: 'HDM', name: 'Home Deira', active: true, openTime: '10:00', closeTime: '22:00' },
+  { id: 's1',  code: 'AIR', name: 'Airwheel Office',              active: false, openTime: '09:00', closeTime: '18:00' },
+  { id: 's2',  code: 'VDM', name: 'Virgin Dubai Mall',            active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Virgin - Dubai Mall' },
+  { id: 's3',  code: 'VME', name: 'Virgin Mall of Emirates',      active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Virgin - MOE' },
+  { id: 's4',  code: 'VDH', name: 'Virgin Dubai Hills',           active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Virgin - Dubai Hills' },
+  { id: 's5',  code: 'VNK', name: 'Virgin Nakheel',               active: true,  openTime: '13:00', closeTime: '22:00' },
+  { id: 's6',  code: 'VYM', name: 'Virgin Yas Mall',              active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Virgin - Yas Mall' },
+  { id: 's7',  code: 'VAY', name: 'Virgin Al Maryah Island',      active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Virgin - Al Maryah Island Abudhabi' },
+  { id: 's8',  code: 'VRM', name: 'Virgin Reem Mall',             active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Virgin - Reem Mall Abudhabi' },
+  { id: 's9',  code: 'VMF', name: 'Virgin Mirdif',                active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Virgin - Mirdif' },
+  { id: 's10', code: 'VMN', name: 'Virgin Dubai Marina',          active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Virgin - Dubai Marina' },
+  { id: 's11', code: 'JDM', name: 'Jashanmal Dubai Mall',         active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Jashanmal - Dubai Mall' },
+  { id: 's12', code: 'JME', name: 'Jashanmal MOE',                active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Jashanmal - MOE' },
+  { id: 's13', code: 'JDH', name: 'Jashanmal Dubai Hills',        active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Jashanmal - Dubai Hills' },
+  { id: 's14', code: 'ADC', name: 'Airwheel DCC',                 active: false, openTime: '10:00', closeTime: '19:00' },
+  { id: 's15', code: 'IMG', name: 'IMG World',                    active: false, openTime: '10:00', closeTime: '19:00' },
+  { id: 's16', code: 'VAD', name: 'Virgin Abu Dhabi Mall',        active: false, openTime: '13:00', closeTime: '22:00', platform: 'Virgin - Abu Dhabi Mall' },
+  { id: 's17', code: 'SDM', name: 'Sharaf DG - Dubai Mall',       active: false, openTime: '10:00', closeTime: '22:00', platform: 'Sharaf DG - Dubai Mall' },
+  { id: 's18', code: 'BDM', name: 'Borders - Dubai Mall',         active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Borders - Dubai Mall' },
+  { id: 's19', code: 'HDM', name: 'Hamleys - Dubai Mall',         active: true,  openTime: '13:00', closeTime: '22:00', platform: 'Hamleys - Dubai Mall' },
 ];
 
 export const mockPromoters: Promoter[] = [
-  { id: 'p1', name: 'Kevin Ka', storesLabel: 'VDM, JDM, JME', active: true, workingDays: 'Thu' },
-  { id: 'p2', name: 'Maureen Wa', storesLabel: 'VME, JDM', active: true, workingDays: 'Mon' },
-  { id: 'p3', name: 'Alexandre Ju', storesLabel: 'AIR, VRM', active: true, workingDays: 'Sat' },
-  { id: 'p4', name: 'Jerby Pe', storesLabel: 'VDH, VMN', active: true, workingDays: 'Tue' },
-  { id: 'p5', name: 'Ahmed No', storesLabel: 'VME, VNK', active: true, workingDays: 'Tue' },
-  { id: 'p6', name: 'Angela Uj', storesLabel: 'SDM, HDM', active: true, workingDays: 'Wed' },
-  { id: 'p7', name: 'Mufti Ja', storesLabel: 'VYM, VAY', active: true, workingDays: 'Tue' },
-  { id: 'p8', name: 'Lynda Dj', storesLabel: 'VDM, VMF', active: true, workingDays: 'Wed' },
-  { id: 'p9', name: 'Arlene Le', storesLabel: 'BDM, JDH', active: true, workingDays: 'Tue' },
-  { id: 'p10', name: 'Ben Mu', storesLabel: 'VDM, JME', active: true, workingDays: 'Wed' },
-  { id: 'p11', name: 'Sarah Al', storesLabel: 'VME, VNK', active: true, workingDays: 'Thu' },
-  { id: 'p12', name: 'Omar Ha', storesLabel: 'VDH, VMN', active: true, workingDays: 'Fri' },
-  { id: 'p13', name: 'Diana Co', storesLabel: 'AIR, SDM', active: true, workingDays: 'Mon' },
-  { id: 'p14', name: 'Rashid Kh', storesLabel: 'JDM, JME', active: true, workingDays: 'Sun' },
-  { id: 'p15', name: 'Maria Fe', storesLabel: 'BDM, HDM', active: true, workingDays: 'Thu' },
-  { id: 'p16', name: 'James Wy', storesLabel: 'VRM, VMF', active: true, workingDays: 'Sat' },
-  { id: 'p17', name: 'Fatima Za', storesLabel: 'VYM, VAY', active: true, workingDays: 'Mon' },
-  { id: 'p18', name: 'Carlos De', storesLabel: 'VDM, VME', active: true, workingDays: 'Wed' },
-  { id: 'p19', name: 'Priya Sh', storesLabel: 'SDM, JDH', active: true, workingDays: 'Fri' },
-  { id: 'p20', name: 'Hassan Ab', storesLabel: 'AIR, VNK', active: true, workingDays: 'Tue' },
+  { id: 'p1',  name: 'Tammy Bo',      storesLabel: 'VME, JME',      active: true, workingDays: '' },
+  { id: 'p2',  name: 'Mint Ch',       storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p3',  name: 'Shimul',        storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p4',  name: 'Artharva',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p5',  name: 'Tiwter',        storesLabel: 'VMN',           active: true, workingDays: '' },
+  { id: 'p6',  name: 'Punpun',        storesLabel: 'VME, JME',      active: true, workingDays: '' },
+  { id: 'p7',  name: 'Mostafa MO',    storesLabel: 'VAY, VRM',      active: true, workingDays: '' },
+  { id: 'p8',  name: 'Akimu Ss',      storesLabel: 'VAY, VRM',      active: true, workingDays: '' },
+  { id: 'p9',  name: 'Eric Ba',       storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p10', name: 'Olaide Us',     storesLabel: 'JDM',           active: true, workingDays: '' },
+  { id: 'p11', name: 'Danny Th',      storesLabel: 'VMN',           active: true, workingDays: '' },
+  { id: 'p12', name: 'Kevin Ka',      storesLabel: 'JDM',           active: true, workingDays: '' },
+  { id: 'p13', name: 'Natasha Ng',    storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p14', name: 'Maureen Wa',    storesLabel: 'VME',           active: true, workingDays: '' },
+  { id: 'p15', name: 'Juan Fe',       storesLabel: 'VMN',           active: true, workingDays: '' },
+  { id: 'p16', name: 'Nabeel Na',     storesLabel: 'VME',           active: true, workingDays: '' },
+  { id: 'p17', name: 'Sandun Ma',     storesLabel: 'VAY, VRM',      active: true, workingDays: '' },
+  { id: 'p18', name: 'Alexandre Ju',  storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p19', name: 'Mohid Kh',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p20', name: 'Khaled Al',     storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p21', name: 'Apple Ma',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p22', name: 'Sakib Ha',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p23', name: 'Mint Su',       storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p24', name: 'Hajar Sa',      storesLabel: 'VYM',           active: true, workingDays: '' },
+  { id: 'p25', name: 'Jerby Pe',      storesLabel: 'VAY, VRM',      active: true, workingDays: '' },
+  { id: 'p26', name: 'Amine Ch',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p27', name: 'Ahmed No',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p28', name: 'Angela Uj',     storesLabel: 'VDM',           active: true, workingDays: '' },
+  { id: 'p29', name: 'Mohamed Ta',    storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p30', name: 'Mufti Ja',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p31', name: 'Milk Kh',       storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p32', name: 'Muhammad Ja',   storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p33', name: 'Soufiane Le',   storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p34', name: 'Emmanuel Fr',   storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p35', name: 'Timothy Ak',    storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p36', name: 'Lynda Dj',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p37', name: 'Pokuah Do',     storesLabel: 'VMN',           active: true, workingDays: '' },
+  { id: 'p38', name: 'Arlene Le',     storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p39', name: 'Aamir An',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p40', name: 'Ben Mu',        storesLabel: 'JDM',           active: true, workingDays: '' },
+  { id: 'p41', name: 'Sahil Ka',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p42', name: 'Lucky Ap',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p43', name: 'Ramya Sh',      storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p44', name: 'Mina Ta',       storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p45', name: 'Nadeem Si',     storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p46', name: 'Shuhaib Pu',    storesLabel: '',              active: true, workingDays: '' },
+  { id: 'p47', name: 'Romnick Co',    storesLabel: '',              active: true, workingDays: '' },
 ];
 
-// Generate 3 months of dates (~90 days)
+// Generate dates starting from the 1st of the current month, 3 months forward
 const getDates = (startDate: Date, days: number) => {
   const dates: string[] = [];
   for (let i = 0; i < days; i++) {
@@ -53,95 +83,14 @@ const getDates = (startDate: Date, days: number) => {
   return dates;
 };
 
-export const shiftDates = getDates(new Date('2024-03-01'), 92); // Mar 1 - May 31
-
-// Seeded pseudo-random for consistent data
-function seededRandom(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 16807 + 0) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
-
-// Generate realistic shifts for all promoters across all dates
-function generateShifts(promoters: Promoter[], stores: Store[], dates: string[]): Shift[] {
-  const shifts: Shift[] = [];
-  let id = 1;
-  const rand = seededRandom(42);
-
-  const dayOffMap: Record<string, number> = {
-    'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6,
-  };
-
-  // Build store lookup for time ranges
-  const storeMap = new Map<string, Store>();
-  stores.forEach(s => storeMap.set(s.code, s));
-
-  promoters.forEach((promoter) => {
-    const dayOff = dayOffMap[promoter.workingDays] ?? -1;
-
-    dates.forEach((dateStr) => {
-      const d = new Date(dateStr + 'T00:00:00');
-      const dow = d.getDay();
-
-      // Day off
-      if (dow === dayOff) {
-        shifts.push({ id: `s${id++}`, promoterId: promoter.id, date: dateStr, type: 'Off' });
-        return;
-      }
-
-      // ~5% chance of sick leave
-      if (rand() < 0.05) {
-        shifts.push({ id: `s${id++}`, promoterId: promoter.id, date: dateStr, type: 'SL' });
-        return;
-      }
-
-      // ~8% chance of LOP
-      if (rand() < 0.08) {
-        shifts.push({ id: `s${id++}`, promoterId: promoter.id, date: dateStr, type: 'LOP' });
-        return;
-      }
-
-      // Assign a store shift based on the promoter's stores
-      const storeLabels = promoter.storesLabel.split(',').map(s => s.trim()).filter(Boolean);
-      if (storeLabels.length > 0) {
-        const storeCode = storeLabels[Math.floor(rand() * storeLabels.length)];
-        const store = storeMap.get(storeCode);
-        if (store) {
-          shifts.push({
-            id: `s${id++}`,
-            promoterId: promoter.id,
-            date: dateStr,
-            type: store.code,
-            timeRange: `${store.openTime}-${store.closeTime}`,
-          });
-          return;
-        }
-      }
-
-      // Fallback: pick a random active store
-      const activeStores = stores.filter(s => s.active);
-      const pick = activeStores[Math.floor(rand() * activeStores.length)];
-      shifts.push({
-        id: `s${id++}`,
-        promoterId: promoter.id,
-        date: dateStr,
-        type: pick.code,
-        timeRange: `${pick.openTime}-${pick.closeTime}`,
-      });
-    });
-  });
-
-  return shifts;
-}
-
-export const mockShifts = generateShifts(mockPromoters, mockStores, shiftDates);
+const today = new Date();
+const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+export const shiftDates = getDates(startOfMonth, 92); // ~3 months
 
 // Generate store counts from actual shift assignments
 export const generateStoreCounts = (stores: Store[], dates: string[], shifts: Shift[]): StoreCount[] => {
   const counts: StoreCount[] = [];
-  const specialShifts = new Set(['Off', 'LOP', 'SL']);
+  const specialShifts = new Set(['Off', 'LOP', 'SL', 'AL']);
 
   const shiftCountMap = new Map<string, number>();
   shifts.forEach((shift) => {
@@ -161,28 +110,8 @@ export const generateStoreCounts = (stores: Store[], dates: string[], shifts: Sh
   return counts;
 };
 
-export const storeCounts = generateStoreCounts(mockStores, shiftDates, mockShifts);
+export const mockShifts: Shift[] = [];
 
-// Mock store preferences
-export const mockStorePreferences: StorePreference[] = [
-  { promoterId: 'p1', storeCode: 'VDM', preference: 'must' },
-  { promoterId: 'p1', storeCode: 'JDM', preference: 'preferred' },
-  { promoterId: 'p1', storeCode: 'VNK', preference: 'banned' },
-  { promoterId: 'p2', storeCode: 'VME', preference: 'must' },
-  { promoterId: 'p2', storeCode: 'AIR', preference: 'banned' },
-  { promoterId: 'p3', storeCode: 'AIR', preference: 'must' },
-  { promoterId: 'p3', storeCode: 'VRM', preference: 'preferred' },
-  { promoterId: 'p4', storeCode: 'VDH', preference: 'must' },
-  { promoterId: 'p5', storeCode: 'VME', preference: 'preferred' },
-  { promoterId: 'p5', storeCode: 'VDM', preference: 'banned' },
-  { promoterId: 'p6', storeCode: 'SDM', preference: 'must' },
-  { promoterId: 'p7', storeCode: 'VYM', preference: 'must' },
-  { promoterId: 'p7', storeCode: 'VAY', preference: 'preferred' },
-];
+export const mockStorePreferences: StorePreference[] = [];
 
-// Mock promoter conflicts
-export const mockPromoterConflicts: PromoterConflict[] = [
-  { id: 'c1', promoterAId: 'p1', promoterBId: 'p10', reason: 'Personal conflict' },
-  { id: 'c2', promoterAId: 'p5', promoterBId: 'p11', reason: 'Same skill set — avoid overlap' },
-  { id: 'c3', promoterAId: 'p3', promoterBId: 'p16', reason: 'Schedule clash history' },
-];
+export const mockPromoterConflicts: PromoterConflict[] = [];
