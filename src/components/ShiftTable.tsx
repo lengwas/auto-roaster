@@ -70,6 +70,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const [filterOpen, setFilterOpen] = useState(false);
   const [hiddenStoreIds, setHiddenStoreIds] = useState<Set<string>>(new Set());
   const [hiddenPromoterIds, setHiddenPromoterIds] = useState<Set<string>>(new Set());
+  const [activeOnlyPromoters, setActiveOnlyPromoters] = useState(true);
 
   const toggleStore = (id: string) => setHiddenStoreIds(prev => {
     const next = new Set(prev);
@@ -109,7 +110,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const activeStores = stores.filter(s => s.active);
   const visibleStores = stores.filter(s => !hiddenStoreIds.has(s.id));
   const activePromoters = promoters.filter(p => p.active);
-  const visiblePromoters = activePromoters.filter(p => !hiddenPromoterIds.has(p.id));
+  const promoterPool = activeOnlyPromoters ? activePromoters : promoters;
+  const visiblePromoters = promoterPool.filter(p => !hiddenPromoterIds.has(p.id));
 
   const handleChange = useCallback((promoterId: string, date: string, value: string) => {
     if (!onShiftChange) return;
@@ -191,10 +193,19 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                 Promoters
                 <span className="filter-section-actions">
                   <button onClick={() => setHiddenPromoterIds(new Set())}>All</button>
-                  <button onClick={() => setHiddenPromoterIds(new Set(activePromoters.map(p => p.id)))}>None</button>
+                  <button onClick={() => setHiddenPromoterIds(new Set(promoterPool.map(p => p.id)))}>None</button>
                 </span>
               </div>
-              {activePromoters.map(p => (
+              <label className="filter-item filter-active-only">
+                <input
+                  type="checkbox"
+                  checked={activeOnlyPromoters}
+                  onChange={e => { setActiveOnlyPromoters(e.target.checked); setHiddenPromoterIds(new Set()); }}
+                />
+                <span className="filter-item-name" style={{ fontWeight: 600 }}>Active only</span>
+                <span className="filter-item-stores">{activePromoters.length} / {promoters.length}</span>
+              </label>
+              {promoterPool.map(p => (
                 <label key={p.id} className="filter-item">
                   <input
                     type="checkbox"
@@ -202,6 +213,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                     onChange={() => togglePromoter(p.id)}
                   />
                   <span className="filter-item-name">{p.name}</span>
+                  {!p.active && <span className="filter-inactive-badge">inactive</span>}
                   {p.storesLabel && <span className="filter-item-stores">{p.storesLabel}</span>}
                 </label>
               ))}
@@ -360,7 +372,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
         </div>
 
         {/* ===== PROMOTER SECTION (Scrollable with dropdowns) ===== */}
-        <div className="section-spacer">Promoters ({visiblePromoters.length}{hiddenPromoterIds.size > 0 ? ` / ${activePromoters.length}` : ''} Active)</div>
+        <div className="section-spacer">Promoters ({visiblePromoters.length}{(hiddenPromoterIds.size > 0 || !activeOnlyPromoters) ? ` / ${promoterPool.length}` : ''} Active)</div>
         {visiblePromoters.map((promoter) => (
           <div key={promoter.id} className="grid-row promoter-row">
             <div className="cell cell-fixed-left col-name">

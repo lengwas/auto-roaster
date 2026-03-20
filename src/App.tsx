@@ -23,7 +23,7 @@ const TABS: { key: TabKey; label: string }[] = [
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('shift');
   const { stores, setStores } = useStores();
-  const { promoters } = usePromoters();
+  const { promoters, setPromoters } = usePromoters();
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
   const [shifts, setShifts] = useState(mockShifts);
   const [showExport, setShowExport] = useState(false);
@@ -103,6 +103,7 @@ function App() {
             onPreferencesChange={setStorePreferences}
             promoterConflicts={promoterConflicts}
             onConflictsChange={setPromoterConflicts}
+            onPromotersChange={setPromoters}
           />
         )}
         {activeTab === 'store-setting' && (

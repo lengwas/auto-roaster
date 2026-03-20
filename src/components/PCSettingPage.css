@@ -128,3 +128,28 @@
   color: var(--text-secondary);
   flex: 1;
 }
+
+/* Editable status badge */
+.status-badge-btn {
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.status-badge-btn:hover { opacity: 0.75; }
+
+/* Day off select */
+.dayoff-select {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: white;
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+}
+.dayoff-select:focus { border-color: #2563eb; }

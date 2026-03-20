@@ -3,6 +3,8 @@ import type { Promoter, Store, StorePreference, PromoterConflict, PreferenceLeve
 import './SettingPage.css';
 import './PCSettingPage.css';
 
+const DAY_OFF_OPTIONS = ['', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 interface PCSettingPageProps {
   promoters: Promoter[];
   stores: Store[];
@@ -10,6 +12,7 @@ interface PCSettingPageProps {
   onPreferencesChange: (prefs: StorePreference[]) => void;
   promoterConflicts: PromoterConflict[];
   onConflictsChange: (conflicts: PromoterConflict[]) => void;
+  onPromotersChange?: (promoters: Promoter[]) => void;
 }
 
 const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
@@ -18,7 +21,7 @@ const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
   { value: 'banned', label: 'Banned', cls: 'pref-banned' },
 ];
 
-const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, promoterConflicts, onConflictsChange }: PCSettingPageProps) => {
+const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, promoterConflicts, onConflictsChange, onPromotersChange }: PCSettingPageProps) => {
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [conflictA, setConflictA] = useState('');
@@ -68,6 +71,11 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
     const idx = order.indexOf(current);
     const next = order[(idx + 1) % order.length];
     setPref(promoterId, storeCode, next);
+  };
+
+  const updatePromoter = (id: string, changes: Partial<Promoter>) => {
+    if (!onPromotersChange) return;
+    onPromotersChange(promoters.map(p => p.id === id ? { ...p, ...changes } : p));
   };
 
   const getPrefsForPromoter = (promoterId: string) => {
@@ -160,11 +168,25 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                       <td className="cell-center">{idx + 1}</td>
                       <td className="cell-name">{p.name}</td>
                       <td className="cell-center">
-                        <span className={`status-badge ${p.active ? 'status-active' : 'status-inactive'}`}>
+                        <button
+                          className={`status-badge status-badge-btn ${p.active ? 'status-active' : 'status-inactive'}`}
+                          onClick={() => updatePromoter(p.id, { active: !p.active })}
+                          title="Click to toggle"
+                        >
                           {p.active ? 'Active' : 'Inactive'}
-                        </span>
+                        </button>
                       </td>
-                      <td className="cell-center">{p.workingDays}</td>
+                      <td className="cell-center">
+                        <select
+                          className="dayoff-select"
+                          value={p.workingDays}
+                          onChange={e => updatePromoter(p.id, { workingDays: e.target.value })}
+                        >
+                          {DAY_OFF_OPTIONS.map(d => (
+                            <option key={d} value={d}>{d || '—'}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td>
                         {summary ? (
                           <span className="pref-summary">{summary}</span>
