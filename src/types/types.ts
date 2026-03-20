@@ -64,3 +64,33 @@ export interface PromoterConflict {
   promoterBId: string;
   reason?: string;
 }
+
+// ============================================================
+// Sales / Orders
+// ============================================================
+export interface Order {
+  id: string;
+  date: string;         // YYYY-MM-DD
+  orderId?: string;
+  salesperson?: string; // free-text name; matched to Promoter.name
+  warehouse?: string;   // matched to Store.warehouse
+  platform?: string;
+  amountAed?: number;
+  status: string;       // 'completed' | 'pending' | 'cancelled' | 'returned'
+}
+
+// Store performance tier (set manually per store)
+export type StoreTier = 'A' | 'B' | 'C' | 'D';
+
+// Promoter performance grade
+export type PromoterGrade = 'A' | 'B' | 'C' | 'D';
+
+export interface StoreTierSetting {
+  storeCode: string;
+  tier: StoreTier;
+}
+
+export interface PromoterGradeOverride {
+  promoterId: string;
+  grade: PromoterGrade;
+}

@@ -4,19 +4,21 @@ import PCSettingPage from './components/PCSettingPage';
 import StoreSettingPage from './components/StoreSettingPage';
 import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
+import SalesPerformancePage from './components/SalesPerformancePage';
 import { mockShifts, shiftDates, generateStoreCounts, mockStorePreferences, mockPromoterConflicts } from './data/mockData';
 import { useStores } from './hooks/useStores';
 import { usePromoters } from './hooks/usePromoters';
 import { useSpecialDates } from './hooks/useSpecialDates';
-import type { StorePreference, PromoterConflict } from './types/types';
+import type { StorePreference, PromoterConflict, StoreTierSetting, PromoterGradeOverride } from './types/types';
 import './App.css';
 
-type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'db-schema';
+type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'db-schema';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'shift', label: 'Shift Table' },
   { key: 'pc-setting', label: 'PC Setting' },
   { key: 'store-setting', label: 'Store Setting' },
+  { key: 'sales', label: 'Sales Performance' },
   { key: 'db-schema', label: 'Database' },
 ];
 
@@ -29,6 +31,8 @@ function App() {
   const [showExport, setShowExport] = useState(false);
   const [storePreferences, setStorePreferences] = useState<StorePreference[]>(mockStorePreferences);
   const [promoterConflicts, setPromoterConflicts] = useState<PromoterConflict[]>(mockPromoterConflicts);
+  const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
+  const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
 
   const storeCounts = useMemo(
     () => generateStoreCounts(stores, shiftDates, shifts),
@@ -108,6 +112,17 @@ function App() {
         )}
         {activeTab === 'store-setting' && (
           <StoreSettingPage stores={stores} onStoresChange={setStores} />
+        )}
+        {activeTab === 'sales' && (
+          <SalesPerformancePage
+            stores={stores}
+            promoters={promoters}
+            shifts={shifts}
+            storeTiers={storeTiers}
+            onStoreTiersChange={setStoreTiers}
+            gradeOverrides={gradeOverrides}
+            onGradeOverridesChange={setGradeOverrides}
+          />
         )}
         {activeTab === 'db-schema' && (
           <DatabaseSchemaPage
