@@ -20,7 +20,7 @@ interface PCSettingPageProps {
   promoterConflicts: PromoterConflict[];
   onConflictsChange: (conflicts: PromoterConflict[]) => void;
   onPromotersChange?: (promoters: Promoter[]) => void;
-  onSavePromoters?: (changed: Promoter[]) => void;
+  onSavePromoters?: (changed: Promoter[]) => Promise<string[]>;
 }
 
 const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
@@ -36,7 +36,8 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
   const [conflictB, setConflictB] = useState('');
   const [conflictReason, setConflictReason] = useState('');
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeStores = stores.filter(s => s.active);
@@ -91,10 +92,17 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
     setSaveStatus('idle');
   };
 
-  const handleSavePromoters = () => {
+  const handleSavePromoters = async () => {
     if (!onSavePromoters || dirtyIds.size === 0) return;
+    setSaveStatus('saving');
+    setSaveError(null);
     const changed = promoters.filter(p => dirtyIds.has(p.id));
-    onSavePromoters(changed);
+    const errors = await onSavePromoters(changed);
+    if (errors.length > 0) {
+      setSaveStatus('error');
+      setSaveError(errors[0]);
+      return;
+    }
     setDirtyIds(new Set());
     setSaveStatus('saved');
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -166,9 +174,11 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
           </div>
           <div className="setting-actions">
             <span className="badge">{activePromoters.length} Active</span>
-            {saveStatus === 'saved' ? (
-              <span className="save-status-ok">✓ Saved</span>
-            ) : (
+            {saveStatus === 'saved' && <span className="save-status-ok">✓ Saved</span>}
+            {saveStatus === 'error' && (
+              <span className="save-status-err" title={saveError ?? ''}>⚠ Save failed</span>
+            )}
+            {(saveStatus === 'idle' || saveStatus === 'error') && (
               <button
                 className="btn btn-primary btn-small"
                 onClick={handleSavePromoters}
@@ -176,6 +186,9 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
               >
                 Save Changes{dirtyIds.size > 0 ? ` (${dirtyIds.size})` : ''}
               </button>
+            )}
+            {saveStatus === 'saving' && (
+              <button className="btn btn-primary btn-small" disabled>Saving…</button>
             )}
           </div>
         </div>

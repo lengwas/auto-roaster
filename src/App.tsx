@@ -110,7 +110,10 @@ function App() {
             promoterConflicts={promoterConflicts}
             onConflictsChange={setPromoterConflicts}
             onPromotersChange={setPromoters}
-            onSavePromoters={(changed) => changed.forEach(savePromoter)}
+            onSavePromoters={async (changed) => {
+              const results = await Promise.all(changed.map(savePromoter));
+              return results.filter((e): e is string => e !== null);
+            }}
           />
         )}
         {activeTab === 'store-setting' && (

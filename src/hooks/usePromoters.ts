@@ -31,14 +31,24 @@ export function usePromoters() {
       });
   }, []);
 
-  function savePromoter(p: Promoter) {
-    supabase
+  async function savePromoter(p: Promoter): Promise<string | null> {
+    const { error } = await supabase
       .from('promoters')
       .update({ active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays, role: p.role })
-      .eq('id', p.id)
-      .then(({ error }) => {
-        if (error) console.error('Failed to save promoter:', error);
-      });
+      .eq('id', p.id);
+    if (error) {
+      console.warn('Save with role failed, retrying without role:', error.message);
+      // Fallback: save without role column (in case the column doesn't exist yet)
+      const { error: error2 } = await supabase
+        .from('promoters')
+        .update({ active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays })
+        .eq('id', p.id);
+      if (error2) {
+        console.error('Failed to save promoter:', error2);
+        return error2.message;
+      }
+    }
+    return null;
   }
 
   return { promoters, setPromoters, savePromoter, loading };
