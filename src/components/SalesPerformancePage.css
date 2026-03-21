@@ -160,6 +160,178 @@
   margin-left: 8px;
 }
 
+/* ── Grade Distribution Bar ─────────────────────────────────── */
+.sp-grade-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 2px;
+  background: #f1f5f9;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  min-height: 52px;
+}
+.sp-grade-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 10px;
+  cursor: default;
+  transition: filter 0.12s;
+  min-width: 60px;
+}
+.sp-grade-bar-item:hover { filter: brightness(0.94); }
+.grade-bg-a { background: #dcfce7; }
+.grade-bg-b { background: #dbeafe; }
+.grade-bg-c { background: #fef3c7; }
+.grade-bg-d { background: #fee2e2; }
+.sp-grade-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sp-grade-bar-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sp-grade-bar-sales {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.sp-grade-bar-pi {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.sp-info-btn {
+  margin-left: auto;
+  align-self: center;
+  padding: 5px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+.sp-info-btn:hover { background: #f8fafc; color: var(--text-primary); }
+.sp-info-btn.active { background: #eff6ff; color: #2563eb; border-color: #93c5fd; }
+
+/* ── Methodology Panel ──────────────────────────────────────── */
+.sp-info-panel {
+  position: relative;
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 16px 20px 20px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 340px;
+}
+.sp-info-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.sp-info-close:hover { background: #e2e8f0; }
+.sp-info-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sp-info-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.sp-info-step {
+  display: flex;
+  gap: 10px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 240px;
+  flex: 1;
+}
+.sp-info-step-num {
+  font-size: 16px;
+  font-weight: 900;
+  color: #cbd5e1;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  padding-top: 1px;
+}
+.sp-info-step-body { flex: 1; }
+.sp-info-step-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.sp-info-formula {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  font-family: monospace;
+}
+.sp-info-note {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 3px;
+}
+.sp-info-example {
+  font-size: 11px;
+  color: #16a34a;
+  background: #f0fdf4;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.sp-info-grades {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sp-info-grade-rule {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+}
+.sp-info-list {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0;
+  padding-left: 14px;
+  line-height: 1.6;
+}
+.sp-info-list strong { color: var(--text-primary); }
+
 /* ── Body (Performance View) ────────────────────────────────── */
 .sp-body {
   display: flex;

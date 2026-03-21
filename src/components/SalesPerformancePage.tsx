@@ -145,6 +145,7 @@ const SalesPerformancePage = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed'>('completed');
   const [activeOnly, setActiveOnly] = useState(true);
   const [tierPanelOpen, setTierPanelOpen] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('pi');
   const [sortDesc, setSortDesc] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -432,7 +433,15 @@ const SalesPerformancePage = ({
   const summary = useMemo(() => {
     const total = filteredOrders.reduce((s, o) => s + (o.amountAed ?? 0), 0);
     const misfits = promoterRows.filter(r => r.misfit && r.workDays > 0).length;
-    return { totalOrders: filteredOrders.length, totalSales: total, misfits };
+    const withData = promoterRows.filter(r => r.workDays > 0);
+    const gradeDist = GRADES.map(g => ({
+      grade: g,
+      count: withData.filter(r => r.effectiveGrade === g).length,
+      totalSales: withData.filter(r => r.effectiveGrade === g).reduce((s, r) => s + r.totalSales, 0),
+      avgPI: withData.filter(r => r.effectiveGrade === g).reduce((s, r) => s + r.pi, 0) /
+             Math.max(withData.filter(r => r.effectiveGrade === g).length, 1),
+    }));
+    return { totalOrders: filteredOrders.length, totalSales: total, misfits, gradeDist, withData: withData.length };
   }, [filteredOrders, promoterRows]);
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -523,6 +532,130 @@ const SalesPerformancePage = ({
           </span>
         )}
       </div>
+
+      {/* ── GRADE DISTRIBUTION BAR ── */}
+      {summary.withData > 0 && (
+        <div className="sp-grade-bar">
+          {summary.gradeDist.map(({ grade, count, totalSales, avgPI }) => (
+            <div
+              key={grade}
+              className={`sp-grade-bar-item grade-bg-${grade.toLowerCase()}`}
+              style={{ flex: Math.max(count, 0.5) }}
+              title={`Grade ${grade}: ${count} promoter${count !== 1 ? 's' : ''} · AED ${fmtAed(totalSales)} · avg PI ${avgPI.toFixed(2)}`}
+            >
+              <span className="sp-grade-bar-label">
+                <span className={`sp-grade-badge ${gradeCls(grade as PromoterGrade)}`}>{grade}</span>
+                <span className="sp-grade-bar-count">{count}</span>
+              </span>
+              <span className="sp-grade-bar-sales">AED {fmtAed(totalSales)}</span>
+              <span className="sp-grade-bar-pi">PI {avgPI.toFixed(2)}</span>
+            </div>
+          ))}
+          <button
+            className={`sp-info-btn ${showInfo ? 'active' : ''}`}
+            onClick={() => setShowInfo(v => !v)}
+            title="How grades are calculated"
+          >ℹ How it works</button>
+        </div>
+      )}
+
+      {/* ── METHODOLOGY PANEL ── */}
+      {showInfo && (
+        <div className="sp-info-panel">
+          <button className="sp-info-close" onClick={() => setShowInfo(false)}>✕</button>
+          <h3 className="sp-info-title">How Promoter Grades are Calculated</h3>
+          <div className="sp-info-cols">
+            {/* Step 1 */}
+            <div className="sp-info-step">
+              <div className="sp-info-step-num">1</div>
+              <div className="sp-info-step-body">
+                <div className="sp-info-step-title">Store Average Daily Sales</div>
+                <div className="sp-info-formula">
+                  Store Avg = Total store sales ÷ Total promoter-days at store
+                </div>
+                <div className="sp-info-note">
+                  "Promoter-day" = 1 unique (promoter, date) pair. เช่น ถ้ามี 2 คนทำงานวันเดียวกัน นับเป็น 2 promoter-days
+                </div>
+              </div>
+            </div>
+            {/* Step 2 */}
+            <div className="sp-info-step">
+              <div className="sp-info-step-num">2</div>
+              <div className="sp-info-step-body">
+                <div className="sp-info-step-title">Performance Index (PI)</div>
+                <div className="sp-info-formula">
+                  PI = Promoter daily avg at store ÷ Store avg daily sales
+                </div>
+                <div className="sp-info-note">
+                  PI &gt; 1.0 = ขายได้มากกว่า store average · PI &lt; 1.0 = ต่ำกว่า average
+                </div>
+                <div className="sp-info-example">
+                  เช่น Store avg = AED 6,000/วัน, Promoter avg = AED 7,200/วัน → PI = 1.20
+                </div>
+              </div>
+            </div>
+            {/* Step 3 */}
+            <div className="sp-info-step">
+              <div className="sp-info-step-num">3</div>
+              <div className="sp-info-step-body">
+                <div className="sp-info-step-title">Overall PI (Weighted)</div>
+                <div className="sp-info-formula">
+                  Overall PI = Total sales ÷ Σ(days at store × store avg)
+                </div>
+                <div className="sp-info-note">
+                  Weighted by days worked → promoter ที่ทำงานหลาย store จะถูก normalize ตาม store ที่ทำงานนานกว่า
+                </div>
+              </div>
+            </div>
+            {/* Step 4 */}
+            <div className="sp-info-step">
+              <div className="sp-info-step-num">4</div>
+              <div className="sp-info-step-body">
+                <div className="sp-info-step-title">Auto Grade</div>
+                <div className="sp-info-grades">
+                  <span className="sp-grade-badge grade-a">A</span>
+                  <span className="sp-info-grade-rule">PI ≥ 1.15 (15%+ above avg)</span>
+                  <span className="sp-grade-badge grade-b">B</span>
+                  <span className="sp-info-grade-rule">PI ≥ 0.95 (within 5% below avg)</span>
+                  <span className="sp-grade-badge grade-c">C</span>
+                  <span className="sp-info-grade-rule">PI ≥ 0.75 (up to 25% below avg)</span>
+                  <span className="sp-grade-badge grade-d">D</span>
+                  <span className="sp-info-grade-rule">PI &lt; 0.75 (more than 25% below avg)</span>
+                </div>
+              </div>
+            </div>
+            {/* Step 5 */}
+            <div className="sp-info-step">
+              <div className="sp-info-step-num">5</div>
+              <div className="sp-info-step-body">
+                <div className="sp-info-step-title">Grade–Tier Fit Rules</div>
+                <div className="sp-info-grades">
+                  {(Object.entries(GRADE_ALLOWED_TIERS) as [PromoterGrade, StoreTier[]][]).map(([g, tiers]) => (
+                    <><span className={`sp-grade-badge ${gradeCls(g)}`}>{g}</span>
+                    <span className="sp-info-grade-rule">
+                      → Store tier {tiers.map(t => <span key={t} className={`sp-tier-badge ${tierCls(t)}`}>{t}</span>)}
+                    </span></>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Adjustments */}
+            <div className="sp-info-step">
+              <div className="sp-info-step-num">★</div>
+              <div className="sp-info-step-body">
+                <div className="sp-info-step-title">Filters & Adjustments</div>
+                <ul className="sp-info-list">
+                  <li><strong>Period</strong> — ย้อนหลัง 1/3/6 เดือน (more months = more stable)</li>
+                  <li><strong>Day of Week (DOW)</strong> — isolate weekday vs weekend performance</li>
+                  <li><strong>Status</strong> — completed orders only (excludes cancelled/returned)</li>
+                  <li><strong>Multi-PC days</strong> — วันที่มี 2 promoter ที่ store เดียวกัน อาจทำให้ PI ลดลง เพราะ sales แบ่งกัน</li>
+                  <li><strong>Manual Override</strong> — ปรับ grade ด้วยมือได้ (ไม่กระทบ auto grade)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── MAIN CONTENT ── */}
       {view === 'performance' ? (
