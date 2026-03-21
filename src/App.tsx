@@ -5,6 +5,7 @@ import StoreSettingPage from './components/StoreSettingPage';
 import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
 import SalesPerformancePage from './components/SalesPerformancePage';
+import AutoAssignPage from './components/AutoAssignPage';
 import { mockShifts, shiftDates, generateStoreCounts, mockStorePreferences, mockPromoterConflicts } from './data/mockData';
 import { useStores } from './hooks/useStores';
 import { usePromoters } from './hooks/usePromoters';
@@ -12,13 +13,14 @@ import { useSpecialDates } from './hooks/useSpecialDates';
 import type { StorePreference, PromoterConflict, StoreTierSetting, PromoterGradeOverride } from './types/types';
 import './App.css';
 
-type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'db-schema';
+type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'auto-assign' | 'db-schema';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'shift', label: 'Shift Table' },
   { key: 'pc-setting', label: 'PC Setting' },
   { key: 'store-setting', label: 'Store Setting' },
   { key: 'sales', label: 'Sales Performance' },
+  { key: 'auto-assign', label: 'Auto Assign' },
   { key: 'db-schema', label: 'Database' },
 ];
 
@@ -122,6 +124,19 @@ function App() {
             onStoreTiersChange={setStoreTiers}
             gradeOverrides={gradeOverrides}
             onGradeOverridesChange={setGradeOverrides}
+          />
+        )}
+        {activeTab === 'auto-assign' && (
+          <AutoAssignPage
+            stores={stores}
+            promoters={promoters}
+            storePreferences={storePreferences}
+            promoterConflicts={promoterConflicts}
+            storeTiers={storeTiers}
+            gradeOverrides={gradeOverrides}
+            onShiftsApply={(newShifts) => {
+              newShifts.forEach((s) => handleShiftChange(s.promoterId, s.date, s.type, s.timeRange));
+            }}
           />
         )}
         {activeTab === 'db-schema' && (
