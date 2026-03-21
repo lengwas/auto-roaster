@@ -11,6 +11,21 @@ import './SalesPerformancePage.css';
 const TIERS: StoreTier[] = ['A', 'B', 'C', 'D'];
 const GRADES: PromoterGrade[] = ['A', 'B', 'C', 'D'];
 const SPECIAL_SHIFTS = new Set(['Off', 'LOP', 'SL']);
+
+// Warehouse code (from real orders) → store code
+// e.g. orders.warehouse = "VIR - DBM" → store.code = "VDM"
+const WAREHOUSE_CODE_MAP: Record<string, string> = {
+  'vir - dbm': 'VDM', 'vir - moe': 'VME', 'vir - dbh': 'VDH',
+  'vir - mrn': 'VMN', 'vir - mdf': 'VMF', 'vir - nkm': 'VNK',
+  'vir - yas': 'VYM', 'vir - amy': 'VAY', 'vir - rem': 'VRM',
+  'vir - adm': 'VAD', 'vir - arb': 'VAY', 'vir - azc': 'VNK',
+  'jsm - moe': 'JME', 'jsm - dbm': 'JDM', 'jsm - dbh': 'JDH',
+  'bdr - dbm': 'BDM', 'bdr - dbh': 'JDH',
+  'hls - dbm': 'HDM',
+  'sdg - dbm': 'SDM',
+  'air - 48':  'AIR', 'air - dcc': 'ADC',
+  'img - wld': 'IMG',
+};
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // Grade A can be placed at store tier A or B, etc.
@@ -138,14 +153,25 @@ const SalesPerformancePage = ({
   const { orders, loading, error } = useOrders(6);
 
   // ── lookups ──────────────────────────────────────────────────────────────
-  // Match orders.warehouse against both stores.warehouse AND stores.platform
-  // (real orders use the platform value, e.g. "Virgin - Dubai Mall")
+  // Match orders.warehouse → store using:
+  // 1. WAREHOUSE_CODE_MAP ("VIR - DBM" → VDM)
+  // 2. stores.warehouse / stores.platform text match
+  // 3. direct store code match
   const storeByWarehouse = useMemo(() => {
+    const codeMap = new Map<string, Store>();
+    // Build code lookup first
+    stores.forEach(s => codeMap.set(s.code, s));
+
     const m = new Map<string, Store>();
+    // WAREHOUSE_CODE_MAP entries
+    Object.entries(WAREHOUSE_CODE_MAP).forEach(([wh, code]) => {
+      const store = codeMap.get(code);
+      if (store) m.set(wh, store);
+    });
+    // stores.warehouse / stores.platform / stores.code
     stores.forEach(s => {
       if (s.warehouse) m.set(s.warehouse.toLowerCase().trim(), s);
       if (s.platform)  m.set(s.platform.toLowerCase().trim(), s);
-      // also index by store code for direct-code orders
       m.set(s.code.toLowerCase(), s);
     });
     return m;
@@ -181,7 +207,7 @@ const SalesPerformancePage = ({
     const [fromDate] = getDateRange(months);
     return orders.filter(o => {
       if (o.date < fromDate) return false;
-      if (statusFilter === 'completed' && o.status !== 'completed') return false;
+      if (statusFilter === 'completed' && o.status.toLowerCase() !== 'completed') return false;
       if (selectedDows.size > 0 && !selectedDows.has(dowOf(o.date))) return false;
       return true;
     });
