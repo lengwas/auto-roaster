@@ -18,11 +18,23 @@ interface ChatMessage {
   text: string;
   isDraft?: boolean;
   count?: number;
+  tokens?: TokenUsage;
 }
 
 interface GeminiTurn {
   role: 'user' | 'model';
   parts: { text: string }[];
+}
+
+interface TokenUsage {
+  prompt: number;
+  output: number;
+  total: number;
+}
+
+interface GeminiResult {
+  text: string;
+  usage: TokenUsage;
 }
 
 interface Props {
@@ -34,6 +46,16 @@ interface Props {
   gradeOverrides: PromoterGradeOverride[];
   onShiftsApply: (shifts: Shift[]) => void;
 }
+
+// ── available Gemini models ────────────────────────────────────────────────
+const GEMINI_MODELS: { id: string; label: string }[] = [
+  { id: 'gemini-2.0-flash',     label: 'Gemini 2.0 Flash (fast)' },
+  { id: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (lightest)' },
+  { id: 'gemini-1.5-flash',     label: 'Gemini 1.5 Flash (stable)' },
+  { id: 'gemini-1.5-flash-8b',  label: 'Gemini 1.5 Flash-8B (cheapest)' },
+  { id: 'gemini-1.5-pro',       label: 'Gemini 1.5 Pro (smart)' },
+];
+const DEFAULT_MODEL = 'gemini-2.0-flash';
 
 // ── colours ────────────────────────────────────────────────────────────────
 const STORE_COLORS: Record<string, string> = {
@@ -78,6 +100,9 @@ function fmtHeader(d: string) {
 function storeBg(code: string): string {
   return STORE_COLORS[code] ?? '#4b5563';
 }
+function fmtNum(n: number): string {
+  return n.toLocaleString();
+}
 
 function parseAssignments(text: string): DraftAssignment[] | null {
   const cleaned = text.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim();
@@ -95,15 +120,18 @@ function parseAssignments(text: string): DraftAssignment[] | null {
   return null;
 }
 
-async function callGemini(turns: GeminiTurn[]): Promise<string> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY is not set in .env');
+async function callGemini(turns: GeminiTurn[], model: string): Promise<GeminiResult> {
+  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim();
+  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY is not set. Add it to your .env file.');
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
       body: JSON.stringify({
         contents: turns,
         generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
@@ -114,8 +142,17 @@ async function callGemini(turns: GeminiTurn[]): Promise<string> {
     const err = await res.json().catch(() => ({})) as { error?: { message?: string } };
     throw new Error(err.error?.message ?? `Gemini error ${res.status}`);
   }
-  const data = await res.json() as { candidates?: { content?: { parts?: { text: string }[] } }[] };
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const data = await res.json() as {
+    candidates?: { content?: { parts?: { text: string }[] } }[];
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
+  };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const usage: TokenUsage = {
+    prompt: data.usageMetadata?.promptTokenCount ?? 0,
+    output: data.usageMetadata?.candidatesTokenCount ?? 0,
+    total: data.usageMetadata?.totalTokenCount ?? 0,
+  };
+  return { text, usage };
 }
 
 function buildContext(
@@ -177,12 +214,17 @@ export default function AutoAssignPage({
   const today = todayStr();
   const [startDate, setStartDate] = useState(addDays(today, 1));
   const [endDate, setEndDate] = useState(addDays(today, 7));
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [draft, setDraft] = useState<DraftAssignment[]>([]);
   const [geminiHistory, setGeminiHistory] = useState<GeminiTurn[]>([]);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // cumulative token usage for this session
+  const [sessionTokens, setSessionTokens] = useState<TokenUsage>({ prompt: 0, output: 0, total: 0 });
+  const [callCount, setCallCount] = useState(0);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -191,6 +233,24 @@ export default function AutoAssignPage({
 
   const dates = genDates(startDate, endDate);
   const activePromoters = promoters.filter((p) => p.active);
+
+  function addTokens(u: TokenUsage) {
+    setSessionTokens((prev) => ({
+      prompt: prev.prompt + u.prompt,
+      output: prev.output + u.output,
+      total: prev.total + u.total,
+    }));
+    setCallCount((c) => c + 1);
+  }
+
+  function resetSession() {
+    setDraft([]);
+    setGeminiHistory([]);
+    setChat([]);
+    setSessionTokens({ prompt: 0, output: 0, total: 0 });
+    setCallCount(0);
+    setError(null);
+  }
 
   // ── generate draft ────────────────────────────────────────────────────
   async function generateDraft() {
@@ -218,19 +278,20 @@ export default function AutoAssignPage({
 
     const turn: GeminiTurn = { role: 'user', parts: [{ text: userText }] };
     try {
-      const reply = await callGemini([turn]);
+      const { text: reply, usage } = await callGemini([turn], selectedModel);
       const assignments = parseAssignments(reply);
       if (!assignments) throw new Error('Gemini returned invalid JSON. Try again.');
 
       setDraft(assignments);
+      addTokens(usage);
       const newHistory: GeminiTurn[] = [
         turn,
         { role: 'model', parts: [{ text: reply }] },
       ];
       setGeminiHistory(newHistory);
-      setChat([
-        { role: 'assistant', isDraft: true, count: assignments.length, text: reply },
-      ]);
+      setChat([{
+        role: 'assistant', isDraft: true, count: assignments.length, text: reply, tokens: usage,
+      }]);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -258,15 +319,16 @@ export default function AutoAssignPage({
     setChat((prev) => [...prev, { role: 'user', text: msg }]);
 
     try {
-      const reply = await callGemini(turns);
+      const { text: reply, usage } = await callGemini(turns, selectedModel);
       const assignments = parseAssignments(reply);
       if (!assignments) throw new Error('Gemini returned invalid JSON. Try rephrasing your request.');
 
       setDraft(assignments);
+      addTokens(usage);
       setGeminiHistory([...turns, { role: 'model', parts: [{ text: reply }] }]);
       setChat((prev) => [
         ...prev,
-        { role: 'assistant', isDraft: true, count: assignments.length, text: reply },
+        { role: 'assistant', isDraft: true, count: assignments.length, text: reply, tokens: usage },
       ]);
     } catch (e) {
       setError((e as Error).message);
@@ -294,14 +356,43 @@ export default function AutoAssignPage({
     return draft.find((a) => a.promoterId === promoterId && a.date === date);
   }
 
+  const hasKey = !!(import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim();
+
   // ─────────────────────────────────────────────────────────────────────
   return (
     <div className="aa-layout">
       {/* ── LEFT PANEL ── */}
       <div className="aa-left">
         <div className="aa-controls">
-          <h2 className="aa-title">Auto Assign</h2>
+          <div className="aa-title-row">
+            <h2 className="aa-title">Auto Assign</h2>
+            {callCount > 0 && (
+              <button className="aa-btn-reset" onClick={resetSession} title="Reset session">↺</button>
+            )}
+          </div>
 
+          {!hasKey && (
+            <div className="aa-key-warning">
+              ⚠️ <strong>VITE_GEMINI_API_KEY</strong> not set.<br />
+              Add it to your <code>.env</code> file and restart.
+            </div>
+          )}
+
+          {/* model selector */}
+          <div className="aa-field" style={{ marginBottom: 10 }}>
+            <label className="aa-label">Model</label>
+            <select
+              className="aa-select"
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+            >
+              {GEMINI_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* date range */}
           <div className="aa-date-row">
             <div className="aa-field">
               <label className="aa-label">From</label>
@@ -332,7 +423,7 @@ export default function AutoAssignPage({
           <button
             className="aa-btn-generate"
             onClick={generateDraft}
-            disabled={loading || dates.length === 0}
+            disabled={loading || dates.length === 0 || !hasKey}
           >
             {loading && draft.length === 0 ? '⏳ Generating…' : '✨ Generate Draft'}
           </button>
@@ -343,6 +434,27 @@ export default function AutoAssignPage({
             </button>
           )}
         </div>
+
+        {/* ── TOKEN USAGE ── */}
+        {callCount > 0 && (
+          <div className="aa-tokens">
+            <div className="aa-tokens-title">Token Usage · {callCount} call{callCount > 1 ? 's' : ''}</div>
+            <div className="aa-tokens-grid">
+              <div className="aa-token-stat">
+                <span className="aa-token-label">Input</span>
+                <span className="aa-token-value">{fmtNum(sessionTokens.prompt)}</span>
+              </div>
+              <div className="aa-token-stat">
+                <span className="aa-token-label">Output</span>
+                <span className="aa-token-value">{fmtNum(sessionTokens.output)}</span>
+              </div>
+              <div className="aa-token-stat aa-token-total">
+                <span className="aa-token-label">Total</span>
+                <span className="aa-token-value">{fmtNum(sessionTokens.total)}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── CHAT ── */}
         <div className="aa-chat">
@@ -356,15 +468,16 @@ export default function AutoAssignPage({
               <div key={i} className={`aa-msg aa-msg-${m.role}`}>
                 {m.role === 'assistant' ? (
                   m.isDraft ? (
-                    <span className="aa-msg-draft">
-                      ✅ Draft updated — {m.count} assignments
-                    </span>
-                  ) : (
-                    m.text
-                  )
-                ) : (
-                  m.text
-                )}
+                    <div>
+                      <span className="aa-msg-draft">✅ Draft updated — {m.count} assignments</span>
+                      {m.tokens && (
+                        <span className="aa-msg-tokens">
+                          {fmtNum(m.tokens.prompt)}↑ {fmtNum(m.tokens.output)}↓ tokens
+                        </span>
+                      )}
+                    </div>
+                  ) : m.text
+                ) : m.text}
               </div>
             ))}
             {loading && <div className="aa-msg aa-msg-assistant aa-msg-loading">⏳ Thinking…</div>}
@@ -430,10 +543,7 @@ export default function AutoAssignPage({
                     return (
                       <tr key={p.id} className="aa-tr">
                         <td className="aa-td-name">
-                          <span
-                            className="aa-grade-badge"
-                            style={{ background: GRADE_BG[grade] }}
-                          >
+                          <span className="aa-grade-badge" style={{ background: GRADE_BG[grade] }}>
                             {grade}
                           </span>
                           <span className="aa-promoter-name">{p.name}</span>
@@ -448,10 +558,7 @@ export default function AutoAssignPage({
                               {isOff ? (
                                 <span className="aa-cell-off">Off</span>
                               ) : (
-                                <span
-                                  className="aa-cell-store"
-                                  style={{ background: storeBg(code) }}
-                                >
+                                <span className="aa-cell-store" style={{ background: storeBg(code) }}>
                                   {code}
                                 </span>
                               )}
