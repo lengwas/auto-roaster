@@ -26,8 +26,8 @@ const TABS: { key: TabKey; label: string }[] = [
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('shift');
-  const { stores, setStores } = useStores();
-  const { promoters, setPromoters } = usePromoters();
+  const { stores, setStores, saveStore, deleteStore } = useStores();
+  const { promoters, setPromoters, savePromoter } = usePromoters();
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
   const [shifts, setShifts] = useState(mockShifts);
   const [showExport, setShowExport] = useState(false);
@@ -110,10 +110,16 @@ function App() {
             promoterConflicts={promoterConflicts}
             onConflictsChange={setPromoterConflicts}
             onPromotersChange={setPromoters}
+            onSavePromoters={(changed) => changed.forEach(savePromoter)}
           />
         )}
         {activeTab === 'store-setting' && (
-          <StoreSettingPage stores={stores} onStoresChange={setStores} />
+          <StoreSettingPage
+            stores={stores}
+            onStoresChange={setStores}
+            onSaveStore={saveStore}
+            onDeleteStore={deleteStore}
+          />
         )}
         {activeTab === 'sales' && (
           <SalesPerformancePage

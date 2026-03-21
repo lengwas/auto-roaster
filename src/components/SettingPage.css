@@ -32,6 +32,16 @@
   gap: 12px;
 }
 
+.save-status-ok {
+  font-size: 13px;
+  font-weight: 600;
+  color: #16a34a;
+  padding: 4px 10px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+}
+
 .search-input {
   padding: 10px 14px;
   border: 1px solid var(--border-color);

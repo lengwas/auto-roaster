@@ -35,5 +35,31 @@ export function useStores() {
       });
   }, []);
 
-  return { stores, setStores, loading };
+  function saveStore(s: Store) {
+    const payload = {
+      code: s.code, name: s.name, active: s.active,
+      open_time: s.openTime, close_time: s.closeTime,
+      extra_allowance: s.extraAllowance ?? null,
+      max_capacity: s.maxCapacity ?? null,
+      platform: s.platform ?? null,
+      warehouse: s.warehouse ?? null,
+    };
+    // IDs from Supabase are UUIDs; locally-generated IDs start with "store_"
+    if (s.id.startsWith('store_')) {
+      supabase.from('stores').insert(payload)
+        .then(({ error }) => { if (error) console.error('Failed to insert store:', error); });
+    } else {
+      supabase.from('stores').update(payload).eq('id', s.id)
+        .then(({ error }) => { if (error) console.error('Failed to update store:', error); });
+    }
+  }
+
+  function deleteStore(id: string) {
+    if (!id.startsWith('store_')) {
+      supabase.from('stores').delete().eq('id', id)
+        .then(({ error }) => { if (error) console.error('Failed to delete store:', error); });
+    }
+  }
+
+  return { stores, setStores, saveStore, deleteStore, loading };
 }

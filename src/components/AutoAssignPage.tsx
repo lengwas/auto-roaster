@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type {
   Store, Promoter, Shift,
   StorePreference, PromoterConflict,
   StoreTierSetting, PromoterGradeOverride,
 } from '../types/types';
+import ShiftTable from './ShiftTable';
+import { generateStoreCounts } from '../data/mockData';
 import './AutoAssignPage.css';
 
 interface DraftAssignment {
@@ -57,22 +59,6 @@ const GEMINI_MODELS: { id: string; label: string }[] = [
 ];
 const DEFAULT_MODEL = 'gemini-2.0-flash';
 
-// ── colours ────────────────────────────────────────────────────────────────
-const STORE_COLORS: Record<string, string> = {
-  VDM: '#7c3aed', VDH: '#9333ea', VME: '#6d28d9',
-  BDM: '#1d4ed8', JME: '#1e40af', AIR: '#0891b2',
-  VAY: '#059669', VYM: '#16a34a', VRM: '#15803d',
-  VMF: '#ca8a04', VMN: '#d97706', VNK: '#b45309',
-  JDM: '#dc2626', JDH: '#b91c1c', SDM: '#be185d',
-  HDM: '#0f766e',
-};
-
-const GRADE_BG: Record<string, string> = {
-  A: '#16a34a', B: '#2563eb', C: '#d97706', D: '#dc2626',
-};
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 // ── helpers ────────────────────────────────────────────────────────────────
 function todayStr(): string {
   return new Date().toISOString().split('T')[0];
@@ -91,14 +77,6 @@ function genDates(start: string, end: string): string[] {
     cur.setDate(cur.getDate() + 1);
   }
   return out;
-}
-function fmtHeader(d: string) {
-  const dt = new Date(d + 'T00:00:00');
-  const day = dt.getDay();
-  return { dow: DAY_NAMES[day], date: `${dt.getDate()}/${dt.getMonth() + 1}`, isWeekend: day === 0 || day === 6 };
-}
-function storeBg(code: string): string {
-  return STORE_COLORS[code] ?? '#4b5563';
 }
 function fmtNum(n: number): string {
   return n.toLocaleString();
@@ -189,15 +167,23 @@ function buildContext(
     ctx += `- ${s.code} | ${s.name} | Tier ${tier} | max ${s.maxCapacity ?? 2}\n`;
   }
 
-  ctx += '\n## PROMOTERS (id | name | grade | work-days/week | constraints)\n';
+  ctx += '\n## PROMOTERS (id | name | role | grade | days-off | constraints)\n';
   for (const p of aProms) {
     const grade = gradeOverrides.find((g) => g.promoterId === p.id)?.grade ?? 'C';
+    const daysOff = p.workingDays ? p.workingDays : 'none';
     const prefs = storePreferences.filter((pf) => pf.promoterId === p.id);
-    const must = prefs.filter((pf) => pf.preference === 'must').map((pf) => pf.storeCode).join(',');
-    const preferred = prefs.filter((pf) => pf.preference === 'preferred').map((pf) => pf.storeCode).join(',');
-    const banned = prefs.filter((pf) => pf.preference === 'banned').map((pf) => pf.storeCode).join(',');
-    ctx += `- [${p.id}] ${p.name} | Grade:${grade} | ${p.workingDays}d/wk`;
-    if (must) ctx += ` | Must:${must}`;
+    // Admin role: must go to AIR only
+    const mustStores = p.role === 'admin'
+      ? 'AIR'
+      : prefs.filter((pf) => pf.preference === 'must').map((pf) => pf.storeCode).join(',');
+    const preferred = p.role === 'admin'
+      ? ''
+      : prefs.filter((pf) => pf.preference === 'preferred').map((pf) => pf.storeCode).join(',');
+    const banned = p.role === 'admin'
+      ? ''
+      : prefs.filter((pf) => pf.preference === 'banned').map((pf) => pf.storeCode).join(',');
+    ctx += `- [${p.id}] ${p.name} | Role:${p.role} | Grade:${grade} | DaysOff:${daysOff}`;
+    if (mustStores) ctx += ` | Must:${mustStores}`;
     if (preferred) ctx += ` | Preferred:${preferred}`;
     if (banned) ctx += ` | Banned:${banned}`;
     ctx += '\n';
@@ -368,10 +354,34 @@ export default function AutoAssignPage({
     onShiftsApply(shifts);
   }
 
-  // ── cell lookup ───────────────────────────────────────────────────────
-  function getAssignment(promoterId: string, date: string): DraftAssignment | undefined {
-    return draft.find((a) => a.promoterId === promoterId && a.date === date);
-  }
+  // ── draft ↔ Shift[] conversion ────────────────────────────────────────
+  const draftShifts = useMemo<Shift[]>(() =>
+    draft
+      .filter((a) => a.store && a.store !== 'Off')
+      .map((a) => ({
+        id: `aa_${a.promoterId}_${a.date}`,
+        promoterId: a.promoterId,
+        date: a.date,
+        type: a.store,
+        timeRange: a.timeRange,
+      })),
+    [draft],
+  );
+
+  const draftStoreCounts = useMemo(
+    () => generateStoreCounts(stores, dates, draftShifts),
+    [stores, dates, draftShifts],
+  );
+
+  const handleDraftShiftChange = useCallback((
+    promoterId: string, date: string, newType: string, timeRange?: string,
+  ) => {
+    setDraft((prev) => {
+      const filtered = prev.filter((a) => !(a.promoterId === promoterId && a.date === date));
+      if (!newType) return filtered;
+      return [...filtered, { promoterId, date, store: newType, timeRange }];
+    });
+  }, []);
 
   const hasKey = !!(import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim();
 
@@ -544,73 +554,14 @@ export default function AutoAssignPage({
             <p className="aa-empty-sub">Gemini will create an initial schedule based on store tiers, promoter grades, and preferences.</p>
           </div>
         ) : (
-          <div className="aa-table-wrap">
-            <div className="aa-table-header">
-              <span className="aa-table-title">Draft Schedule</span>
-              <span className="aa-table-meta">{draft.filter((a) => a.store !== 'Off').length} shifts assigned</span>
-            </div>
-
-            <div className="aa-scroll">
-              <table className="aa-table">
-                <thead>
-                  <tr>
-                    <th className="aa-th-name">Promoter</th>
-                    {dates.map((d) => {
-                      const { dow, date, isWeekend } = fmtHeader(d);
-                      return (
-                        <th key={d} className={`aa-th-date${isWeekend ? ' aa-weekend' : ''}`}>
-                          <span className="aa-th-dow">{dow}</span>
-                          <span className="aa-th-day">{date}</span>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {activePromoters.map((p) => {
-                    const grade = gradeOverrides.find((g) => g.promoterId === p.id)?.grade ?? 'C';
-                    return (
-                      <tr key={p.id} className="aa-tr">
-                        <td className="aa-td-name">
-                          <span className="aa-grade-badge" style={{ background: GRADE_BG[grade] }}>
-                            {grade}
-                          </span>
-                          <span className="aa-promoter-name">{p.name}</span>
-                        </td>
-                        {dates.map((d) => {
-                          const { isWeekend } = fmtHeader(d);
-                          const a = getAssignment(p.id, d);
-                          const code = a?.store ?? '—';
-                          const isOff = !a || code === 'Off' || code === '—';
-                          return (
-                            <td key={d} className={`aa-td-cell${isWeekend ? ' aa-weekend' : ''}`}>
-                              {isOff ? (
-                                <span className="aa-cell-off">Off</span>
-                              ) : (
-                                <span className="aa-cell-store" style={{ background: storeBg(code) }}>
-                                  {code}
-                                </span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* store legend */}
-            <div className="aa-legend">
-              {stores.filter((s) => s.active && draft.some((a) => a.store === s.code)).map((s) => (
-                <span key={s.code} className="aa-legend-item">
-                  <span className="aa-legend-dot" style={{ background: storeBg(s.code) }} />
-                  {s.code} – {s.name}
-                </span>
-              ))}
-            </div>
-          </div>
+          <ShiftTable
+            stores={stores}
+            promoters={activePromoters}
+            shifts={draftShifts}
+            storeCounts={draftStoreCounts}
+            dates={dates}
+            onShiftChange={handleDraftShiftChange}
+          />
         )}
       </div>
     </div>

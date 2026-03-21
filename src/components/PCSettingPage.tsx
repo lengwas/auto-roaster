@@ -1,9 +1,16 @@
-import { useState, useMemo } from 'react';
-import type { Promoter, Store, StorePreference, PromoterConflict, PreferenceLevel } from '../types/types';
+import { useState, useMemo, useRef } from 'react';
+import type { Promoter, Store, StorePreference, PromoterConflict, PreferenceLevel, PromoterRole } from '../types/types';
 import './SettingPage.css';
 import './PCSettingPage.css';
 
-const DAY_OFF_OPTIONS = ['', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function parseDaysOff(s: string): string[] {
+  return s ? s.split(',').map(d => d.trim()).filter(Boolean) : [];
+}
+function serializeDaysOff(days: string[]): string {
+  return days.join(',');
+}
 
 interface PCSettingPageProps {
   promoters: Promoter[];
@@ -13,6 +20,7 @@ interface PCSettingPageProps {
   promoterConflicts: PromoterConflict[];
   onConflictsChange: (conflicts: PromoterConflict[]) => void;
   onPromotersChange?: (promoters: Promoter[]) => void;
+  onSavePromoters?: (changed: Promoter[]) => void;
 }
 
 const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
@@ -21,12 +29,15 @@ const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
   { value: 'banned', label: 'Banned', cls: 'pref-banned' },
 ];
 
-const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, promoterConflicts, onConflictsChange, onPromotersChange }: PCSettingPageProps) => {
+const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, promoterConflicts, onConflictsChange, onPromotersChange, onSavePromoters }: PCSettingPageProps) => {
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [conflictA, setConflictA] = useState('');
   const [conflictB, setConflictB] = useState('');
   const [conflictReason, setConflictReason] = useState('');
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeStores = stores.filter(s => s.active);
   const activePromoters = promoters.filter(p => p.active);
@@ -76,6 +87,18 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
   const updatePromoter = (id: string, changes: Partial<Promoter>) => {
     if (!onPromotersChange) return;
     onPromotersChange(promoters.map(p => p.id === id ? { ...p, ...changes } : p));
+    setDirtyIds(prev => new Set(prev).add(id));
+    setSaveStatus('idle');
+  };
+
+  const handleSavePromoters = () => {
+    if (!onSavePromoters || dirtyIds.size === 0) return;
+    const changed = promoters.filter(p => dirtyIds.has(p.id));
+    onSavePromoters(changed);
+    setDirtyIds(new Set());
+    setSaveStatus('saved');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
   };
 
   const getPrefsForPromoter = (promoterId: string) => {
@@ -143,6 +166,17 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
           </div>
           <div className="setting-actions">
             <span className="badge">{activePromoters.length} Active</span>
+            {saveStatus === 'saved' ? (
+              <span className="save-status-ok">✓ Saved</span>
+            ) : (
+              <button
+                className="btn btn-primary btn-small"
+                onClick={handleSavePromoters}
+                disabled={dirtyIds.size === 0}
+              >
+                Save Changes{dirtyIds.size > 0 ? ` (${dirtyIds.size})` : ''}
+              </button>
+            )}
           </div>
         </div>
 
@@ -152,8 +186,9 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
               <tr>
                 <th style={{ width: 50 }}>#</th>
                 <th style={{ width: 180 }}>Name</th>
-                <th style={{ width: 100 }}>Status</th>
-                <th style={{ width: 120 }}>Day Off</th>
+                <th style={{ width: 90 }}>Status</th>
+                <th style={{ width: 80 }}>Role</th>
+                <th>Days Off</th>
                 <th>Conditions</th>
                 <th style={{ width: 80 }}>Detail</th>
               </tr>
@@ -179,13 +214,35 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                       <td className="cell-center">
                         <select
                           className="dayoff-select"
-                          value={p.workingDays}
-                          onChange={e => updatePromoter(p.id, { workingDays: e.target.value })}
+                          value={p.role}
+                          onChange={e => updatePromoter(p.id, { role: e.target.value as PromoterRole })}
                         >
-                          {DAY_OFF_OPTIONS.map(d => (
-                            <option key={d} value={d}>{d || '—'}</option>
-                          ))}
+                          <option value="promoter">Promoter</option>
+                          <option value="admin">Admin</option>
                         </select>
+                      </td>
+                      <td>
+                        <div className="dayoff-chips">
+                          {DAYS_OF_WEEK.map(day => {
+                            const daysOff = parseDaysOff(p.workingDays);
+                            const isOff = daysOff.includes(day);
+                            return (
+                              <button
+                                key={day}
+                                className={`dayoff-chip ${isOff ? 'dayoff-chip-on' : ''}`}
+                                onClick={() => {
+                                  const current = parseDaysOff(p.workingDays);
+                                  const next = isOff
+                                    ? current.filter(d => d !== day)
+                                    : [...current, day];
+                                  updatePromoter(p.id, { workingDays: serializeDaysOff(next) });
+                                }}
+                              >
+                                {day.slice(0, 2)}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </td>
                       <td>
                         {summary ? (
@@ -205,7 +262,7 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                     </tr>
                     {isExpanded && (
                       <tr key={`${p.id}-expand`} className="expand-row">
-                        <td colSpan={6}>
+                        <td colSpan={7}>
                           <div className="pref-grid">
                             {activeStores.map(store => {
                               const pref = getPref(p.id, store.code);

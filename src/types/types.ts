@@ -11,12 +11,16 @@ export interface Store {
   warehouse?: string; // e.g. "VIR - DBM"
 }
 
+export type PromoterRole = 'admin' | 'promoter';
+
 export interface Promoter {
   id: string;
   name: string;
   storesLabel: string;
   active: boolean;
+  /** Comma-separated day names that are days off, e.g. "Fri,Sat" */
   workingDays: string;
+  role: PromoterRole;
 }
 
 export type ShiftType = string; // store code or 'LOP' | 'Off' | 'SL'

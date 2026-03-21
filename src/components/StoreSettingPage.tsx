@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Store } from '../types/types';
 import './SettingPage.css';
 
 interface StoreSettingPageProps {
   stores: Store[];
   onStoresChange: (stores: Store[]) => void;
+  onSaveStore?: (s: Store) => void;
+  onDeleteStore?: (id: string) => void;
 }
 
 const EMPTY_STORE: Omit<Store, 'id'> = {
@@ -19,11 +21,28 @@ const EMPTY_STORE: Omit<Store, 'id'> = {
   warehouse: '',
 };
 
-const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => {
+const StoreSettingPage = ({ stores, onStoresChange, onSaveStore, onDeleteStore }: StoreSettingPageProps) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_STORE);
   const [search, setSearch] = useState('');
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const markDirty = (id: string) => {
+    setDirtyIds(prev => new Set(prev).add(id));
+    setSaveStatus('idle');
+  };
+
+  const handleSaveAll = () => {
+    if (!onSaveStore || dirtyIds.size === 0) return;
+    stores.filter(s => dirtyIds.has(s.id)).forEach(onSaveStore);
+    setDirtyIds(new Set());
+    setSaveStatus('saved');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
+  };
 
   const filtered = stores.filter(
     (s) =>
@@ -57,19 +76,19 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
     if (!form.code.trim() || !form.name.trim()) return;
 
     if (editingId) {
-      onStoresChange(
-        stores.map((s) =>
-          s.id === editingId
-            ? {
-                ...s, ...form,
-                extraAllowance: form.extraAllowance || undefined,
-                maxCapacity: form.maxCapacity || undefined,
-                platform: (form.platform as string) || undefined,
-                warehouse: (form.warehouse as string) || undefined,
-              }
-            : s
-        )
+      const updated = stores.map((s) =>
+        s.id === editingId
+          ? {
+              ...s, ...form,
+              extraAllowance: form.extraAllowance || undefined,
+              maxCapacity: form.maxCapacity || undefined,
+              platform: (form.platform as string) || undefined,
+              warehouse: (form.warehouse as string) || undefined,
+            }
+          : s
       );
+      onStoresChange(updated);
+      markDirty(editingId);
     } else {
       const newStore: Store = {
         id: `store_${Date.now()}`,
@@ -84,6 +103,7 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
         warehouse: (form.warehouse as string) || undefined,
       };
       onStoresChange([...stores, newStore]);
+      markDirty(newStore.id);
     }
     setShowForm(false);
     setEditingId(null);
@@ -95,13 +115,14 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
   };
 
   const toggleActive = (storeId: string) => {
-    onStoresChange(
-      stores.map((s) => (s.id === storeId ? { ...s, active: !s.active } : s))
-    );
+    onStoresChange(stores.map((s) => (s.id === storeId ? { ...s, active: !s.active } : s)));
+    markDirty(storeId);
   };
 
   const handleDelete = (storeId: string) => {
     onStoresChange(stores.filter((s) => s.id !== storeId));
+    onDeleteStore?.(storeId);
+    setDirtyIds(prev => { const next = new Set(prev); next.delete(storeId); return next; });
   };
 
   return (
@@ -124,6 +145,17 @@ const StoreSettingPage = ({ stores, onStoresChange }: StoreSettingPageProps) => 
         <div className="setting-actions">
           <span className="badge">{stores.filter((s) => s.active).length} Active</span>
           <span className="badge badge-muted">{stores.filter((s) => !s.active).length} Hidden</span>
+          {saveStatus === 'saved' ? (
+            <span className="save-status-ok">✓ Saved</span>
+          ) : (
+            <button
+              className="btn btn-primary btn-small"
+              onClick={handleSaveAll}
+              disabled={dirtyIds.size === 0}
+            >
+              Save to Database{dirtyIds.size > 0 ? ` (${dirtyIds.size})` : ''}
+            </button>
+          )}
           <button className="btn btn-primary" onClick={openAddForm}>
             + Add Store
           </button>
