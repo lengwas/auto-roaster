@@ -21,6 +21,7 @@ export function usePromoters() {
     supabase
       .from('promoters')
       .select('*')
+      .eq('active', true)
       .order('name')
       .then(({ data, error }) => {
         if (!error && data && data.length > 0) {

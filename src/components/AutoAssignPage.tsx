@@ -107,8 +107,13 @@ function fmtNum(n: number): string {
 function parseAssignments(text: string): DraftAssignment[] | null {
   const cleaned = text.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim();
   try {
-    const arr = JSON.parse(cleaned);
-    if (Array.isArray(arr)) return arr;
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return parsed;
+    // Gemini sometimes wraps in an object: { schedule: [...] } or { assignments: [...] }
+    for (const key of ['schedule', 'assignments', 'shifts', 'data', 'result']) {
+      const val = (parsed as Record<string, unknown>)[key];
+      if (Array.isArray(val)) return val as DraftAssignment[];
+    }
   } catch { /* fall through */ }
   const m = text.match(/\[[\s\S]*\]/);
   if (m) {
@@ -134,7 +139,11 @@ async function callGemini(turns: GeminiTurn[], model: string): Promise<GeminiRes
       },
       body: JSON.stringify({
         contents: turns,
-        generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 32768,
+          responseMimeType: 'application/json',
+        },
       }),
     },
   );
@@ -143,10 +152,16 @@ async function callGemini(turns: GeminiTurn[], model: string): Promise<GeminiRes
     throw new Error(err.error?.message ?? `Gemini error ${res.status}`);
   }
   const data = await res.json() as {
-    candidates?: { content?: { parts?: { text: string }[] } }[];
+    candidates?: { content?: { parts?: { text: string }[] }; finishReason?: string }[];
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
   };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const candidate = data.candidates?.[0];
+  const finishReason = candidate?.finishReason ?? '';
+  const text = candidate?.content?.parts?.[0]?.text ?? '';
+  console.log('[Gemini] finishReason:', finishReason, '| response preview:', text.slice(0, 300));
+  if (finishReason === 'MAX_TOKENS') {
+    throw new Error('Output was cut off (MAX_TOKENS). Try a shorter date range or fewer promoters.');
+  }
   const usage: TokenUsage = {
     prompt: data.usageMetadata?.promptTokenCount ?? 0,
     output: data.usageMetadata?.candidatesTokenCount ?? 0,
@@ -218,6 +233,7 @@ export default function AutoAssignPage({
   const [draft, setDraft] = useState<DraftAssignment[]>([]);
   const [geminiHistory, setGeminiHistory] = useState<GeminiTurn[]>([]);
   const [chat, setChat] = useState<ChatMessage[]>([]);
+  const [notes, setNotes] = useState('');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -271,8 +287,9 @@ export default function AutoAssignPage({
       '3. Never exceed store max capacity per day.\n' +
       '4. Assign Must-stores first; never assign Banned stores.\n' +
       '5. Follow grade-tier fit rules.\n' +
-      '6. Distribute workload fairly across promoters.\n\n' +
-      'Return ONLY a valid JSON array, no explanation, no markdown:\n' +
+      '6. Distribute workload fairly across promoters.\n' +
+      (notes.trim() ? `\n## ADDITIONAL CONSTRAINTS\n${notes.trim()}\n` : '') +
+      '\nReturn ONLY a valid JSON array, no explanation, no markdown:\n' +
       '[{"promoterId":"ID","date":"YYYY-MM-DD","store":"CODE_or_Off"}]\n' +
       'Include every promoter for every date. Use exact IDs and codes from the lists above.';
 
@@ -280,7 +297,7 @@ export default function AutoAssignPage({
     try {
       const { text: reply, usage } = await callGemini([turn], selectedModel);
       const assignments = parseAssignments(reply);
-      if (!assignments) throw new Error('Gemini returned invalid JSON. Try again.');
+      if (!assignments) throw new Error(`Gemini returned invalid JSON. Response preview: ${reply.slice(0, 200)}`);
 
       setDraft(assignments);
       addTokens(usage);
@@ -321,7 +338,7 @@ export default function AutoAssignPage({
     try {
       const { text: reply, usage } = await callGemini(turns, selectedModel);
       const assignments = parseAssignments(reply);
-      if (!assignments) throw new Error('Gemini returned invalid JSON. Try rephrasing your request.');
+      if (!assignments) throw new Error(`Gemini returned invalid JSON. Response preview: ${reply.slice(0, 200)}`);
 
       setDraft(assignments);
       addTokens(usage);
@@ -418,6 +435,18 @@ export default function AutoAssignPage({
 
           <div className="aa-range-info">
             {dates.length} day{dates.length !== 1 ? 's' : ''} · {activePromoters.length} promoters
+          </div>
+
+          {/* additional constraints / notes */}
+          <div className="aa-field" style={{ marginBottom: 10 }}>
+            <label className="aa-label">Additional Constraints</label>
+            <textarea
+              className="aa-notes"
+              rows={4}
+              placeholder={'e.g.\nKevin: Sunday morning shift only\nMaureen: Tuesday evening preferred\nVDM ต้องมีคน 2 คนทุกวัน'}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </div>
 
           <button

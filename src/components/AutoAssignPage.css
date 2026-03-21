@@ -119,6 +119,26 @@
   border-radius: 3px;
 }
 
+.aa-notes {
+  width: 100%;
+  padding: 7px 8px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #111827;
+  resize: vertical;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+.aa-notes:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #fff;
+}
+.aa-notes::placeholder { color: #9ca3af; }
+
 .aa-range-info {
   font-size: 0.78rem;
   color: #9ca3af;
