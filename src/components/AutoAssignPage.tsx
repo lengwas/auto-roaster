@@ -1,12 +1,79 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type {
-  Store, Promoter, Shift,
+  Store, Promoter, Shift, Order,
   StorePreference, PromoterConflict,
   StoreTierSetting, PromoterGradeOverride,
 } from '../types/types';
 import ShiftTable from './ShiftTable';
 import { generateStoreCounts } from '../data/mockData';
+import { useOrders } from '../hooks/useOrders';
 import './AutoAssignPage.css';
+
+// Warehouse text → store code (same as SalesPerformancePage + Python script)
+const WAREHOUSE_CODE_MAP: Record<string, string> = {
+  'vir - dbm': 'VDM', 'vir - moe': 'VME', 'vir - dbh': 'VDH',
+  'vir - mrn': 'VMN', 'vir - mdf': 'VMF', 'vir - nkm': 'VNK',
+  'vir - yas': 'VYM', 'vir - amy': 'VAY', 'vir - rem': 'VRM',
+  'vir - adm': 'VAD', 'vir - arb': 'VAY', 'vir - azc': 'VNK',
+  'jsm - moe': 'JME', 'jsm - dbm': 'JDM', 'jsm - dbh': 'JDH',
+  'bdr - dbm': 'BDM', 'bdr - dbh': 'JDH',
+  'hls - dbm': 'HDM', 'sdg - dbm': 'SDM',
+  'air - 48': 'AIR', 'air - dcc': 'ADC', 'img - wld': 'IMG',
+};
+
+// Build {`${promoterId}_${storeCode}`: avgDailyRevenue} from historical orders
+function buildPerfMatrix(
+  orders: Order[],
+  promoters: Promoter[],
+  stores: Store[],
+): Map<string, number> {
+  const excluded = new Set(['cancelled', 'returned']);
+  // name → promoterId
+  const nameMap = new Map<string, string>();
+  for (const p of promoters) {
+    nameMap.set(p.name.toLowerCase(), p.id);
+    const first = p.name.split(' ')[0].toLowerCase();
+    if (!nameMap.has(first)) nameMap.set(first, p.id);
+  }
+  // warehouse/platform → storeCode
+  const whMap = new Map<string, string>(
+    Object.entries(WAREHOUSE_CODE_MAP)
+  );
+  for (const s of stores) {
+    if (s.warehouse) whMap.set(s.warehouse.toLowerCase(), s.code);
+    if (s.platform) whMap.set(s.platform.toLowerCase(), s.code);
+  }
+
+  // Accumulate daily revenue per (promoter, store, date)
+  const daily = new Map<string, number>(); // key: `${pid}_${sc}_${date}`
+  for (const o of orders) {
+    if (excluded.has(o.status.toLowerCase())) continue;
+    const amount = o.amountAed ?? 0;
+    const raw = (o.salesperson ?? '').toLowerCase();
+    const pid = nameMap.get(raw) ?? nameMap.get(raw.split(' ')[0]);
+    if (!pid) continue;
+    const wh = (o.warehouse ?? '').toLowerCase();
+    const pl = (o.platform ?? '').toLowerCase();
+    const sc = whMap.get(wh) ?? whMap.get(pl);
+    if (!sc) continue;
+    const k = `${pid}_${sc}_${o.date}`;
+    daily.set(k, (daily.get(k) ?? 0) + amount);
+  }
+
+  // Average across days → {pid_sc: avgRevenue}
+  const totals = new Map<string, number[]>();
+  for (const [k, v] of daily) {
+    const key = k.split('_').slice(0, 2).join('_'); // pid_sc
+    const arr = totals.get(key) ?? [];
+    arr.push(v);
+    totals.set(key, arr);
+  }
+  const result = new Map<string, number>();
+  for (const [k, v] of totals) {
+    result.set(k, v.reduce((a, b) => a + b, 0) / v.length);
+  }
+  return result;
+}
 
 interface DraftAssignment {
   promoterId: string;
@@ -385,6 +452,30 @@ export default function AutoAssignPage({
 
   const hasKey = !!(import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim();
 
+  // ── Revenue forecast from historical performance ───────────────────────
+  const { orders } = useOrders(3);
+  const perfMatrix = useMemo(
+    () => buildPerfMatrix(orders, promoters, stores),
+    [orders, promoters, stores],
+  );
+
+  // For each day in draft, sum expected revenue of assigned (promoter, store) pairs
+  const revenueForecast = useMemo(() => {
+    if (draft.length === 0 || perfMatrix.size === 0) return [];
+    const allVals = [...perfMatrix.values()];
+    const globalMean = allVals.reduce((a, b) => a + b, 0) / allVals.length;
+    const fallback = globalMean * 0.4;
+
+    return dates.map((dateStr) => {
+      const dayAssignments = draft.filter(a => a.date === dateStr && a.store && a.store !== 'Off');
+      const dayTotal = dayAssignments.reduce((sum, a) => {
+        const score = perfMatrix.get(`${a.promoterId}_${a.store}`) ?? fallback;
+        return sum + score;
+      }, 0);
+      return { date: dateStr, expected: Math.round(dayTotal), count: dayAssignments.length };
+    });
+  }, [draft, dates, perfMatrix]);
+
   // ─────────────────────────────────────────────────────────────────────
   return (
     <div className="aa-layout">
@@ -492,6 +583,42 @@ export default function AutoAssignPage({
                 <span className="aa-token-value">{fmtNum(sessionTokens.total)}</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── REVENUE FORECAST ── */}
+        {revenueForecast.length > 0 && (
+          <div className="aa-revenue">
+            <div className="aa-revenue-title">
+              Revenue Forecast
+              <span className="aa-revenue-sub">(based on {orders.length} historical orders)</span>
+            </div>
+            <table className="aa-revenue-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>People</th>
+                  <th>Expected (AED)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {revenueForecast.map(r => (
+                  <tr key={r.date}>
+                    <td>{r.date}</td>
+                    <td className="aa-rev-center">{r.count}</td>
+                    <td className="aa-rev-amount">{r.expected.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2}><strong>Total</strong></td>
+                  <td className="aa-rev-amount aa-rev-total">
+                    {revenueForecast.reduce((s, r) => s + r.expected, 0).toLocaleString()}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
 

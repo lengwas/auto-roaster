@@ -175,6 +175,55 @@
 }
 .aa-btn-apply:hover { opacity: 0.88; }
 
+/* ── revenue forecast ────────────────────────────────────────────────── */
+.aa-revenue {
+  padding: 10px 16px 12px;
+  border-top: 1px solid #f3f4f6;
+  flex-shrink: 0;
+}
+.aa-revenue-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.aa-revenue-sub {
+  font-size: 0.65rem;
+  font-weight: 400;
+  text-transform: none;
+  color: #9ca3af;
+}
+.aa-revenue-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.aa-revenue-table th {
+  text-align: left;
+  color: #9ca3af;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.aa-revenue-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid #f9fafb;
+  color: #374151;
+}
+.aa-revenue-table tfoot td {
+  border-top: 1px solid #e5e7eb;
+  border-bottom: none;
+  padding-top: 5px;
+}
+.aa-rev-center { text-align: center; }
+.aa-rev-amount { text-align: right; font-variant-numeric: tabular-nums; }
+.aa-rev-total { font-weight: 700; color: #059669; }
+
 /* ── token usage ─────────────────────────────────────────────────────── */
 .aa-tokens {
   padding: 10px 16px;
