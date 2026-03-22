@@ -307,6 +307,9 @@
 .header-dow-row { color: var(--text-primary); font-size: 13px; }
 .header-dow-row .cell { flex-direction: row; }
 
+.header-revenue-row { background: var(--bg-header); border-bottom: 1px solid var(--border-color); }
+.header-revenue-row .cell { flex-direction: row; justify-content: flex-end; padding-right: 6px; }
+
 /* Weekend day-of-week text color (subtle, no bg change) */
 .dow-sun { color: #dc2626; }
 .dow-sat { color: #dc2626; }

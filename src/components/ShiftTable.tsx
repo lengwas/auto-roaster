@@ -4,6 +4,12 @@ import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
 import './ShiftTable.css';
 
+interface RevenueForecastEntry {
+  date: string;
+  expected: number;
+  count: number;
+}
+
 interface ShiftTableProps {
   stores: Store[];
   promoters: Promoter[];
@@ -14,6 +20,7 @@ interface ShiftTableProps {
   specialDates?: SpecialDate[];
   onMarkDate?: (date: string, label: string, color: string) => void;
   onUnmarkDate?: (date: string) => void;
+  revenueForecast?: RevenueForecastEntry[];
 }
 
 const PRESET_COLORS = [
@@ -63,7 +70,7 @@ function getTodayStr(): string {
   return d.toISOString().split('T')[0];
 }
 
-const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange, specialDates = [], onMarkDate, onUnmarkDate }: ShiftTableProps) => {
+const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
   const [noteText, setNoteText] = useState('');
   const [popup, setPopup] = useState<DateMarkPopup | null>(null);
@@ -342,6 +349,26 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
               );
             })}
           </div>
+
+          {revenueForecast && revenueForecast.length > 0 && (
+            <div className="grid-row header-revenue-row">
+              <div className="cell cell-fixed-left col-name" style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 600 }}>Expected</div>
+              <div className="cell cell-fixed-left-2 col-stores" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>AED</div>
+              <div className="cell cell-fixed-left-3 col-day"></div>
+              {dates.map((dateStr) => {
+                const entry = revenueForecast.find(r => r.date === dateStr);
+                return (
+                  <div
+                    key={dateStr}
+                    className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''}`}
+                    style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}
+                  >
+                    {entry ? entry.expected.toLocaleString() : '—'}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ===== STORE SECTION (Sticky below header) ===== */}

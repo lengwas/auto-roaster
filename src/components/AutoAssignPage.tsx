@@ -587,42 +587,6 @@ export default function AutoAssignPage({
           </div>
         )}
 
-        {/* ── REVENUE FORECAST ── */}
-        {revenueForecast.length > 0 && (
-          <div className="aa-revenue">
-            <div className="aa-revenue-title">
-              Revenue Forecast
-              <span className="aa-revenue-sub">(based on {orders.length} historical orders)</span>
-            </div>
-            <table className="aa-revenue-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>People</th>
-                  <th>Expected (AED)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {revenueForecast.map(r => (
-                  <tr key={r.date}>
-                    <td>{r.date}</td>
-                    <td className="aa-rev-center">{r.count}</td>
-                    <td className="aa-rev-amount">{r.expected.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={2}><strong>Total</strong></td>
-                  <td className="aa-rev-amount aa-rev-total">
-                    {revenueForecast.reduce((s, r) => s + r.expected, 0).toLocaleString()}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-
         {/* ── CHAT ── */}
         <div className="aa-chat">
           <div className="aa-chat-label">Gemini Chat</div>
@@ -689,6 +653,7 @@ export default function AutoAssignPage({
             storeCounts={draftStoreCounts}
             dates={dates}
             onShiftChange={handleDraftShiftChange}
+            revenueForecast={revenueForecast}
           />
         )}
       </div>
