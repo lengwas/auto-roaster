@@ -415,9 +415,13 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                     stores={activeStores}
                     onChange={(val) => handleChange(promoter.id, dateStr, val)}
                   />
-                  {shift?.timeRange && (
-                    <span className="shift-time">{shift.timeRange}</span>
-                  )}
+                  {shift?.type && !['Off', 'LOP', 'SL', '-', ''].includes(shift.type) && (() => {
+                    const timeLabel = shift.timeRange || (() => {
+                      const s = storeByCode.get(shift.type);
+                      return s ? `${s.openTime}-${s.closeTime}` : undefined;
+                    })();
+                    return timeLabel ? <span className="shift-time">{timeLabel}</span> : null;
+                  })()}
                   {shift?.note && (
                     <span className="note-tooltip">{shift.note}</span>
                   )}

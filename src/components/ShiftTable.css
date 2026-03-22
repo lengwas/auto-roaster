@@ -483,10 +483,11 @@
 
 /* Shift time label */
 .shift-time {
-  font-size: 9px;
-  color: var(--text-secondary);
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.55);
   white-space: nowrap;
   line-height: 1;
+  letter-spacing: -0.2px;
 }
 
 /* Table Section spacer */
