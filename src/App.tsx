@@ -6,11 +6,12 @@ import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
 import SalesPerformancePage from './components/SalesPerformancePage';
 import AutoAssignPage from './components/AutoAssignPage';
-import { mockShifts, shiftDates, generateStoreCounts, mockStorePreferences, mockPromoterConflicts } from './data/mockData';
+import { mockShifts, shiftDates, generateStoreCounts, mockStorePreferences } from './data/mockData';
 import { useStores } from './hooks/useStores';
 import { usePromoters } from './hooks/usePromoters';
 import { useSpecialDates } from './hooks/useSpecialDates';
-import type { StorePreference, PromoterConflict, StoreTierSetting, PromoterGradeOverride } from './types/types';
+import { useConflicts } from './hooks/useConflicts';
+import type { StorePreference, StoreTierSetting, PromoterGradeOverride } from './types/types';
 import './App.css';
 
 type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'auto-assign' | 'db-schema';
@@ -32,7 +33,7 @@ function App() {
   const [shifts, setShifts] = useState(mockShifts);
   const [showExport, setShowExport] = useState(false);
   const [storePreferences, setStorePreferences] = useState<StorePreference[]>(mockStorePreferences);
-  const [promoterConflicts, setPromoterConflicts] = useState<PromoterConflict[]>(mockPromoterConflicts);
+  const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts();
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
   const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
 
@@ -109,6 +110,8 @@ function App() {
             onPreferencesChange={setStorePreferences}
             promoterConflicts={promoterConflicts}
             onConflictsChange={setPromoterConflicts}
+            onSaveConflict={saveConflict}
+            onDeleteConflict={deleteConflict}
             onPromotersChange={setPromoters}
             onSavePromoters={async (changed) => {
               const results = await Promise.all(changed.map(savePromoter));

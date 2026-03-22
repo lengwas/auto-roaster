@@ -19,6 +19,8 @@ interface PCSettingPageProps {
   onPreferencesChange: (prefs: StorePreference[]) => void;
   promoterConflicts: PromoterConflict[];
   onConflictsChange: (conflicts: PromoterConflict[]) => void;
+  onSaveConflict?: (c: PromoterConflict) => Promise<string | null>;
+  onDeleteConflict?: (id: string) => Promise<void>;
   onPromotersChange?: (promoters: Promoter[]) => void;
   onSavePromoters?: (changed: Promoter[]) => Promise<string[]>;
 }
@@ -29,12 +31,14 @@ const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
   { value: 'banned', label: 'Banned', cls: 'pref-banned' },
 ];
 
-const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, promoterConflicts, onConflictsChange, onPromotersChange, onSavePromoters }: PCSettingPageProps) => {
+const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, promoterConflicts, onConflictsChange, onSaveConflict, onDeleteConflict, onPromotersChange, onSavePromoters }: PCSettingPageProps) => {
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [conflictA, setConflictA] = useState('');
   const [conflictB, setConflictB] = useState('');
   const [conflictReason, setConflictReason] = useState('');
+  const [conflictSaving, setConflictSaving] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -126,9 +130,8 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
     return parts.join(', ');
   };
 
-  const addConflict = () => {
+  const addConflict = async () => {
     if (!conflictA || !conflictB || conflictA === conflictB) return;
-    // Check duplicate
     const exists = promoterConflicts.some(
       c => (c.promoterAId === conflictA && c.promoterBId === conflictB) ||
            (c.promoterAId === conflictB && c.promoterBId === conflictA)
@@ -140,14 +143,23 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
       promoterBId: conflictB,
       reason: conflictReason || undefined,
     };
+    setConflictSaving(true);
+    setConflictError(null);
+    const err = await onSaveConflict?.(newConflict) ?? null;
+    setConflictSaving(false);
+    if (err) {
+      setConflictError(err);
+      return;
+    }
     onConflictsChange([...promoterConflicts, newConflict]);
     setConflictA('');
     setConflictB('');
     setConflictReason('');
   };
 
-  const removeConflict = (id: string) => {
+  const removeConflict = async (id: string) => {
     onConflictsChange(promoterConflicts.filter(c => c.id !== id));
+    await onDeleteConflict?.(id);
   };
 
   return (
@@ -332,11 +344,16 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
           <button
             className="btn btn-primary btn-small"
             onClick={addConflict}
-            disabled={!conflictA || !conflictB || conflictA === conflictB}
+            disabled={!conflictA || !conflictB || conflictA === conflictB || conflictSaving}
           >
-            + Add
+            {conflictSaving ? 'Saving…' : '+ Add'}
           </button>
         </div>
+        {conflictError && (
+          <p className="text-muted" style={{ color: '#ef4444', marginTop: 6, fontSize: 12 }}>
+            ⚠ {conflictError}
+          </p>
+        )}
 
         {promoterConflicts.length === 0 ? (
           <p className="text-muted" style={{ marginTop: 12 }}>No conflicts defined</p>
