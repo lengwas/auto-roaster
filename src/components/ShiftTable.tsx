@@ -71,6 +71,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const [hiddenStoreIds, setHiddenStoreIds] = useState<Set<string>>(new Set());
   const [hiddenPromoterIds, setHiddenPromoterIds] = useState<Set<string>>(new Set());
   const [activeOnlyPromoters, setActiveOnlyPromoters] = useState(true);
+  const [hideEmptyStores, setHideEmptyStores] = useState(true);
 
   const toggleStore = (id: string) => setHiddenStoreIds(prev => {
     const next = new Set(prev);
@@ -108,7 +109,15 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const todayStr = getTodayStr();
 
   const activeStores = stores.filter(s => s.active);
-  const visibleStores = stores.filter(s => !hiddenStoreIds.has(s.id));
+  const storesWithAssignments = new Set(
+    dates.flatMap(dateStr =>
+      stores.filter(s => (countMap.get(`${s.id}_${dateStr}`) ?? 0) > 0).map(s => s.id)
+    )
+  );
+  const visibleStores = stores.filter(s =>
+    !hiddenStoreIds.has(s.id) &&
+    (!hideEmptyStores || storesWithAssignments.has(s.id))
+  );
   const activePromoters = promoters.filter(p => p.active);
   const promoterPool = activeOnlyPromoters ? activePromoters : promoters;
   const visiblePromoters = promoterPool.filter(p => !hiddenPromoterIds.has(p.id));
@@ -171,6 +180,15 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                   <button onClick={() => setHiddenStoreIds(new Set(stores.map(s => s.id)))}>None</button>
                 </span>
               </div>
+              <label className="filter-item filter-active-only">
+                <input
+                  type="checkbox"
+                  checked={hideEmptyStores}
+                  onChange={e => setHideEmptyStores(e.target.checked)}
+                />
+                <span className="filter-item-name" style={{ fontWeight: 600 }}>Hide empty stores</span>
+                <span className="filter-item-stores">{storesWithAssignments.size} / {stores.length}</span>
+              </label>
               {stores.map(s => (
                 <label key={s.id} className="filter-item">
                   <input
@@ -328,7 +346,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
 
         {/* ===== STORE SECTION (Sticky below header) ===== */}
         <div className="store-section">
-          <div className="section-spacer">Stores ({visibleStores.length}{hiddenStoreIds.size > 0 ? ` / ${stores.length}` : ''})</div>
+          <div className="section-spacer">Stores ({visibleStores.length}{(hiddenStoreIds.size > 0 || hideEmptyStores) ? ` / ${stores.length}` : ''})</div>
           {visibleStores.map((store) => {
             const hasExtra = !!store.extraAllowance;
             return (
