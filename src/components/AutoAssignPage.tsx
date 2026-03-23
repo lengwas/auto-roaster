@@ -127,13 +127,14 @@ interface Props {
 // ── available Gemini models ────────────────────────────────────────────────
 const GEMINI_MODELS: { id: string; label: string }[] = [
   { id: 'gemini-2.5-flash-preview-04-17', label: 'Gemini 2.5 Flash Preview (smartest)' },
-  { id: 'gemini-2.5-flash-lite-preview-06-17', label: 'Gemini 2.5 Flash Lite Preview (fast)' },
-  { id: 'gemini-2.0-flash',     label: 'Gemini 2.0 Flash' },
+  { id: 'gemini-2.0-flash',      label: 'Gemini 2.0 Flash' },
   { id: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (lightest)' },
-  { id: 'gemini-1.5-flash',     label: 'Gemini 1.5 Flash (stable)' },
-  { id: 'gemini-1.5-pro',       label: 'Gemini 1.5 Pro (smart)' },
+  { id: 'gemini-1.5-flash',      label: 'Gemini 1.5 Flash (stable)' },
+  { id: 'gemini-1.5-pro',        label: 'Gemini 1.5 Pro (smart)' },
 ];
 const DEFAULT_MODEL = 'gemini-2.0-flash';
+// Stable model used for lightweight tasks like constraint parsing
+const PARSE_MODEL = 'gemini-2.0-flash';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function todayStr(): string {
@@ -355,7 +356,7 @@ export default function AutoAssignPage({
       `IMPORTANT: Return ONLY raw JSON, no markdown, no explanation.\n` +
       `Available promoter names for reference: ${promoterNames}`;
     try {
-      const { text } = await callGemini([{ role: 'user', parts: [{ text: prompt }] }], selectedModel);
+      const { text } = await callGemini([{ role: 'user', parts: [{ text: prompt }] }], PARSE_MODEL);
       const cleaned = text.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned) as ParsedConstraints;
       setParsedConstraints(parsed);
