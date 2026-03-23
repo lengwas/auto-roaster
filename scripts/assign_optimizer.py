@@ -108,6 +108,30 @@ class ExtraConstraints:
     promoter_force_off: set[tuple[str, str]] = field(default_factory=set)
 
 
+def load_constraints_from_json(data: dict) -> ExtraConstraints:
+    """
+    Load ExtraConstraints from pre-parsed JSON (output of Gemini constraint parser).
+    Accepts the format produced by the Auto Assign UI's 'Parse →' button:
+    {
+      "store_min_people": {"VDM": 2},
+      "promoter_day_store": [{"promoter": "kevin", "day": "Mon", "store": "VDM"}],
+      "promoter_force_off": [{"promoter": "kevin", "day": "Mon"}],
+      "promoter_end_time": [{"promoter": "kevin", "end_time": "19:00"}]
+    }
+    """
+    ec = ExtraConstraints()
+    if 'store_min_people' in data and isinstance(data['store_min_people'], dict):
+        ec.store_min_people = {k.upper(): int(v) for k, v in data['store_min_people'].items()}
+    for item in data.get('promoter_day_store', []):
+        key = (str(item['promoter']).lower(), str(item['day']))
+        ec.promoter_day_store[key] = str(item['store']).upper()
+    for item in data.get('promoter_force_off', []):
+        ec.promoter_force_off.add((str(item['promoter']).lower(), str(item['day'])))
+    for item in data.get('promoter_end_time', []):
+        ec.promoter_end_time[str(item['promoter']).lower()] = str(item['end_time'])
+    return ec
+
+
 def parse_extra_constraints(text: str, stores: list[dict]) -> ExtraConstraints:
     """
     Parse natural-language constraint text (Thai or English) into structured form.
@@ -576,6 +600,8 @@ def main():
                         help='Additional constraints text (same as Auto Assign textarea)')
     parser.add_argument('--constraints-file', default=None, metavar='FILE',
                         help='Load constraints from a text file')
+    parser.add_argument('--constraints-json', default=None, metavar='JSON',
+                        help='Pre-parsed constraints JSON (from Auto Assign UI Parse button)')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Print per-day assignment breakdown')
     parser.add_argument('--show-matrix', action='store_true',
@@ -684,7 +710,16 @@ def main():
 
     # ── Parse extra constraints ──────────────────────────────────────────────
     print("\nParsing constraints…", file=sys.stderr)
-    extra = parse_extra_constraints(constraint_text, stores)
+    if args.constraints_json:
+        try:
+            cj = json.loads(args.constraints_json)
+            extra = load_constraints_from_json(cj)
+            print("  Loaded pre-parsed constraints from --constraints-json", file=sys.stderr)
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"  WARNING: Failed to parse --constraints-json: {e}. Falling back to text.", file=sys.stderr)
+            extra = parse_extra_constraints(constraint_text, stores)
+    else:
+        extra = parse_extra_constraints(constraint_text, stores)
 
     # ── Run optimizer ────────────────────────────────────────────────────────
     print("\nRunning optimizer…", file=sys.stderr)

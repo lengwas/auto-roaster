@@ -82,6 +82,14 @@ interface DraftAssignment {
   timeRange?: string;
 }
 
+// Structured constraints (mirrors Python ExtraConstraints dataclass)
+interface ParsedConstraints {
+  store_min_people?: Record<string, number>;
+  promoter_day_store?: { promoter: string; day: string; store: string }[];
+  promoter_force_off?: { promoter: string; day: string }[];
+  promoter_end_time?: { promoter: string; end_time: string }[];
+}
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
@@ -288,6 +296,8 @@ export default function AutoAssignPage({
   const [geminiHistory, setGeminiHistory] = useState<GeminiTurn[]>([]);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [notes, setNotes] = useState('');
+  const [parsedConstraints, setParsedConstraints] = useState<ParsedConstraints | null>(null);
+  const [constraintsParsing, setConstraintsParsing] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -322,6 +332,40 @@ export default function AutoAssignPage({
     setError(null);
   }
 
+  // ── parse constraints via Gemini ──────────────────────────────────────
+  async function parseConstraintsText() {
+    if (!notes.trim()) return;
+    setConstraintsParsing(true);
+    const storeCodes = stores.filter(s => s.active).map(s => s.code).join(', ');
+    const promoterNames = promoters.filter(p => p.active).map(p => p.name).join(', ');
+    const prompt =
+      `You are a shift scheduling constraint parser. Convert the following natural language constraints into a structured JSON object.\n\n` +
+      `Available store codes: ${storeCodes}\n` +
+      `Available promoter first names (lowercase): ${promoters.filter(p => p.active).map(p => p.name.split(' ')[0].toLowerCase()).join(', ')}\n` +
+      `Days: Mon, Tue, Wed, Thu, Fri, Sat, Sun\n\n` +
+      `Constraints text:\n${notes.trim()}\n\n` +
+      `Return ONLY a valid JSON object with these keys (omit empty arrays/objects):\n` +
+      `{\n` +
+      `  "store_min_people": { "STORE_CODE": min_number },\n` +
+      `  "promoter_day_store": [ { "promoter": "firstname_lower", "day": "Mon", "store": "CODE" } ],\n` +
+      `  "promoter_force_off": [ { "promoter": "firstname_lower", "day": "Mon" } ],\n` +
+      `  "promoter_end_time": [ { "promoter": "firstname_lower", "end_time": "HH:MM" } ]\n` +
+      `}\n\n` +
+      `Use exact store codes from the list above. Use lowercase first name only for promoters.\n` +
+      `IMPORTANT: Return ONLY raw JSON, no markdown, no explanation.\n` +
+      `Available promoter names for reference: ${promoterNames}`;
+    try {
+      const { text } = await callGemini([{ role: 'user', parts: [{ text: prompt }] }], selectedModel);
+      const cleaned = text.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleaned) as ParsedConstraints;
+      setParsedConstraints(parsed);
+    } catch (e) {
+      setError(`Constraint parse failed: ${(e as Error).message}`);
+    } finally {
+      setConstraintsParsing(false);
+    }
+  }
+
   // ── generate draft ────────────────────────────────────────────────────
   async function generateDraft() {
     if (dates.length === 0) return;
@@ -342,7 +386,11 @@ export default function AutoAssignPage({
       '4. Assign Must-stores first; never assign Banned stores.\n' +
       '5. Follow grade-tier fit rules.\n' +
       '6. Distribute workload fairly across promoters.\n' +
-      (notes.trim() ? `\n## ADDITIONAL CONSTRAINTS\n${notes.trim()}\n` : '') +
+      (notes.trim() ? `\n## ADDITIONAL CONSTRAINTS (natural language)\n${notes.trim()}\n` : '') +
+      (parsedConstraints && Object.keys(parsedConstraints).some(k => {
+        const v = (parsedConstraints as Record<string, unknown>)[k];
+        return Array.isArray(v) ? v.length > 0 : v && Object.keys(v as object).length > 0;
+      }) ? `\n## PARSED CONSTRAINTS (structured, must follow exactly)\n${JSON.stringify(parsedConstraints, null, 2)}\n` : '') +
       '\nReturn ONLY a valid JSON array, no explanation, no markdown:\n' +
       '[{"promoterId":"ID","date":"YYYY-MM-DD","store":"CODE_or_Off"}]\n' +
       'Include every promoter for every date. Use exact IDs and codes from the lists above.';
@@ -540,16 +588,71 @@ export default function AutoAssignPage({
           </div>
 
           {/* additional constraints / notes */}
-          <div className="aa-field" style={{ marginBottom: 10 }}>
-            <label className="aa-label">Additional Constraints</label>
+          <div className="aa-field" style={{ marginBottom: 6 }}>
+            <div className="aa-constraint-label-row">
+              <label className="aa-label">Additional Constraints</label>
+              <button
+                className="aa-btn-parse"
+                onClick={parseConstraintsText}
+                disabled={constraintsParsing || !notes.trim() || !hasKey}
+                title="Let Gemini parse constraints into structured equations"
+              >
+                {constraintsParsing ? '⏳' : '⚙️ Parse →'}
+              </button>
+            </div>
             <textarea
               className="aa-notes"
               rows={4}
               placeholder={'e.g.\nKevin: Sunday morning shift only\nMaureen: Tuesday evening preferred\nVDM ต้องมีคน 2 คนทุกวัน'}
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => { setNotes(e.target.value); setParsedConstraints(null); }}
             />
           </div>
+
+          {/* parsed constraints panel */}
+          {parsedConstraints && (
+            <div className="aa-parsed-constraints">
+              <div className="aa-parsed-title">Parsed Constraints</div>
+              {parsedConstraints.store_min_people && Object.keys(parsedConstraints.store_min_people).length > 0 && (
+                <div className="aa-parsed-group">
+                  <span className="aa-parsed-group-label">Store min people</span>
+                  {Object.entries(parsedConstraints.store_min_people).map(([code, n]) => (
+                    <span key={code} className="aa-parsed-tag">{code} ≥ {n} คน</span>
+                  ))}
+                </div>
+              )}
+              {parsedConstraints.promoter_day_store && parsedConstraints.promoter_day_store.length > 0 && (
+                <div className="aa-parsed-group">
+                  <span className="aa-parsed-group-label">Force assignment</span>
+                  {parsedConstraints.promoter_day_store.map((r, i) => (
+                    <span key={i} className="aa-parsed-tag">{r.promoter} → {r.store} ({r.day})</span>
+                  ))}
+                </div>
+              )}
+              {parsedConstraints.promoter_force_off && parsedConstraints.promoter_force_off.length > 0 && (
+                <div className="aa-parsed-group">
+                  <span className="aa-parsed-group-label">Force off</span>
+                  {parsedConstraints.promoter_force_off.map((r, i) => (
+                    <span key={i} className="aa-parsed-tag">{r.promoter} off ({r.day})</span>
+                  ))}
+                </div>
+              )}
+              {parsedConstraints.promoter_end_time && parsedConstraints.promoter_end_time.length > 0 && (
+                <div className="aa-parsed-group">
+                  <span className="aa-parsed-group-label">End time</span>
+                  {parsedConstraints.promoter_end_time.map((r, i) => (
+                    <span key={i} className="aa-parsed-tag">{r.promoter} ends {r.end_time}</span>
+                  ))}
+                </div>
+              )}
+              <div className="aa-parsed-python">
+                <div className="aa-parsed-python-label">Python optimizer command:</div>
+                <code className="aa-parsed-python-cmd">
+                  {`python scripts/assign_optimizer.py --start ${startDate} --end ${endDate} --constraints-json '${JSON.stringify(parsedConstraints)}'`}
+                </code>
+              </div>
+            </div>
+          )}
 
           <button
             className="aa-btn-generate"
