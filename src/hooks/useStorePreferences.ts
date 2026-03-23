@@ -1,0 +1,52 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import type { Store, StorePreference, PreferenceLevel } from '../types/types';
+
+export function useStorePreferences(stores: Store[]) {
+  const [storePreferences, setStorePreferences] = useState<StorePreference[]>([]);
+
+  useEffect(() => {
+    if (stores.length === 0) return;
+    supabase
+      .from('promoter_store_preferences')
+      .select('*')
+      .then(({ data, error }) => {
+        if (!error && data) {
+          const idToCode = new Map(stores.map(s => [s.id, s.code]));
+          const prefs = data
+            .map(row => ({
+              promoterId: String(row.promoter_id),
+              storeCode: idToCode.get(String(row.store_id)) ?? '',
+              preference: String(row.preference) as PreferenceLevel,
+            }))
+            .filter(p => p.storeCode);
+          setStorePreferences(prefs);
+        }
+      });
+  }, [stores.length]); // re-fetch once stores are available
+
+  async function upsertPreference(promoterId: string, storeCode: string, preference: PreferenceLevel) {
+    const storeId = stores.find(s => s.code === storeCode)?.id;
+    if (!storeId) return;
+    const { error } = await supabase
+      .from('promoter_store_preferences')
+      .upsert(
+        { promoter_id: promoterId, store_id: storeId, preference },
+        { onConflict: 'promoter_id,store_id' }
+      );
+    if (error) console.error('Failed to upsert preference:', error);
+  }
+
+  async function deletePreference(promoterId: string, storeCode: string) {
+    const storeId = stores.find(s => s.code === storeCode)?.id;
+    if (!storeId) return;
+    const { error } = await supabase
+      .from('promoter_store_preferences')
+      .delete()
+      .eq('promoter_id', promoterId)
+      .eq('store_id', storeId);
+    if (error) console.error('Failed to delete preference:', error);
+  }
+
+  return { storePreferences, setStorePreferences, upsertPreference, deletePreference };
+}

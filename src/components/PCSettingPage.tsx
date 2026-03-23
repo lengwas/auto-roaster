@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import type { Promoter, Store, StorePreference, PromoterConflict, PreferenceLevel, PromoterRole } from '../types/types';
 import './SettingPage.css';
 import './PCSettingPage.css';
@@ -19,6 +19,8 @@ interface PCSettingPageProps {
   onPreferencesChange: (prefs: StorePreference[]) => void;
   promoterConflicts: PromoterConflict[];
   onConflictsChange: (conflicts: PromoterConflict[]) => void;
+  onSavePreference?: (promoterId: string, storeCode: string, preference: PreferenceLevel) => Promise<void>;
+  onDeletePreference?: (promoterId: string, storeCode: string) => Promise<void>;
   onSaveConflict?: (c: PromoterConflict) => Promise<string | null>;
   onDeleteConflict?: (id: string) => Promise<void>;
   onPromotersChange?: (promoters: Promoter[]) => void;
@@ -31,7 +33,7 @@ const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
   { value: 'banned', label: 'Banned', cls: 'pref-banned' },
 ];
 
-const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, promoterConflicts, onConflictsChange, onSaveConflict, onDeleteConflict, onPromotersChange, onSavePromoters }: PCSettingPageProps) => {
+const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, onSavePreference, onDeletePreference, promoterConflicts, onConflictsChange, onSaveConflict, onDeleteConflict, onPromotersChange, onSavePromoters }: PCSettingPageProps) => {
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [conflictA, setConflictA] = useState('');
@@ -71,23 +73,26 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
     return prefMap.get(promoterId)?.get(storeCode) ?? null;
   };
 
-  const setPref = (promoterId: string, storeCode: string, pref: PreferenceLevel | null) => {
+  const setPref = useCallback((promoterId: string, storeCode: string, pref: PreferenceLevel | null) => {
     const updated = storePreferences.filter(
       sp => !(sp.promoterId === promoterId && sp.storeCode === storeCode)
     );
     if (pref) {
       updated.push({ promoterId, storeCode, preference: pref });
+      onSavePreference?.(promoterId, storeCode, pref);
+    } else {
+      onDeletePreference?.(promoterId, storeCode);
     }
     onPreferencesChange(updated);
-  };
+  }, [storePreferences, onPreferencesChange, onSavePreference, onDeletePreference]);
 
-  const cyclePref = (promoterId: string, storeCode: string) => {
+  const cyclePref = useCallback((promoterId: string, storeCode: string) => {
     const current = getPref(promoterId, storeCode);
     const order: (PreferenceLevel | null)[] = [null, 'must', 'preferred', 'banned'];
     const idx = order.indexOf(current);
     const next = order[(idx + 1) % order.length];
     setPref(promoterId, storeCode, next);
-  };
+  }, [getPref, setPref]);
 
   const updatePromoter = (id: string, changes: Partial<Promoter>) => {
     if (!onPromotersChange) return;

@@ -1,12 +1,17 @@
 import { useState, useRef } from 'react';
-import type { Store } from '../types/types';
+import type { Store, Promoter, StorePreference, PreferenceLevel } from '../types/types';
 import './SettingPage.css';
 
 interface StoreSettingPageProps {
   stores: Store[];
+  promoters?: Promoter[];
+  storePreferences?: StorePreference[];
   onStoresChange: (stores: Store[]) => void;
   onSaveStore?: (s: Store) => void;
   onDeleteStore?: (id: string) => void;
+  onSavePreference?: (promoterId: string, storeCode: string, preference: PreferenceLevel) => Promise<void>;
+  onDeletePreference?: (promoterId: string, storeCode: string) => Promise<void>;
+  onPreferencesChange?: (prefs: StorePreference[]) => void;
 }
 
 const EMPTY_STORE: Omit<Store, 'id'> = {
@@ -21,7 +26,7 @@ const EMPTY_STORE: Omit<Store, 'id'> = {
   warehouse: '',
 };
 
-const StoreSettingPage = ({ stores, onStoresChange, onSaveStore, onDeleteStore }: StoreSettingPageProps) => {
+const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onStoresChange, onSaveStore, onDeleteStore, onSavePreference, onDeletePreference, onPreferencesChange }: StoreSettingPageProps) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_STORE);
@@ -29,6 +34,24 @@ const StoreSettingPage = ({ stores, onStoresChange, onSaveStore, onDeleteStore }
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [expandedStoreId, setExpandedStoreId] = useState<string | null>(null);
+
+  const activePromoters = promoters.filter(p => p.active);
+
+  const togglePromoterForStore = (promoterId: string, storeCode: string) => {
+    const current = storePreferences.find(
+      sp => sp.promoterId === promoterId && sp.storeCode === storeCode
+    );
+    if (current) {
+      onDeletePreference?.(promoterId, storeCode);
+      onPreferencesChange?.(storePreferences.filter(
+        sp => !(sp.promoterId === promoterId && sp.storeCode === storeCode)
+      ));
+    } else {
+      onSavePreference?.(promoterId, storeCode, 'must');
+      onPreferencesChange?.([...storePreferences, { promoterId, storeCode, preference: 'must' }]);
+    }
+  };
 
   const markDirty = (id: string) => {
     setDirtyIds(prev => new Set(prev).add(id));
@@ -288,6 +311,7 @@ const StoreSettingPage = ({ stores, onStoresChange, onSaveStore, onDeleteStore }
               <th style={{ width: 50 }}>Max</th>
               <th style={{ width: 180 }}>Platform</th>
               <th style={{ width: 120 }}>Warehouse</th>
+              <th style={{ width: 100 }}>Promoters</th>
               <th style={{ width: 120 }}>Actions</th>
             </tr>
           </thead>
@@ -300,7 +324,12 @@ const StoreSettingPage = ({ stores, onStoresChange, onSaveStore, onDeleteStore }
               const mins = totalMinutes % 60;
               const hoursLabel = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 
+              const assignedCount = storePreferences.filter(
+                sp => sp.storeCode === store.code && sp.preference === 'must'
+              ).length;
+              const isExpanded = expandedStoreId === store.id;
               return (
+                <>
                 <tr key={store.id} className={!store.active ? 'row-inactive' : ''}>
                   <td className="cell-center">{idx + 1}</td>
                   <td>
@@ -345,19 +374,58 @@ const StoreSettingPage = ({ stores, onStoresChange, onSaveStore, onDeleteStore }
                     {store.warehouse || <span className="text-muted">-</span>}
                   </td>
                   <td className="cell-center">
-                    <button className="btn btn-small btn-ghost" onClick={() => openEditForm(store)}>
-                      Edit
+                    {assignedCount > 0 ? (
+                      <span className="store-code-badge" style={{ fontSize: 11 }}>{assignedCount} คน</span>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </td>
+                  <td className="cell-center">
+                    <button className="btn btn-small btn-ghost" onClick={() => openEditForm(store)}>Edit</button>
+                    <button
+                      className={`btn btn-small ${isExpanded ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => setExpandedStoreId(isExpanded ? null : store.id)}
+                      title="Assign promoters"
+                    >
+                      {isExpanded ? 'Close' : 'Assign'}
                     </button>
-                    <button className="btn btn-small btn-danger-ghost" onClick={() => handleDelete(store.id)}>
-                      Delete
-                    </button>
+                    <button className="btn btn-small btn-danger-ghost" onClick={() => handleDelete(store.id)}>Del</button>
                   </td>
                 </tr>
+                {isExpanded && (
+                  <tr key={`${store.id}-assign`} className="expand-row">
+                    <td colSpan={13}>
+                      <div style={{ padding: '10px 16px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                          Promoters ประจำร้าน {store.code} (active only)
+                        </div>
+                        <div className="pref-grid">
+                          {activePromoters.map(p => {
+                            const assigned = storePreferences.some(
+                              sp => sp.promoterId === p.id && sp.storeCode === store.code && sp.preference === 'must'
+                            );
+                            return (
+                              <button
+                                key={p.id}
+                                className={`pref-chip ${assigned ? 'pref-must' : 'pref-none'}`}
+                                onClick={() => togglePromoterForStore(p.id, store.code)}
+                              >
+                                <span className="pref-chip-code">{p.name.split(' ')[0]}</span>
+                                <span className="pref-chip-label">{assigned ? 'Must' : '—'}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </>
               );
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={12} className="cell-center text-muted" style={{ padding: '32px' }}>
+                <td colSpan={13} className="cell-center text-muted" style={{ padding: '32px' }}>
                   No stores found
                 </td>
               </tr>

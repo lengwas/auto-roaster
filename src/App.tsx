@@ -6,12 +6,13 @@ import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
 import SalesPerformancePage from './components/SalesPerformancePage';
 import AutoAssignPage from './components/AutoAssignPage';
-import { mockShifts, shiftDates, generateStoreCounts, mockStorePreferences } from './data/mockData';
+import { mockShifts, shiftDates, generateStoreCounts } from './data/mockData';
 import { useStores } from './hooks/useStores';
 import { usePromoters } from './hooks/usePromoters';
 import { useSpecialDates } from './hooks/useSpecialDates';
 import { useConflicts } from './hooks/useConflicts';
-import type { StorePreference, StoreTierSetting, PromoterGradeOverride } from './types/types';
+import { useStorePreferences } from './hooks/useStorePreferences';
+import type { StoreTierSetting, PromoterGradeOverride } from './types/types';
 import './App.css';
 
 type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'auto-assign' | 'db-schema';
@@ -32,7 +33,7 @@ function App() {
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
   const [shifts, setShifts] = useState(mockShifts);
   const [showExport, setShowExport] = useState(false);
-  const [storePreferences, setStorePreferences] = useState<StorePreference[]>(mockStorePreferences);
+  const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts();
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
   const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
@@ -108,6 +109,8 @@ function App() {
             stores={stores}
             storePreferences={storePreferences}
             onPreferencesChange={setStorePreferences}
+            onSavePreference={upsertPreference}
+            onDeletePreference={deletePreference}
             promoterConflicts={promoterConflicts}
             onConflictsChange={setPromoterConflicts}
             onSaveConflict={saveConflict}
@@ -122,9 +125,14 @@ function App() {
         {activeTab === 'store-setting' && (
           <StoreSettingPage
             stores={stores}
+            promoters={promoters}
+            storePreferences={storePreferences}
             onStoresChange={setStores}
             onSaveStore={saveStore}
             onDeleteStore={deleteStore}
+            onSavePreference={upsertPreference}
+            onDeletePreference={deletePreference}
+            onPreferencesChange={setStorePreferences}
           />
         )}
         {activeTab === 'sales' && (
