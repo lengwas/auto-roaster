@@ -6,12 +6,13 @@ import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
 import SalesPerformancePage from './components/SalesPerformancePage';
 import AutoAssignPage from './components/AutoAssignPage';
-import { mockShifts, shiftDates, generateStoreCounts } from './data/mockData';
+import { shiftDates, generateStoreCounts } from './data/mockData';
 import { useStores } from './hooks/useStores';
 import { usePromoters } from './hooks/usePromoters';
 import { useSpecialDates } from './hooks/useSpecialDates';
 import { useConflicts } from './hooks/useConflicts';
 import { useStorePreferences } from './hooks/useStorePreferences';
+import { useShifts } from './hooks/useShifts';
 import type { StoreTierSetting, PromoterGradeOverride } from './types/types';
 import './App.css';
 
@@ -31,8 +32,8 @@ function App() {
   const { stores, setStores, saveStore, deleteStore } = useStores();
   const { promoters, setPromoters, savePromoter, insertPromoter } = usePromoters();
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
-  const [shifts, setShifts] = useState(mockShifts);
   const [showExport, setShowExport] = useState(false);
+  const { shifts, setShifts, saveShift } = useShifts(shiftDates[0], shiftDates[shiftDates.length - 1]);
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts();
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
@@ -44,24 +45,8 @@ function App() {
   );
 
   const handleShiftChange = useCallback((promoterId: string, date: string, newType: string, timeRange?: string, note?: string) => {
-    setShifts((prev) => {
-      const key = `${promoterId}_${date}`;
-      const existing = prev.find((s) => `${s.promoterId}_${s.date}` === key);
-      const filtered = prev.filter((s) => `${s.promoterId}_${s.date}` !== key);
-      if (!newType && !note) return filtered;
-      return [
-        ...filtered,
-        {
-          id: `s_${promoterId}_${date}`,
-          promoterId,
-          date,
-          type: newType,
-          timeRange,
-          note: note !== undefined ? note : existing?.note,
-        },
-      ];
-    });
-  }, []);
+    saveShift(promoterId, date, newType, timeRange, note);
+  }, [saveShift]);
 
   return (
     <div className="app-layout">
@@ -156,7 +141,7 @@ function App() {
             storeTiers={storeTiers}
             gradeOverrides={gradeOverrides}
             onShiftsApply={(newShifts) => {
-              newShifts.forEach((s) => handleShiftChange(s.promoterId, s.date, s.type, s.timeRange));
+              newShifts.forEach((s) => saveShift(s.promoterId, s.date, s.type, s.timeRange));
             }}
           />
         )}
