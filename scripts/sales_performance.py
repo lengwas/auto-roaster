@@ -89,6 +89,64 @@ DEFAULT_DAY_FACTORS: dict[int, float] = {
     6: 1.2,   # Sunday  (still elevated)
 }
 
+# ── Store Tier (auto-calculated from total revenue) ──────────────────────────
+# Tier determines priority: promoter ที่เก่งที่สุดจะถูกจัดลงห้าง tier สูงก่อน
+# Tiers are computed automatically from historical total revenue per store:
+#   Tier 1 (S): top 20% stores by revenue   → must have best promoters
+#   Tier 2 (A): next 30%                     → strong promoters
+#   Tier 3 (B): next 30%                     → solid promoters
+#   Tier 4 (C): bottom 20%                   → anyone available
+# Can be overridden via --store-tiers JSON
+TIER_LABELS = ['S', 'A', 'B', 'C']
+TIER_PERCENTILES = [0.20, 0.50, 0.80, 1.0]  # cumulative breakpoints
+
+
+def compute_store_tiers(
+    orders: list[dict],
+    stores: list[dict],
+    wh_map: dict[str, str],
+    pl_map: dict[str, str],
+) -> dict[str, dict]:
+    """Auto-rank stores by total revenue → assign tier S/A/B/C."""
+    store_rev: dict[str, float] = defaultdict(float)
+    for order in orders:
+        if (order.get('status') or '').lower() in EXCLUDED_STATUSES:
+            continue
+        amount = float(order.get('amount_aed') or 0)
+        wh = (order.get('warehouse') or '').strip().lower()
+        pl = (order.get('platform') or '').strip().lower()
+        sc = wh_map.get(wh) or pl_map.get(pl)
+        if sc:
+            store_rev[sc] += amount
+
+    # Sort stores by revenue descending
+    active_codes = {s['code'] for s in stores if s.get('active', True)}
+    ranked = sorted(
+        [(sc, rev) for sc, rev in store_rev.items() if sc in active_codes],
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    # Also add active stores with zero revenue
+    seen = {sc for sc, _ in ranked}
+    for s in stores:
+        if s.get('active', True) and s['code'] not in seen:
+            ranked.append((s['code'], 0.0))
+
+    total = len(ranked)
+    result: dict[str, dict] = {}
+    for i, (sc, rev) in enumerate(ranked):
+        pct = (i + 1) / total if total > 0 else 1.0
+        tier_idx = next(j for j, bp in enumerate(TIER_PERCENTILES) if pct <= bp)
+        result[sc] = {
+            'store_code': sc,
+            'tier': TIER_LABELS[tier_idx],
+            'tier_rank': i + 1,
+            'total_revenue': round(rev, 2),
+        }
+
+    return result
+
+
 # ── UAE Public Holidays 2025-2026 ────────────────────────────────────────────
 # These dates get an additional traffic multiplier on top of the day-of-week
 # factor.  holiday_factor * day_factor = total normalization factor.
@@ -123,6 +181,17 @@ UAE_HOLIDAYS: dict[str, str] = {
 }
 
 DEFAULT_HOLIDAY_FACTOR = 1.4  # holidays get 40% more traffic than base
+
+# ── Newbie factor (Bayesian shrinkage) ───────────────────────────────────────
+# Promoters with fewer than `min_days` of data get their score pulled toward
+# the global average.  This prevents a lucky 2-day streak from ranking #1.
+#
+# Formula:  adjusted = (n * personal + min_days * global) / (n + min_days)
+#
+#   n=7,  min_days=30 → personal weight = 7/37  = 19%  (mostly global)
+#   n=30, min_days=30 → personal weight = 30/60 = 50%  (balanced)
+#   n=90, min_days=30 → personal weight = 90/120= 75%  (trust personal)
+DEFAULT_NEWBIE_MIN_DAYS = 30
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -182,6 +251,7 @@ def build_normalized_performance(
     shifts: list[dict],
     day_factors: dict[int, float],
     holiday_factor: float,
+    newbie_min_days: int = DEFAULT_NEWBIE_MIN_DAYS,
 ) -> dict:
     """
     Returns {
@@ -307,6 +377,24 @@ def build_normalized_performance(
             },
         }
 
+    # ── Newbie adjustment (Bayesian shrinkage) ───────────────────────────
+    # Compute global average normalized daily revenue across all pairs
+    if result and newbie_min_days > 0:
+        all_norm_avgs = [e['normalized_avg'] for e in result.values() if e['work_days'] > 0]
+        global_avg = sum(all_norm_avgs) / len(all_norm_avgs) if all_norm_avgs else 0
+
+        for entry in result.values():
+            n = entry['work_days']
+            personal = entry['normalized_avg']
+            # Bayesian: (n * personal + min_days * global) / (n + min_days)
+            adjusted = (n * personal + newbie_min_days * global_avg) / (n + newbie_min_days)
+            confidence = n / (n + newbie_min_days)  # 0→1, how much we trust personal score
+
+            entry['adjusted_avg'] = round(adjusted, 2)
+            entry['confidence'] = round(confidence, 2)
+            entry['is_newbie'] = n < newbie_min_days
+            entry['global_avg'] = round(global_avg, 2)
+
     return result
 
 
@@ -339,6 +427,8 @@ Example:
                         help='Override day-of-week factors as JSON, e.g. \'{"4":1.4,"5":1.6}\'')
     parser.add_argument('--holiday-factor', type=float, default=DEFAULT_HOLIDAY_FACTOR,
                         help=f'Holiday traffic multiplier (default: {DEFAULT_HOLIDAY_FACTOR})')
+    parser.add_argument('--newbie-days', type=int, default=DEFAULT_NEWBIE_MIN_DAYS,
+                        help=f'Min days for full confidence; fewer → score pulled to global avg (default: {DEFAULT_NEWBIE_MIN_DAYS})')
     parser.add_argument('--top', type=int, default=0,
                         help='Show only top N promoters per store')
     args = parser.parse_args()
@@ -385,24 +475,44 @@ Example:
     print(f"  {len(promoters)} promoters, {len(stores)} stores", file=sys.stderr)
     print(f"  {len(orders)} orders, {len(shifts)} shift records", file=sys.stderr)
 
+    # ── Compute store tiers ──────────────────────────────────────────────
+    wh_map: dict[str, str] = dict(WAREHOUSE_MAP)
+    pl_map: dict[str, str] = {}
+    for s in stores:
+        if s.get('warehouse'):
+            wh_map[s['warehouse'].lower()] = s['code']
+        if s.get('platform'):
+            pl_map[s['platform'].lower()] = s['code']
+
+    store_tiers = compute_store_tiers(orders, stores, wh_map, pl_map)
+
+    print(f"\n  Store Tiers (by total revenue):", file=sys.stderr)
+    print(f"  {'Tier':<6} {'Store':<8} {'Revenue':>14}", file=sys.stderr)
+    print(f"  {'─'*6} {'─'*8} {'─'*14}", file=sys.stderr)
+    for sc in sorted(store_tiers, key=lambda x: store_tiers[x]['tier_rank']):
+        st = store_tiers[sc]
+        print(f"  {st['tier']:<6} {sc:<8} {st['total_revenue']:>14,.0f} AED", file=sys.stderr)
+
     # ── Build performance matrix ─────────────────────────────────────────
     print("\nBuilding normalized performance matrix…", file=sys.stderr)
     print(f"  Day factors: Mon={day_factors[0]} Tue={day_factors[1]} Wed={day_factors[2]} "
           f"Thu={day_factors[3]} Fri={day_factors[4]} Sat={day_factors[5]} Sun={day_factors[6]}",
           file=sys.stderr)
     print(f"  Holiday factor: {args.holiday_factor}", file=sys.stderr)
+    print(f"  Newbie min days: {args.newbie_days} (fewer → score pulled to global avg)", file=sys.stderr)
 
     perf = build_normalized_performance(
         orders, promoters, stores, shifts,
         day_factors, args.holiday_factor,
+        newbie_min_days=args.newbie_days,
     )
 
     if not perf:
         print("\n  WARNING: No performance data found.", file=sys.stderr)
         sys.exit(0)
 
-    # ── Sort by normalized average (descending) ──────────────────────────
-    sorted_pairs = sorted(perf.values(), key=lambda x: x['normalized_avg'], reverse=True)
+    # ── Sort by adjusted average (descending) — newbie-penalized ranking ─
+    sorted_pairs = sorted(perf.values(), key=lambda x: x.get('adjusted_avg', x['normalized_avg']), reverse=True)
 
     # ── Print summary ────────────────────────────────────────────────────
     print(f"\n{'='*80}", file=sys.stderr)
@@ -414,24 +524,29 @@ Example:
     for entry in sorted_pairs:
         by_store[entry['store_code']].append(entry)
 
-    for sc in sorted(by_store):
-        entries = sorted(by_store[sc], key=lambda x: x['normalized_avg'], reverse=True)
+    # Sort stores by tier (S first) then alphabetically
+    for sc in sorted(by_store, key=lambda x: (store_tiers.get(x, {}).get('tier_rank', 99), x)):
+        entries = sorted(by_store[sc], key=lambda x: x.get('adjusted_avg', x['normalized_avg']), reverse=True)
         if args.top > 0:
             entries = entries[:args.top]
-        print(f"\n  ── {sc} ──", file=sys.stderr)
-        print(f"  {'Promoter':<20} {'Raw Avg':>10} {'Norm Avg':>10} {'Days':>6} "
-              f"{'Sales':>6} {'Zero':>6} {'Total Rev':>12}", file=sys.stderr)
-        print(f"  {'─'*20} {'─'*10} {'─'*10} {'─'*6} {'─'*6} {'─'*6} {'─'*12}",
+        tier_info = store_tiers.get(sc, {})
+        tier_label = tier_info.get('tier', '?')
+        print(f"\n  ── {sc} [Tier {tier_label}] ──", file=sys.stderr)
+        print(f"  {'Promoter':<20} {'Adj Avg':>10} {'Norm Avg':>10} {'Days':>6} "
+              f"{'Conf':>6} {'Sales':>6} {'Zero':>6} {'Total Rev':>12}", file=sys.stderr)
+        print(f"  {'─'*20} {'─'*10} {'─'*10} {'─'*6} {'─'*6} {'─'*6} {'─'*6} {'─'*12}",
               file=sys.stderr)
         for e in entries:
+            tag = ' NEW' if e.get('is_newbie') else ''
             print(
                 f"  {e['promoter_name']:<20} "
-                f"{e['raw_avg']:>10,.0f} "
+                f"{e.get('adjusted_avg', e['normalized_avg']):>10,.0f} "
                 f"{e['normalized_avg']:>10,.0f} "
                 f"{e['work_days']:>6} "
+                f"{e.get('confidence', 1.0):>5.0%} "
                 f"{e['sale_days']:>6} "
                 f"{e['zero_days']:>6} "
-                f"{e['total_revenue']:>12,.0f}",
+                f"{e['total_revenue']:>12,.0f}{tag}",
                 file=sys.stderr,
             )
 
@@ -460,33 +575,52 @@ Example:
                 'name': entry['promoter_name'],
                 'total_revenue': 0, 'total_normalized': 0,
                 'work_days': 0, 'sale_days': 0,
+                'is_newbie': entry.get('is_newbie', False),
             }
         t = promoter_totals[pid]
         t['total_revenue'] += entry['total_revenue']
         t['total_normalized'] += entry['total_normalized']
         t['work_days'] += entry['work_days']
         t['sale_days'] += entry['sale_days']
+        if entry.get('is_newbie'):
+            t['is_newbie'] = True
+
+    # Apply newbie adjustment at overall level too
+    newbie_min = args.newbie_days
+    all_overall_avgs = [
+        t['total_normalized'] / max(t['work_days'], 1) for t in promoter_totals.values()
+    ]
+    global_overall = sum(all_overall_avgs) / len(all_overall_avgs) if all_overall_avgs else 0
+
+    for t in promoter_totals.values():
+        days = max(t['work_days'], 1)
+        norm_avg = t['total_normalized'] / days
+        adj = (days * norm_avg + newbie_min * global_overall) / (days + newbie_min)
+        t['adjusted_avg'] = round(adj, 2)
+        t['confidence'] = round(days / (days + newbie_min), 2)
 
     print(f"\n{'='*80}", file=sys.stderr)
-    print(f"  Overall Promoter Ranking (normalized daily avg)", file=sys.stderr)
+    print(f"  Overall Promoter Ranking (adjusted for newbie confidence)", file=sys.stderr)
     print(f"{'='*80}", file=sys.stderr)
     ranked = sorted(
         promoter_totals.values(),
-        key=lambda x: x['total_normalized'] / max(x['work_days'], 1),
+        key=lambda x: x['adjusted_avg'],
         reverse=True,
     )
-    print(f"  {'#':<4} {'Promoter':<20} {'Norm Avg':>10} {'Raw Avg':>10} "
-          f"{'Days':>6} {'Hit%':>6}", file=sys.stderr)
-    print(f"  {'─'*4} {'─'*20} {'─'*10} {'─'*10} {'─'*6} {'─'*6}", file=sys.stderr)
+    print(f"  {'#':<4} {'Promoter':<20} {'Adj Avg':>10} {'Norm Avg':>10} "
+          f"{'Days':>6} {'Conf':>6} {'Hit%':>6}", file=sys.stderr)
+    print(f"  {'─'*4} {'─'*20} {'─'*10} {'─'*10} {'─'*6} {'─'*6} {'─'*6}", file=sys.stderr)
     for i, t in enumerate(ranked, 1):
         days = max(t['work_days'], 1)
         hit_pct = t['sale_days'] / days * 100
+        tag = ' NEW' if t.get('is_newbie') else ''
         print(
             f"  {i:<4} {t['name']:<20} "
+            f"{t['adjusted_avg']:>10,.0f} "
             f"{t['total_normalized']/days:>10,.0f} "
-            f"{t['total_revenue']/days:>10,.0f} "
             f"{t['work_days']:>6} "
-            f"{hit_pct:>5.0f}%",
+            f"{t['confidence']:>5.0%} "
+            f"{hit_pct:>5.0f}%{tag}",
             file=sys.stderr,
         )
 
@@ -497,12 +631,23 @@ Example:
             'lookback_from': lookback_from,
             'day_factors': {WEEKDAY_NAMES[k]: v for k, v in day_factors.items()},
             'holiday_factor': args.holiday_factor,
+            'newbie_min_days': args.newbie_days,
+            'tier_percentiles': dict(zip(TIER_LABELS, TIER_PERCENTILES)),
             'holidays_in_range': [
                 {'date': d, 'name': n}
                 for d, n in sorted(UAE_HOLIDAYS.items())
                 if d >= lookback_from
             ],
         },
+        'store_tiers': [
+            {
+                'store_code': st['store_code'],
+                'tier': st['tier'],
+                'tier_rank': st['tier_rank'],
+                'total_revenue': st['total_revenue'],
+            }
+            for st in sorted(store_tiers.values(), key=lambda x: x['tier_rank'])
+        ],
         'per_store': [
             {
                 'promoter_id': e['promoter_id'],
@@ -510,6 +655,9 @@ Example:
                 'store_code': e['store_code'],
                 'raw_avg': e['raw_avg'],
                 'normalized_avg': e['normalized_avg'],
+                'adjusted_avg': e.get('adjusted_avg', e['normalized_avg']),
+                'confidence': e.get('confidence', 1.0),
+                'is_newbie': e.get('is_newbie', False),
                 'total_revenue': e['total_revenue'],
                 'work_days': e['work_days'],
                 'sale_days': e['sale_days'],
@@ -521,8 +669,11 @@ Example:
         'overall_ranking': [
             {
                 'promoter_name': t['name'],
+                'adjusted_daily_avg': t['adjusted_avg'],
                 'normalized_daily_avg': round(t['total_normalized'] / max(t['work_days'], 1), 2),
                 'raw_daily_avg': round(t['total_revenue'] / max(t['work_days'], 1), 2),
+                'confidence': t['confidence'],
+                'is_newbie': t.get('is_newbie', False),
                 'work_days': t['work_days'],
                 'sale_days': t['sale_days'],
                 'hit_rate': round(t['sale_days'] / max(t['work_days'], 1) * 100, 1),
