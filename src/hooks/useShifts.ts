@@ -6,7 +6,7 @@ function mapRow(row: Record<string, unknown>): Shift {
   return {
     id: String(row.id),
     promoterId: String(row.promoter_id),
-    date: String(row.date),
+    date: String(row.date).split('T')[0],
     type: String(row.shift_type),
     timeRange: row.time_range ? String(row.time_range) : undefined,
     note: row.note ? String(row.note) : undefined,
@@ -16,19 +16,34 @@ function mapRow(row: Record<string, unknown>): Shift {
 export function useShifts(fromDate: string, toDate: string) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
+    console.log(`[useShifts] Fetching shifts from ${fromDate} to ${toDate}`);
     supabase
       .from('shifts')
       .select('*')
       .gte('date', fromDate)
       .lte('date', toDate)
       .then(({ data, error }) => {
-        if (!error && data) {
-          setShifts(data.map(r => mapRow(r as Record<string, unknown>)));
+        if (error) {
+          console.error('[useShifts] Failed to load shifts from Supabase:', error.message, error);
+          setError(error.message);
+        } else {
+          console.log(`[useShifts] Loaded ${data?.length ?? 0} shifts. First row:`, data?.[0]);
+          if (data && data.length > 0) {
+            setShifts(data.map(r => mapRow(r as Record<string, unknown>)));
+          }
         }
         setLoading(false);
+      });
+
+    // Debug: count ALL shifts regardless of date range
+    supabase.from('shifts').select('*', { count: 'exact', head: true })
+      .then(({ count, error }) => {
+        console.log(`[useShifts] Total shifts in DB (all dates): ${count ?? 'unknown'}`, error?.message ?? '');
       });
   }, [fromDate, toDate]);
 
@@ -70,5 +85,5 @@ export function useShifts(fromDate: string, toDate: string) {
     }
   }
 
-  return { shifts, setShifts, saveShift, loading };
+  return { shifts, setShifts, saveShift, loading, error };
 }

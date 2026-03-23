@@ -188,6 +188,28 @@ CREATE POLICY "Allow all for authenticated" ON promoter_store_preferences
 CREATE POLICY "Allow all for authenticated" ON promoter_conflicts
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- Allow anon key full access (frontend uses anon key, no auth required for this internal tool)
+CREATE POLICY "Allow all for anon" ON stores
+  FOR ALL TO anon USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon" ON promoters
+  FOR ALL TO anon USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon" ON promoter_stores
+  FOR ALL TO anon USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon" ON shifts
+  FOR ALL TO anon USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon" ON shift_change_log
+  FOR ALL TO anon USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon" ON promoter_store_preferences
+  FOR ALL TO anon USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon" ON promoter_conflicts
+  FOR ALL TO anon USING (true) WITH CHECK (true);
+
 -- Allow service_role full access (for Google Apps Script sync)
 CREATE POLICY "Allow service_role" ON stores
   FOR ALL TO service_role USING (true) WITH CHECK (true);

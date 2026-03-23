@@ -33,7 +33,7 @@ function App() {
   const { promoters, setPromoters, savePromoter, insertPromoter } = usePromoters();
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
   const [showExport, setShowExport] = useState(false);
-  const { shifts, setShifts, saveShift } = useShifts(shiftDates[0], shiftDates[shiftDates.length - 1]);
+  const { shifts, setShifts, saveShift, error: shiftsError } = useShifts(shiftDates[0], shiftDates[shiftDates.length - 1]);
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts();
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
@@ -75,6 +75,20 @@ function App() {
       </nav>
 
       <main className="app-main">
+        <div style={{ background: '#1e293b', color: '#94a3b8', fontSize: 11, padding: '4px 16px', fontFamily: 'monospace' }}>
+          DEBUG — shifts loaded: {shifts.length} | promoters: {promoters.length} | stores: {stores.length}
+          {shifts.length > 0 && ` | first shift promoterId: ${shifts[0].promoterId} | date: ${shifts[0].date}`}
+          {promoters.length > 0 && ` | first promoter id: ${promoters[0].id}`}
+        </div>
+        {shiftsError && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 16px', margin: '12px 16px 0', color: '#b91c1c', fontSize: 13 }}>
+            <strong>Shifts failed to load from Supabase:</strong> {shiftsError}
+            <br />
+            <span style={{ color: '#7f1d1d' }}>
+              Fix: Run <code>scripts/supabase-fix-anon-policies.sql</code> in your Supabase SQL Editor to allow anon-key access.
+            </span>
+          </div>
+        )}
         {activeTab === 'shift' && (
           <ShiftTable
             stores={stores}

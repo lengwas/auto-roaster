@@ -86,9 +86,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const [hiddenPromoterIds, setHiddenPromoterIds] = useState<Set<string>>(new Set());
   const [activeOnlyPromoters, setActiveOnlyPromoters] = useState(true);
   const [hideEmptyStores, setHideEmptyStores] = useState(true);
-  const defaultRange = getCurrentMonthRange();
-  const [filterStart, setFilterStart] = useState(defaultRange.start);
-  const [filterEnd, setFilterEnd] = useState(defaultRange.end);
+  const [filterStart, setFilterStart] = useState(dates[0] ?? '');
+  const [filterEnd, setFilterEnd] = useState(dates[dates.length - 1] ?? '');
 
   const toggleStore = (id: string) => setHiddenStoreIds(prev => {
     const next = new Set(prev);
@@ -283,10 +282,10 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
           />
           <button
             className="date-range-reset"
-            onClick={() => { const r = getCurrentMonthRange(); setFilterStart(r.start); setFilterEnd(r.end); }}
-            title="Reset to current month"
+            onClick={() => { setFilterStart(dates[0] ?? ''); setFilterEnd(dates[dates.length - 1] ?? ''); }}
+            title="Reset to full range"
           >
-            This month
+            All dates
           </button>
         </div>
       </div>
