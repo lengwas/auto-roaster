@@ -70,12 +70,6 @@ function getTodayStr(): string {
   return d.toISOString().split('T')[0];
 }
 
-function getCurrentMonthRange(): { start: string; end: string } {
-  const d = new Date();
-  const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-  return { start, end };
-}
 
 const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date

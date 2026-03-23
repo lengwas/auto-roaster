@@ -33,7 +33,7 @@ function App() {
   const { promoters, setPromoters, savePromoter, insertPromoter } = usePromoters();
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
   const [showExport, setShowExport] = useState(false);
-  const { shifts, setShifts, saveShift, error: shiftsError } = useShifts(shiftDates[0], shiftDates[shiftDates.length - 1]);
+  const { shifts, saveShift, error: shiftsError } = useShifts(shiftDates[0], shiftDates[shiftDates.length - 1]);
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts();
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
