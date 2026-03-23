@@ -70,6 +70,13 @@ function getTodayStr(): string {
   return d.toISOString().split('T')[0];
 }
 
+function getCurrentMonthRange(): { start: string; end: string } {
+  const d = new Date();
+  const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  return { start, end };
+}
+
 const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
   const [noteText, setNoteText] = useState('');
@@ -79,6 +86,9 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const [hiddenPromoterIds, setHiddenPromoterIds] = useState<Set<string>>(new Set());
   const [activeOnlyPromoters, setActiveOnlyPromoters] = useState(true);
   const [hideEmptyStores, setHideEmptyStores] = useState(true);
+  const defaultRange = getCurrentMonthRange();
+  const [filterStart, setFilterStart] = useState(defaultRange.start);
+  const [filterEnd, setFilterEnd] = useState(defaultRange.end);
 
   const toggleStore = (id: string) => setHiddenStoreIds(prev => {
     const next = new Set(prev);
@@ -112,12 +122,13 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   const storeByCode = new Map<string, Store>();
   stores.filter(s => s.active).forEach(s => storeByCode.set(s.code, s));
 
-  const dateInfos = dates.map(formatDate);
+  const visibleDates = dates.filter(d => d >= filterStart && d <= filterEnd);
+  const dateInfos = visibleDates.map(formatDate);
   const todayStr = getTodayStr();
 
   const activeStores = stores.filter(s => s.active);
   const storesWithAssignments = new Set(
-    dates.flatMap(dateStr =>
+    visibleDates.flatMap(dateStr =>
       stores.filter(s => (countMap.get(`${s.id}_${dateStr}`) ?? 0) > 0).map(s => s.id)
     )
   );
@@ -252,6 +263,32 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
             <span className="filter-badge">{hiddenStoreIds.size + hiddenPromoterIds.size}</span>
           )}
         </button>
+        <div className="date-range-filter">
+          <input
+            type="date"
+            className="date-range-input"
+            value={filterStart}
+            min={dates[0]}
+            max={filterEnd}
+            onChange={e => setFilterStart(e.target.value)}
+          />
+          <span className="date-range-sep">–</span>
+          <input
+            type="date"
+            className="date-range-input"
+            value={filterEnd}
+            min={filterStart}
+            max={dates[dates.length - 1]}
+            onChange={e => setFilterEnd(e.target.value)}
+          />
+          <button
+            className="date-range-reset"
+            onClick={() => { const r = getCurrentMonthRange(); setFilterStart(r.start); setFilterEnd(r.end); }}
+            title="Reset to current month"
+          >
+            This month
+          </button>
+        </div>
       </div>
 
       {/* Date Mark Popup */}
@@ -315,7 +352,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
             <div className="cell cell-fixed-left col-name">Locked</div>
             <div className="cell cell-fixed-left-2 col-stores"></div>
             <div className="cell cell-fixed-left-3 col-day"></div>
-            {dates.map((dateStr, i) => {
+            {visibleDates.map((dateStr, i) => {
               const special = specialMap.get(dateStr);
               return (
                 <div
@@ -336,7 +373,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
             <div className="cell cell-fixed-left col-name" style={{ fontWeight: 700 }}>Name</div>
             <div className="cell cell-fixed-left-2 col-stores" style={{ fontWeight: 700 }}>Stores</div>
             <div className="cell cell-fixed-left-3 col-day" style={{ fontWeight: 700 }}>Day Off</div>
-            {dates.map((dateStr, i) => {
+            {visibleDates.map((dateStr, i) => {
               const special = specialMap.get(dateStr);
               return (
                 <div
@@ -355,7 +392,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
               <div className="cell cell-fixed-left col-name" style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 600 }}>Expected</div>
               <div className="cell cell-fixed-left-2 col-stores" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>AED</div>
               <div className="cell cell-fixed-left-3 col-day"></div>
-              {dates.map((dateStr) => {
+              {visibleDates.map((dateStr) => {
                 const entry = revenueForecast.find(r => r.date === dateStr);
                 return (
                   <div
@@ -394,7 +431,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
                 <div className="cell cell-fixed-left-3 col-day" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)', fontSize: '11px', color: 'var(--text-secondary)' }}>
                   {store.openTime}-{store.closeTime}
                 </div>
-                {dates.map((dateStr) => {
+                {visibleDates.map((dateStr) => {
                   const count = countMap.get(`${store.id}_${dateStr}`) ?? 0;
                   return (
                     <div
@@ -426,7 +463,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
             <div className="cell cell-fixed-left-3 col-day">
               {promoter.workingDays}
             </div>
-            {dates.map((dateStr) => {
+            {visibleDates.map((dateStr) => {
               const shift = shiftMap.get(`${promoter.id}_${dateStr}`);
               const shiftClass = shift ? getShiftClass(shift.type) : '';
               const cellKey = `${promoter.id}_${dateStr}`;

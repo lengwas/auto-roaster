@@ -43,6 +43,38 @@
   font-family: var(--font-sans);
 }
 .filter-btn:hover { background: #f1f5f9; }
+
+.date-range-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+}
+.date-range-input {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  background: white;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.date-range-sep {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.date-range-reset {
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.date-range-reset:hover { background: #f1f5f9; color: var(--text-primary); }
 .filter-badge {
   background: #2563eb;
   color: white;
