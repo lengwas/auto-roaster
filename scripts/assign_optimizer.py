@@ -261,8 +261,13 @@ def build_performance_matrix(
     orders: list[dict],
     promoters: list[dict],
     stores: list[dict],
+    shifts: list[dict] = None,
 ) -> dict[tuple[str, str], float]:
-    """Returns {(promoter_id, store_code): avg_daily_revenue_aed}"""
+    """Returns {(promoter_id, store_code): avg_daily_revenue_aed}
+
+    When `shifts` is provided, days where a promoter worked at a store but had
+    zero sales are included in the denominator (avg is lower, more realistic).
+    """
     name_map: dict[str, str] = {}
     for p in promoters:
         name_map[p['name'].lower()] = p['id']
@@ -292,11 +297,29 @@ def build_performance_matrix(
             continue
         daily_rev[(pid, store_code, order.get('date') or '')] += amount
 
-    pair_totals: dict[tuple[str, str], list[float]] = defaultdict(list)
-    for (pid, sc, _d), rev in daily_rev.items():
-        pair_totals[(pid, sc)].append(rev)
+    # Build set of (pid, store_code) days from shifts (includes zero-sales days)
+    worked_days: dict[tuple[str, str], set[str]] = defaultdict(set)
+    if shifts:
+        valid_codes = {s['code'] for s in stores}
+        for sh in shifts:
+            pid = str(sh.get('promoter_id') or '')
+            sc = str(sh.get('shift_type') or '').upper()
+            d = str(sh.get('date') or '')
+            if pid and sc and d and sc in valid_codes:
+                worked_days[(pid, sc)].add(d)
 
-    return {k: sum(v) / len(v) for k, v in pair_totals.items()}
+    pair_totals: dict[tuple[str, str], dict[str, float]] = defaultdict(dict)
+    for (pid, sc, d), rev in daily_rev.items():
+        pair_totals[(pid, sc)][d] = rev
+
+    result: dict[tuple[str, str], float] = {}
+    for (pid, sc), day_revs in pair_totals.items():
+        total_rev = sum(day_revs.values())
+        # Use the larger of: order-day count or shift-day count as denominator
+        n_days = max(len(day_revs), len(worked_days.get((pid, sc), set())))
+        result[(pid, sc)] = total_rev / n_days
+
+    return result
 
 
 def print_performance_summary(
@@ -677,6 +700,14 @@ def main():
     )
     print(f"  {len(orders)} orders loaded", file=sys.stderr)
 
+    print(f"Fetching shifts since {lookback_from}…", file=sys.stderr)
+    shifts = fetch_all(
+        sb, 'shifts',
+        query='promoter_id,date,shift_type',
+        filters=[('date', 'gte', lookback_from)],
+    )
+    print(f"  {len(shifts)} shift records loaded", file=sys.stderr)
+
     # ── Resolve store_id → store_code ────────────────────────────────────────
     store_id_to_code = {s['id']: s['code'] for s in stores}
     preferences = [
@@ -695,7 +726,7 @@ def main():
 
     # ── Performance matrix ───────────────────────────────────────────────────
     print("\nBuilding performance matrix…", file=sys.stderr)
-    perf = build_performance_matrix(orders, promoters, stores)
+    perf = build_performance_matrix(orders, promoters, stores, shifts=shifts)
     print(f"  {len(perf)} (promoter, store) score pairs", file=sys.stderr)
 
     if len(perf) == 0:

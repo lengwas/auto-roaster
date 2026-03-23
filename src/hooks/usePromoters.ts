@@ -51,5 +51,21 @@ export function usePromoters() {
     return null;
   }
 
-  return { promoters, setPromoters, savePromoter, loading };
+  async function insertPromoter(name: string): Promise<string | null> {
+    const { data, error } = await supabase
+      .from('promoters')
+      .insert({ name: name.trim(), active: true, day_off: '', role: 'promoter', stores_label: '' })
+      .select('*')
+      .single();
+    if (error) {
+      console.error('Failed to insert promoter:', error);
+      return error.message;
+    }
+    if (data) {
+      setPromoters(prev => [...prev, mapRow(data as Record<string, unknown>)]);
+    }
+    return null;
+  }
+
+  return { promoters, setPromoters, savePromoter, insertPromoter, loading };
 }

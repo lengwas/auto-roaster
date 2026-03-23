@@ -29,7 +29,7 @@ const TABS: { key: TabKey; label: string }[] = [
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('shift');
   const { stores, setStores, saveStore, deleteStore } = useStores();
-  const { promoters, setPromoters, savePromoter } = usePromoters();
+  const { promoters, setPromoters, savePromoter, insertPromoter } = usePromoters();
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
   const [shifts, setShifts] = useState(mockShifts);
   const [showExport, setShowExport] = useState(false);
@@ -120,6 +120,7 @@ function App() {
               const results = await Promise.all(changed.map(savePromoter));
               return results.filter((e): e is string => e !== null);
             }}
+            onInsertPromoter={insertPromoter}
           />
         )}
         {activeTab === 'store-setting' && (

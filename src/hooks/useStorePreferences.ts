@@ -7,6 +7,8 @@ export function useStorePreferences(stores: Store[]) {
 
   useEffect(() => {
     if (stores.length === 0) return;
+    // Skip while stores still have mock IDs (real Supabase IDs are UUIDs)
+    if (stores.some(s => s.id.length < 10)) return;
     supabase
       .from('promoter_store_preferences')
       .select('*')
@@ -23,7 +25,7 @@ export function useStorePreferences(stores: Store[]) {
           setStorePreferences(prefs);
         }
       });
-  }, [stores.length]); // re-fetch once stores are available
+  }, [stores]); // re-fetch when stores reference changes (mock → real UUIDs)
 
   async function upsertPreference(promoterId: string, storeCode: string, preference: PreferenceLevel) {
     const storeId = stores.find(s => s.code === storeCode)?.id;

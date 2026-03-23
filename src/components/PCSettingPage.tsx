@@ -25,6 +25,7 @@ interface PCSettingPageProps {
   onDeleteConflict?: (id: string) => Promise<void>;
   onPromotersChange?: (promoters: Promoter[]) => void;
   onSavePromoters?: (changed: Promoter[]) => Promise<string[]>;
+  onInsertPromoter?: (name: string) => Promise<string | null>;
 }
 
 const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
@@ -33,7 +34,7 @@ const PREF_OPTIONS: { value: PreferenceLevel; label: string; cls: string }[] = [
   { value: 'banned', label: 'Banned', cls: 'pref-banned' },
 ];
 
-const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, onSavePreference, onDeletePreference, promoterConflicts, onConflictsChange, onSaveConflict, onDeleteConflict, onPromotersChange, onSavePromoters }: PCSettingPageProps) => {
+const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChange, onSavePreference, onDeletePreference, promoterConflicts, onConflictsChange, onSaveConflict, onDeleteConflict, onPromotersChange, onSavePromoters, onInsertPromoter }: PCSettingPageProps) => {
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [conflictA, setConflictA] = useState('');
@@ -43,6 +44,9 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [newPromoterName, setNewPromoterName] = useState('');
+  const [addingPromoter, setAddingPromoter] = useState(false);
+  const [addPromoterError, setAddPromoterError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,6 +122,19 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
     saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
   };
 
+  const handleAddPromoter = async () => {
+    if (!newPromoterName.trim() || !onInsertPromoter) return;
+    setAddingPromoter(true);
+    setAddPromoterError(null);
+    const err = await onInsertPromoter(newPromoterName.trim());
+    setAddingPromoter(false);
+    if (err) {
+      setAddPromoterError(err);
+    } else {
+      setNewPromoterName('');
+    }
+  };
+
   const getPrefsForPromoter = (promoterId: string) => {
     return storePreferences.filter(sp => sp.promoterId === promoterId);
   };
@@ -191,6 +208,29 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
           </div>
           <div className="setting-actions">
             <span className="badge">{activePromoters.length} Active</span>
+            {onInsertPromoter && (
+              <>
+                <input
+                  type="text"
+                  className="search-input"
+                  style={{ width: 160 }}
+                  placeholder="New promoter name"
+                  value={newPromoterName}
+                  onChange={e => setNewPromoterName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddPromoter()}
+                />
+                <button
+                  className="btn btn-primary btn-small"
+                  onClick={handleAddPromoter}
+                  disabled={!newPromoterName.trim() || addingPromoter}
+                >
+                  {addingPromoter ? 'Adding…' : '+ Add'}
+                </button>
+                {addPromoterError && (
+                  <span className="save-status-err" title={addPromoterError}>⚠ Failed</span>
+                )}
+              </>
+            )}
             {saveStatus === 'saved' && <span className="save-status-ok">✓ Saved</span>}
             {saveStatus === 'error' && (
               <span className="save-status-err" title={saveError ?? ''}>⚠ Save failed</span>
