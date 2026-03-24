@@ -126,11 +126,13 @@ interface Props {
 
 // ── available Gemini models ────────────────────────────────────────────────
 const GEMINI_MODELS: { id: string; label: string }[] = [
-  { id: 'gemini-2.5-flash-preview-04-17', label: 'Gemini 2.5 Flash Preview (smartest)' },
-  { id: 'gemini-2.0-flash',      label: 'Gemini 2.0 Flash' },
-  { id: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (lightest)' },
-  { id: 'gemini-1.5-flash',      label: 'Gemini 1.5 Flash (stable)' },
-  { id: 'gemini-1.5-pro',        label: 'Gemini 1.5 Pro (smart)' },
+  { id: 'gemini-3.0-lite',          label: 'Gemini 3.0 Lite (newest)' },
+  { id: 'gemini-2.5-flash',        label: 'Gemini 2.5 Flash (smartest)' },
+  { id: 'gemini-2.5-pro',          label: 'Gemini 2.5 Pro' },
+  { id: 'gemini-2.0-flash',        label: 'Gemini 2.0 Flash' },
+  { id: 'gemini-2.0-flash-lite',   label: 'Gemini 2.0 Flash Lite (lightest)' },
+  { id: 'gemini-1.5-flash',        label: 'Gemini 1.5 Flash (stable)' },
+  { id: 'gemini-1.5-pro',          label: 'Gemini 1.5 Pro' },
 ];
 const DEFAULT_MODEL = 'gemini-2.0-flash';
 // Stable model used for lightweight tasks like constraint parsing
@@ -196,7 +198,7 @@ async function callGemini(turns: GeminiTurn[], model: string): Promise<GeminiRes
         contents: turns,
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 32768,
+          maxOutputTokens: 65536,
           responseMimeType: 'application/json',
         },
       }),
@@ -238,10 +240,13 @@ function buildContext(
 
   let ctx = 'You are a retail shift scheduling assistant for UAE stores.\n\n';
 
-  ctx += '## STORES (code | name | tier | max per day)\n';
+  ctx += '## STORES (code | name | tier | max per day | shift slots)\n';
   for (const s of aStores) {
     const tier = storeTiers.find((t) => t.storeCode === s.code)?.tier ?? 'C';
-    ctx += `- ${s.code} | ${s.name} | Tier ${tier} | max ${s.maxCapacity ?? 2}\n`;
+    const slots = s.shiftSlots && s.shiftSlots.length > 0
+      ? s.shiftSlots.join(', ')
+      : `${s.openTime}-${s.closeTime}`;
+    ctx += `- ${s.code} | ${s.name} | Tier ${tier} | max ${s.maxCapacity ?? 2}/day | slots: ${slots}\n`;
   }
 
   ctx += '\n## PROMOTERS (id | name | role | grade | days-off | constraints)\n';
@@ -383,18 +388,20 @@ export default function AutoAssignPage({
       'RULES:\n' +
       '1. Assign each active promoter to one store per working day.\n' +
       '2. Estimate rest days based on their work-days/week (e.g. 5d/wk → ~2 days off spread across the week).\n' +
-      '3. Never exceed store max capacity per day.\n' +
-      '4. Assign Must-stores first; never assign Banned stores.\n' +
-      '5. Follow grade-tier fit rules.\n' +
-      '6. Distribute workload fairly across promoters.\n' +
+      '3. Never exceed store max capacity per day. Max capacity = number of promoters allowed at the store per day.\n' +
+      '4. "Must" stores = the ELIGIBLE POOL for that promoter (only these stores are allowed). Pick from this pool each day, rotating so everyone gets fair shifts. The rest go to other stores or Off.\n' +
+      '5. Never assign Banned stores.\n' +
+      '6. Follow grade-tier fit rules.\n' +
+      '7. Distribute workload fairly across promoters.\n' +
+      '8. If a store has multiple shift slots, assign the appropriate timeRange from those slots.\n' +
       (notes.trim() ? `\n## ADDITIONAL CONSTRAINTS (natural language)\n${notes.trim()}\n` : '') +
       (parsedConstraints && Object.keys(parsedConstraints).some(k => {
         const v = (parsedConstraints as Record<string, unknown>)[k];
         return Array.isArray(v) ? v.length > 0 : v && Object.keys(v as object).length > 0;
       }) ? `\n## PARSED CONSTRAINTS (structured, must follow exactly)\n${JSON.stringify(parsedConstraints, null, 2)}\n` : '') +
       '\nReturn ONLY a valid JSON array, no explanation, no markdown:\n' +
-      '[{"promoterId":"ID","date":"YYYY-MM-DD","store":"CODE_or_Off"}]\n' +
-      'Include every promoter for every date. Use exact IDs and codes from the lists above.';
+      '[{"promoterId":"ID","date":"YYYY-MM-DD","store":"CODE_or_Off","timeRange":"HH:MM-HH:MM"}]\n' +
+      'Include every promoter for every date. Use exact IDs and codes from the lists above. timeRange should match one of the store shift slots.';
 
     const turn: GeminiTurn = { role: 'user', parts: [{ text: userText }] };
     try {

@@ -437,7 +437,7 @@ def run_optimizer(
         # Store slots: expand by max_capacity, also enforce store_min_people from extra constraints
         store_slots: list[str] = []
         for s in active_stores:
-            base_cap = max(1, int(s.get('max_capacity') or 2))
+            base_cap = max(1, int(s.get('max_capacity') or 1))
             min_people = extra.store_min_people.get(s['code'], 0)
             cap = max(base_cap, min_people)
             store_slots.extend([s['code']] * cap)

@@ -7,6 +7,8 @@ export interface Store {
   openTime: string;  // e.g. "10:00"
   closeTime: string; // e.g. "23:00"
   maxCapacity?: number;
+  /** Shift time slots, e.g. ["10:00-19:00","13:30-22:30"] */
+  shiftSlots?: string[];
   platform?: string;  // e.g. "Virgin - Dubai Mall"
   warehouse?: string; // e.g. "VIR - DBM"
 }

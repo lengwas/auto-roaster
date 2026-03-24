@@ -14,7 +14,7 @@ interface StoreSettingPageProps {
   onPreferencesChange?: (prefs: StorePreference[]) => void;
 }
 
-const EMPTY_STORE: Omit<Store, 'id'> = {
+const EMPTY_STORE: Omit<Store, 'id'> & { shiftSlots: string[] } = {
   code: '',
   name: '',
   active: true,
@@ -22,6 +22,7 @@ const EMPTY_STORE: Omit<Store, 'id'> = {
   closeTime: '22:00',
   extraAllowance: '',
   maxCapacity: undefined,
+  shiftSlots: [],
   platform: '',
   warehouse: '',
 };
@@ -88,6 +89,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
       closeTime: store.closeTime,
       extraAllowance: store.extraAllowance || '',
       maxCapacity: store.maxCapacity,
+      shiftSlots: store.shiftSlots ?? [],
       platform: store.platform || '',
       warehouse: store.warehouse || '',
     });
@@ -99,12 +101,14 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
     if (!form.code.trim() || !form.name.trim()) return;
 
     if (editingId) {
+      const slots = form.shiftSlots.filter(s => s.trim());
       const updated = stores.map((s) =>
         s.id === editingId
           ? {
               ...s, ...form,
               extraAllowance: form.extraAllowance || undefined,
               maxCapacity: form.maxCapacity || undefined,
+              shiftSlots: slots.length > 0 ? slots : undefined,
               platform: (form.platform as string) || undefined,
               warehouse: (form.warehouse as string) || undefined,
             }
@@ -113,6 +117,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
       onStoresChange(updated);
       markDirty(editingId);
     } else {
+      const slots = form.shiftSlots.filter(s => s.trim());
       const newStore: Store = {
         id: `store_${Date.now()}`,
         code: form.code.trim().toUpperCase(),
@@ -122,6 +127,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
         closeTime: form.closeTime,
         extraAllowance: form.extraAllowance || undefined,
         maxCapacity: form.maxCapacity || undefined,
+        shiftSlots: slots.length > 0 ? slots : undefined,
         platform: (form.platform as string) || undefined,
         warehouse: (form.warehouse as string) || undefined,
       };
@@ -147,6 +153,43 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
     onDeleteStore?.(storeId);
     setDirtyIds(prev => { const next = new Set(prev); next.delete(storeId); return next; });
   };
+
+  const renderShiftSlotsEditor = () => (
+    <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+      <label>Shift Slots <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>(e.g. 10:00-19:00)</span></label>
+      {form.shiftSlots.map((slot, i) => (
+        <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'center' }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="e.g. 10:00-19:00"
+            value={slot}
+            onChange={(e) => {
+              const next = [...form.shiftSlots];
+              next[i] = e.target.value;
+              setForm({ ...form, shiftSlots: next });
+            }}
+            style={{ flex: 1 }}
+          />
+          <button
+            type="button"
+            className="btn btn-small btn-danger-ghost"
+            onClick={() => setForm({ ...form, shiftSlots: form.shiftSlots.filter((_, j) => j !== i) })}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="btn btn-small btn-ghost"
+        onClick={() => setForm({ ...form, shiftSlots: [...form.shiftSlots, ''] })}
+        style={{ marginTop: 4 }}
+      >
+        + Add Slot
+      </button>
+    </div>
+  );
 
   return (
     <div className="setting-page">
@@ -185,113 +228,54 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
         </div>
       </div>
 
-      {/* Add/Edit Form */}
-      {showForm && (
+      {/* Add New Store Form (top) */}
+      {showForm && !editingId && (
         <div className="form-card">
-          <h3 className="form-title">{editingId ? 'Edit Store' : 'Add New Store'}</h3>
+          <h3 className="form-title">Add New Store</h3>
           <div className="form-grid">
             <div className="form-field">
               <label>Store Code</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. VDM"
-                value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                maxLength={5}
-              />
+              <input type="text" className="form-input" placeholder="e.g. VDM" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} maxLength={5} />
             </div>
             <div className="form-field">
               <label>Store Name</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Vox Deira Mall"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
+              <input type="text" className="form-input" placeholder="e.g. Vox Deira Mall" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="form-field">
               <label>Extra Allowance</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. +10 AED"
-                value={form.extraAllowance}
-                onChange={(e) => setForm({ ...form, extraAllowance: e.target.value })}
-              />
+              <input type="text" className="form-input" placeholder="e.g. +10 AED" value={form.extraAllowance} onChange={(e) => setForm({ ...form, extraAllowance: e.target.value })} />
             </div>
             <div className="form-field">
               <label>Open Time</label>
-              <input
-                type="time"
-                className="form-input"
-                value={form.openTime}
-                onChange={(e) => setForm({ ...form, openTime: e.target.value })}
-              />
+              <input type="time" className="form-input" value={form.openTime} onChange={(e) => setForm({ ...form, openTime: e.target.value })} />
             </div>
             <div className="form-field">
               <label>Close Time</label>
-              <input
-                type="time"
-                className="form-input"
-                value={form.closeTime}
-                onChange={(e) => setForm({ ...form, closeTime: e.target.value })}
-              />
+              <input type="time" className="form-input" value={form.closeTime} onChange={(e) => setForm({ ...form, closeTime: e.target.value })} />
             </div>
             <div className="form-field">
-              <label>Max Capacity</label>
-              <input
-                type="number"
-                className="form-input"
-                placeholder="e.g. 4"
-                min={1}
-                value={form.maxCapacity ?? ''}
-                onChange={(e) => setForm({ ...form, maxCapacity: e.target.value ? Number(e.target.value) : undefined })}
-              />
+              <label>Max Capacity <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>(คน/วัน)</span></label>
+              <input type="number" className="form-input" placeholder="e.g. 2" min={1} value={form.maxCapacity ?? ''} onChange={(e) => setForm({ ...form, maxCapacity: e.target.value ? Number(e.target.value) : undefined })} />
             </div>
+            {renderShiftSlotsEditor()}
             <div className="form-field">
               <label>Platform (Orders mapping)</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Virgin - Dubai Mall"
-                value={(form.platform as string) || ''}
-                onChange={(e) => setForm({ ...form, platform: e.target.value })}
-              />
+              <input type="text" className="form-input" placeholder="e.g. Virgin - Dubai Mall" value={(form.platform as string) || ''} onChange={(e) => setForm({ ...form, platform: e.target.value })} />
             </div>
             <div className="form-field">
               <label>Warehouse (Orders mapping)</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. VIR - DBM"
-                value={(form.warehouse as string) || ''}
-                onChange={(e) => setForm({ ...form, warehouse: e.target.value })}
-              />
+              <input type="text" className="form-input" placeholder="e.g. VIR - DBM" value={(form.warehouse as string) || ''} onChange={(e) => setForm({ ...form, warehouse: e.target.value })} />
             </div>
             <div className="form-field">
               <label>Visible in Shift Table</label>
-              <button
-                type="button"
-                className={`toggle-btn ${form.active ? 'toggle-on' : 'toggle-off'}`}
-                onClick={() => setForm({ ...form, active: !form.active })}
-              >
+              <button type="button" className={`toggle-btn ${form.active ? 'toggle-on' : 'toggle-off'}`} onClick={() => setForm({ ...form, active: !form.active })}>
                 {form.active ? 'Active' : 'Hidden'}
               </button>
             </div>
           </div>
           <div className="form-actions">
-            <button className="btn btn-ghost" onClick={handleCancel}>
-              Cancel
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={handleSave}
-              disabled={!form.code.trim() || !form.name.trim()}
-            >
-              {editingId ? 'Save Changes' : 'Add Store'}
-            </button>
+            <button className="btn btn-ghost" onClick={handleCancel}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSave} disabled={!form.code.trim() || !form.name.trim()}>Add Store</button>
           </div>
         </div>
       )}
@@ -307,6 +291,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
               <th style={{ width: 80 }}>Open</th>
               <th style={{ width: 80 }}>Close</th>
               <th style={{ width: 70 }}>Hours</th>
+              <th style={{ width: 160 }}>Shift Slots</th>
               <th style={{ width: 100 }}>Allowance</th>
               <th style={{ width: 50 }}>Max</th>
               <th style={{ width: 180 }}>Platform</th>
@@ -353,6 +338,14 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
                   <td className="cell-center">
                     <span className="hours-badge">{hoursLabel}</span>
                   </td>
+                  <td className="cell-center" style={{ fontSize: 11 }}>
+                    {store.shiftSlots && store.shiftSlots.length > 0
+                      ? store.shiftSlots.map((slot, i) => (
+                          <div key={i}><span className="time-badge">{slot}</span></div>
+                        ))
+                      : <span className="text-muted">—</span>
+                    }
+                  </td>
                   <td className="cell-center">
                     {store.extraAllowance ? (
                       <span className="allowance-badge">{store.extraAllowance}</span>
@@ -392,9 +385,64 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
                     <button className="btn btn-small btn-danger-ghost" onClick={() => handleDelete(store.id)}>Del</button>
                   </td>
                 </tr>
+                {/* Inline Edit Form */}
+                {showForm && editingId === store.id && (
+                  <tr key={`${store.id}-edit`} className="expand-row">
+                    <td colSpan={14}>
+                      <div className="form-card" style={{ margin: 0, borderRadius: 0, borderTop: '2px solid #6366f1' }}>
+                        <h3 className="form-title">Edit Store — {store.code}</h3>
+                        <div className="form-grid">
+                          <div className="form-field">
+                            <label>Store Code</label>
+                            <input type="text" className="form-input" placeholder="e.g. VDM" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} maxLength={5} />
+                          </div>
+                          <div className="form-field">
+                            <label>Store Name</label>
+                            <input type="text" className="form-input" placeholder="e.g. Vox Deira Mall" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                          </div>
+                          <div className="form-field">
+                            <label>Extra Allowance</label>
+                            <input type="text" className="form-input" placeholder="e.g. +10 AED" value={form.extraAllowance} onChange={(e) => setForm({ ...form, extraAllowance: e.target.value })} />
+                          </div>
+                          <div className="form-field">
+                            <label>Open Time</label>
+                            <input type="time" className="form-input" value={form.openTime} onChange={(e) => setForm({ ...form, openTime: e.target.value })} />
+                          </div>
+                          <div className="form-field">
+                            <label>Close Time</label>
+                            <input type="time" className="form-input" value={form.closeTime} onChange={(e) => setForm({ ...form, closeTime: e.target.value })} />
+                          </div>
+                          <div className="form-field">
+                            <label>Max Capacity <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>(คน/วัน)</span></label>
+                            <input type="number" className="form-input" placeholder="e.g. 2" min={1} value={form.maxCapacity ?? ''} onChange={(e) => setForm({ ...form, maxCapacity: e.target.value ? Number(e.target.value) : undefined })} />
+                          </div>
+                          {renderShiftSlotsEditor()}
+                          <div className="form-field">
+                            <label>Platform (Orders mapping)</label>
+                            <input type="text" className="form-input" placeholder="e.g. Virgin - Dubai Mall" value={(form.platform as string) || ''} onChange={(e) => setForm({ ...form, platform: e.target.value })} />
+                          </div>
+                          <div className="form-field">
+                            <label>Warehouse (Orders mapping)</label>
+                            <input type="text" className="form-input" placeholder="e.g. VIR - DBM" value={(form.warehouse as string) || ''} onChange={(e) => setForm({ ...form, warehouse: e.target.value })} />
+                          </div>
+                          <div className="form-field">
+                            <label>Visible in Shift Table</label>
+                            <button type="button" className={`toggle-btn ${form.active ? 'toggle-on' : 'toggle-off'}`} onClick={() => setForm({ ...form, active: !form.active })}>
+                              {form.active ? 'Active' : 'Hidden'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="form-actions">
+                          <button className="btn btn-ghost" onClick={handleCancel}>Cancel</button>
+                          <button className="btn btn-primary" onClick={handleSave} disabled={!form.code.trim() || !form.name.trim()}>Save Changes</button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 {isExpanded && (
                   <tr key={`${store.id}-assign`} className="expand-row">
-                    <td colSpan={13}>
+                    <td colSpan={14}>
                       <div style={{ padding: '10px 16px' }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
                           Promoters ประจำร้าน {store.code} (active only)
@@ -425,7 +473,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={13} className="cell-center text-muted" style={{ padding: '32px' }}>
+                <td colSpan={14} className="cell-center text-muted" style={{ padding: '32px' }}>
                   No stores found
                 </td>
               </tr>
