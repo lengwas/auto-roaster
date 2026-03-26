@@ -7,6 +7,8 @@ import type {
 import ShiftTable from './ShiftTable';
 import { generateStoreCounts } from '../data/mockData';
 import { useOrders } from '../hooks/useOrders';
+import { runOptimizer, loadConstraints } from '../lib/optimizer';
+import type { ParsedConstraints as OptimizerParsedConstraints } from '../lib/optimizer';
 import './AutoAssignPage.css';
 
 // Warehouse text → store code (same as SalesPerformancePage + Python script)
@@ -426,6 +428,38 @@ export default function AutoAssignPage({
     }
   }
 
+  // ── optimize (Hungarian algorithm) ──────────────────────────────────
+  function optimizeDraft() {
+    if (dates.length === 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const extra = loadConstraints(parsedConstraints as OptimizerParsedConstraints | null);
+      const result = runOptimizer(
+        dates, promoters, stores, storePreferences, promoterConflicts,
+        perfMatrix, extra,
+      );
+      const mapped: DraftAssignment[] = result.assignments.map(a => ({
+        promoterId: a.promoterId,
+        date: a.date,
+        store: a.store,
+        timeRange: a.timeRange,
+      }));
+      setDraft(mapped);
+      setGeminiHistory([]);
+      setChat([{
+        role: 'assistant',
+        isDraft: true,
+        count: mapped.length,
+        text: `Optimized ${result.dailySummary.length} days · ${mapped.filter(a => a.store !== 'Off').length} store assignments · Expected total: AED ${result.totalExpected.toLocaleString()}`,
+      }]);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // ── feedback ──────────────────────────────────────────────────────────
   async function sendFeedback() {
     const msg = input.trim();
@@ -662,13 +696,23 @@ export default function AutoAssignPage({
             </div>
           )}
 
-          <button
-            className="aa-btn-generate"
-            onClick={generateDraft}
-            disabled={loading || dates.length === 0 || !hasKey}
-          >
-            {loading && draft.length === 0 ? '⏳ Generating…' : '✨ Generate Draft'}
-          </button>
+          <div className="aa-btn-row">
+            <button
+              className="aa-btn-optimize"
+              onClick={optimizeDraft}
+              disabled={loading || dates.length === 0}
+              title="Maximize expected revenue using historical performance data (Hungarian Algorithm)"
+            >
+              {loading && draft.length === 0 ? '⏳ Optimizing…' : 'Optimize Revenue'}
+            </button>
+            <button
+              className="aa-btn-generate"
+              onClick={generateDraft}
+              disabled={loading || dates.length === 0 || !hasKey}
+            >
+              {loading && draft.length === 0 ? '⏳ Generating…' : '✨ Generate Draft (AI)'}
+            </button>
+          </div>
 
           {draft.length > 0 && (
             <button className="aa-btn-apply" onClick={applyDraft}>

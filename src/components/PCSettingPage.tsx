@@ -48,7 +48,9 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
   const [addingPromoter, setAddingPromoter] = useState(false);
   const [addPromoterError, setAddPromoterError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [prefSaved, setPrefSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeStores = stores.filter(s => s.active);
   const activePromoters = promoters.filter(p => p.active);
@@ -88,6 +90,10 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
       onDeletePreference?.(promoterId, storeCode);
     }
     onPreferencesChange(updated);
+    // Show auto-saved indicator
+    setPrefSaved(true);
+    if (prefTimerRef.current) clearTimeout(prefTimerRef.current);
+    prefTimerRef.current = setTimeout(() => setPrefSaved(false), 2000);
   }, [storePreferences, onPreferencesChange, onSavePreference, onDeletePreference]);
 
   const cyclePref = useCallback((promoterId: string, storeCode: string) => {
@@ -231,6 +237,7 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                 )}
               </>
             )}
+            {prefSaved && <span className="save-status-ok">✓ Preference saved</span>}
             {saveStatus === 'saved' && <span className="save-status-ok">✓ Saved</span>}
             {saveStatus === 'error' && (
               <span className="save-status-err" title={saveError ?? ''}>⚠ Save failed</span>

@@ -689,7 +689,7 @@ const SalesPerformancePage = ({
           {/* Store Tier Panel */}
           <div className={`sp-tier-panel ${tierPanelOpen ? 'open' : 'closed'}`}>
             <div className="sp-tier-panel-header">
-              <span>Store Tiers</span>
+              {tierPanelOpen && <span>Store Tiers</span>}
               <button className="sp-tier-close" onClick={() => setTierPanelOpen(o => !o)}>
                 {tierPanelOpen ? '←' : '→'}
               </button>
@@ -711,7 +711,11 @@ const SalesPerformancePage = ({
                   Auto-calculate from Revenue
                 </button>
                 <div className="sp-tier-list">
-                  {stores.filter(s => s.active).map(store => {
+                  {[...stores.filter(s => s.active)].sort((a, b) => {
+                    const ra = storePerfs.get(a.code)?.sales ?? 0;
+                    const rb = storePerfs.get(b.code)?.sales ?? 0;
+                    return rb - ra;
+                  }).map(store => {
                     const tier = tierMap.get(store.code) ?? null;
                     const rev = storePerfs.get(store.code)?.sales;
                     return (
