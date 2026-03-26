@@ -126,41 +126,60 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
       stores.filter(s => (countMap.get(`${s.id}_${dateStr}`) ?? 0) > 0).map(s => s.id)
     )
   );
-  const visibleStores = stores.filter(s =>
-    !hiddenStoreIds.has(s.id) &&
-    (!hideEmptyStores || storesWithAssignments.has(s.id))
-  );
-  const activePromoters = promoters.filter(p => p.active);
-  const promoterPool = activeOnlyPromoters ? activePromoters : promoters;
-  const filteredPromoters = promoterPool.filter(p => !hiddenPromoterIds.has(p.id));
-
-  // Compute net revenue per promoter (amount_aed - paid_amount_aed) in visible date range
-  // Match orders to promoters by salesperson name
+  // Compute net revenue per store and per promoter from orders in visible date range
+  const storeRevenueMap = new Map<string, number>();
   const promoterRevenueMap = new Map<string, number>();
   if (orders.length > 0) {
+    // Build warehouse → store code lookup
+    const whToCode = new Map<string, string>();
+    stores.forEach(s => {
+      if (s.warehouse) whToCode.set(s.warehouse.toLowerCase().trim(), s.code);
+      if (s.platform) whToCode.set(s.platform.toLowerCase().trim(), s.code);
+      whToCode.set(s.code.toLowerCase(), s.code);
+    });
+    // Build name → promoter id lookup
     const nameToId = new Map<string, string>();
     promoters.forEach(p => {
       nameToId.set(p.name.toLowerCase().trim(), p.id);
-      // Also map first name only
       const firstName = p.name.split(' ')[0].toLowerCase().trim();
       if (!nameToId.has(firstName)) nameToId.set(firstName, p.id);
     });
     const visibleDateSet = new Set(visibleDates);
     for (const o of orders) {
       if (!visibleDateSet.has(o.date)) continue;
-      if (!o.salesperson) continue;
-      const pid = nameToId.get(o.salesperson.toLowerCase().trim());
-      if (!pid) continue;
       const net = (o.amountAed ?? 0) - (o.paidAmountAed ?? 0);
-      promoterRevenueMap.set(pid, (promoterRevenueMap.get(pid) ?? 0) + net);
+      // Store revenue
+      if (o.warehouse) {
+        const code = whToCode.get(o.warehouse.toLowerCase().trim());
+        if (code) storeRevenueMap.set(code, (storeRevenueMap.get(code) ?? 0) + net);
+      }
+      // Promoter revenue
+      if (o.salesperson) {
+        const pid = nameToId.get(o.salesperson.toLowerCase().trim());
+        if (pid) promoterRevenueMap.set(pid, (promoterRevenueMap.get(pid) ?? 0) + net);
+      }
     }
   }
 
-  // Sort promoters: highest net revenue first (those with no orders go to bottom)
-  const visiblePromoters = [...filteredPromoters].sort((a, b) => {
-    const ra = promoterRevenueMap.get(a.id) ?? -Infinity;
-    const rb = promoterRevenueMap.get(b.id) ?? -Infinity;
+  // Sort stores by net revenue descending
+  const filteredStores = stores.filter(s =>
+    !hiddenStoreIds.has(s.id) &&
+    (!hideEmptyStores || storesWithAssignments.has(s.id))
+  );
+  const visibleStores = [...filteredStores].sort((a, b) => {
+    const ra = storeRevenueMap.get(a.code) ?? -Infinity;
+    const rb = storeRevenueMap.get(b.code) ?? -Infinity;
     return rb - ra;
+  });
+
+  // Sort promoters by name alphabetically, admins at bottom
+  const activePromoters = promoters.filter(p => p.active);
+  const promoterPool = activeOnlyPromoters ? activePromoters : promoters;
+  const filteredPromoters = promoterPool.filter(p => !hiddenPromoterIds.has(p.id));
+  const visiblePromoters = [...filteredPromoters].sort((a, b) => {
+    if (a.role === 'admin' && b.role !== 'admin') return 1;
+    if (a.role !== 'admin' && b.role === 'admin') return -1;
+    return a.name.localeCompare(b.name);
   });
 
   const handleChange = useCallback((promoterId: string, date: string, value: string) => {
