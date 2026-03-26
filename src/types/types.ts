@@ -82,6 +82,7 @@ export interface Order {
   warehouse?: string;   // matched to Store.warehouse
   platform?: string;
   amountAed?: number;
+  paidAmountAed?: number;
   status: string;       // 'completed' | 'pending' | 'cancelled' | 'returned'
 }
 

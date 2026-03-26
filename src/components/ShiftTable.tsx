@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Store, Promoter, Shift, StoreCount, SpecialDate } from '../types/types';
+import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
 import './ShiftTable.css';
@@ -16,6 +16,7 @@ interface ShiftTableProps {
   shifts: Shift[];
   storeCounts: StoreCount[];
   dates: string[];
+  orders?: Order[];
   onShiftChange?: (promoterId: string, date: string, newType: string, timeRange?: string, note?: string) => void;
   specialDates?: SpecialDate[];
   onMarkDate?: (date: string, label: string, color: string) => void;
@@ -71,7 +72,7 @@ function getTodayStr(): string {
 }
 
 
-const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast }: ShiftTableProps) => {
+const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = [], onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
   const [noteText, setNoteText] = useState('');
   const [popup, setPopup] = useState<DateMarkPopup | null>(null);
@@ -131,7 +132,36 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
   );
   const activePromoters = promoters.filter(p => p.active);
   const promoterPool = activeOnlyPromoters ? activePromoters : promoters;
-  const visiblePromoters = promoterPool.filter(p => !hiddenPromoterIds.has(p.id));
+  const filteredPromoters = promoterPool.filter(p => !hiddenPromoterIds.has(p.id));
+
+  // Compute net revenue per promoter (amount_aed - paid_amount_aed) in visible date range
+  // Match orders to promoters by salesperson name
+  const promoterRevenueMap = new Map<string, number>();
+  if (orders.length > 0) {
+    const nameToId = new Map<string, string>();
+    promoters.forEach(p => {
+      nameToId.set(p.name.toLowerCase().trim(), p.id);
+      // Also map first name only
+      const firstName = p.name.split(' ')[0].toLowerCase().trim();
+      if (!nameToId.has(firstName)) nameToId.set(firstName, p.id);
+    });
+    const visibleDateSet = new Set(visibleDates);
+    for (const o of orders) {
+      if (!visibleDateSet.has(o.date)) continue;
+      if (!o.salesperson) continue;
+      const pid = nameToId.get(o.salesperson.toLowerCase().trim());
+      if (!pid) continue;
+      const net = (o.amountAed ?? 0) - (o.paidAmountAed ?? 0);
+      promoterRevenueMap.set(pid, (promoterRevenueMap.get(pid) ?? 0) + net);
+    }
+  }
+
+  // Sort promoters: highest net revenue first (those with no orders go to bottom)
+  const visiblePromoters = [...filteredPromoters].sort((a, b) => {
+    const ra = promoterRevenueMap.get(a.id) ?? -Infinity;
+    const rb = promoterRevenueMap.get(b.id) ?? -Infinity;
+    return rb - ra;
+  });
 
   const handleChange = useCallback((promoterId: string, date: string, value: string) => {
     if (!onShiftChange) return;
@@ -445,10 +475,17 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
 
         {/* ===== PROMOTER SECTION (Scrollable with dropdowns) ===== */}
         <div className="section-spacer">Promoters ({visiblePromoters.length}{(hiddenPromoterIds.size > 0 || !activeOnlyPromoters) ? ` / ${promoterPool.length}` : ''} Active)</div>
-        {visiblePromoters.map((promoter) => (
+        {visiblePromoters.map((promoter) => {
+          const rev = promoterRevenueMap.get(promoter.id);
+          return (
           <div key={promoter.id} className="grid-row promoter-row">
             <div className="cell cell-fixed-left col-name">
               {promoter.name}
+              {rev != null && rev !== 0 && (
+                <span style={{ fontSize: 9, color: rev > 0 ? '#059669' : '#dc2626', marginLeft: 4 }}>
+                  {rev > 0 ? '+' : ''}{Math.round(rev).toLocaleString()}
+                </span>
+              )}
             </div>
             <div className="cell cell-fixed-left-2 col-stores">
               {promoter.storesLabel}
@@ -503,7 +540,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, onShiftChan
               );
             })}
           </div>
-        ))}
+          );
+        })}
       </div>
       </div>
     </div>

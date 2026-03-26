@@ -13,6 +13,7 @@ import { useSpecialDates } from './hooks/useSpecialDates';
 import { useConflicts } from './hooks/useConflicts';
 import { useStorePreferences } from './hooks/useStorePreferences';
 import { useShifts } from './hooks/useShifts';
+import { useOrders } from './hooks/useOrders';
 import type { StoreTierSetting, PromoterGradeOverride } from './types/types';
 import './App.css';
 
@@ -36,6 +37,7 @@ function App() {
   const { shifts, saveShift, error: shiftsError } = useShifts(shiftDates[0], shiftDates[shiftDates.length - 1]);
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts();
+  const { orders } = useOrders();
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
   const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
 
@@ -96,6 +98,7 @@ function App() {
             shifts={shifts}
             storeCounts={storeCounts}
             dates={shiftDates}
+            orders={orders}
             onShiftChange={handleShiftChange}
             specialDates={specialDates}
             onMarkDate={(date, label, color) => markDate(date, label, color)}

@@ -52,17 +52,26 @@ export function usePromoters() {
   }
 
   async function insertPromoter(name: string): Promise<string | null> {
-    const { data, error } = await supabase
+    // Try with all columns first, then fallback without role/stores_label
+    let result = await supabase
       .from('promoters')
       .insert({ name: name.trim(), active: true, day_off: '', role: 'promoter', stores_label: '' })
       .select('*')
       .single();
-    if (error) {
-      console.error('Failed to insert promoter:', error);
-      return error.message;
+    if (result.error) {
+      console.warn('Insert with role/stores_label failed, retrying minimal:', result.error.message);
+      result = await supabase
+        .from('promoters')
+        .insert({ name: name.trim(), active: true, day_off: '' })
+        .select('*')
+        .single();
     }
-    if (data) {
-      setPromoters(prev => [...prev, mapRow(data as Record<string, unknown>)]);
+    if (result.error) {
+      console.error('Failed to insert promoter:', result.error);
+      return result.error.message;
+    }
+    if (result.data) {
+      setPromoters(prev => [...prev, mapRow(result.data as Record<string, unknown>)]);
     }
     return null;
   }

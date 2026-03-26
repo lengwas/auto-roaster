@@ -11,6 +11,7 @@ function mapRow(row: Record<string, unknown>): Order {
     warehouse: row.warehouse ? String(row.warehouse) : undefined,
     platform: row.platform ? String(row.platform) : undefined,
     amountAed: row.amount_aed != null ? Number(row.amount_aed) : undefined,
+    paidAmountAed: row.paid_amount_aed != null ? Number(row.paid_amount_aed) : undefined,
     status: String(row.status || 'pending'),
   };
 }
@@ -31,7 +32,7 @@ export function useOrders(monthsBack: number = 6) {
 
     supabase
       .from('orders')
-      .select('id, date, order_id, salesperson, warehouse, platform, amount_aed, status')
+      .select('id, date, order_id, salesperson, warehouse, platform, amount_aed, paid_amount_aed, status')
       .gte('date', fromStr)
       .order('date', { ascending: false })
       .then(({ data, error: err }) => {
