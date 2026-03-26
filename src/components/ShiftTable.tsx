@@ -126,34 +126,29 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
       stores.filter(s => (countMap.get(`${s.id}_${dateStr}`) ?? 0) > 0).map(s => s.id)
     )
   );
-  // Compute net revenue per store and per promoter from orders in visible date range
+  // Compute net revenue per store and per promoter from orders
+  // Use all orders (not filtered by visible dates — orders are historical, shift dates may be future)
   const storeRevenueMap = new Map<string, number>();
   const promoterRevenueMap = new Map<string, number>();
   if (orders.length > 0) {
-    // Build warehouse → store code lookup
     const whToCode = new Map<string, string>();
     stores.forEach(s => {
       if (s.warehouse) whToCode.set(s.warehouse.toLowerCase().trim(), s.code);
       if (s.platform) whToCode.set(s.platform.toLowerCase().trim(), s.code);
       whToCode.set(s.code.toLowerCase(), s.code);
     });
-    // Build name → promoter id lookup
     const nameToId = new Map<string, string>();
     promoters.forEach(p => {
       nameToId.set(p.name.toLowerCase().trim(), p.id);
       const firstName = p.name.split(' ')[0].toLowerCase().trim();
       if (!nameToId.has(firstName)) nameToId.set(firstName, p.id);
     });
-    const visibleDateSet = new Set(visibleDates);
     for (const o of orders) {
-      if (!visibleDateSet.has(o.date)) continue;
       const net = (o.amountAed ?? 0) - (o.paidAmountAed ?? 0);
-      // Store revenue
       if (o.warehouse) {
         const code = whToCode.get(o.warehouse.toLowerCase().trim());
         if (code) storeRevenueMap.set(code, (storeRevenueMap.get(code) ?? 0) + net);
       }
-      // Promoter revenue
       if (o.salesperson) {
         const pid = nameToId.get(o.salesperson.toLowerCase().trim());
         if (pid) promoterRevenueMap.set(pid, (promoterRevenueMap.get(pid) ?? 0) + net);
@@ -470,8 +465,10 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
                 <div className="cell cell-fixed-left-2 col-stores" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)' }}>
                   {store.name}
                 </div>
-                <div className="cell cell-fixed-left-3 col-day" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  {store.openTime}-{store.closeTime}
+                <div className="cell cell-fixed-left-3 col-day" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                  {storeRevenueMap.has(store.code)
+                    ? <span style={{ color: '#059669' }}>{Math.round(storeRevenueMap.get(store.code)!).toLocaleString()}</span>
+                    : ''}
                 </div>
                 {visibleDates.map((dateStr) => {
                   const count = countMap.get(`${store.id}_${dateStr}`) ?? 0;
