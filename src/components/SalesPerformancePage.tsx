@@ -409,6 +409,32 @@ const SalesPerformancePage = ({
     setStoreTier(code, order[(idx + 1) % order.length] ?? null);
   };
 
+  const autoCalcTiers = () => {
+    // Sum amount_aed per store from filtered orders
+    const totals = new Map<string, number>();
+    filteredOrders.forEach(o => {
+      if (!o.warehouse) return;
+      const store = storeByWarehouse.get(o.warehouse.toLowerCase().trim());
+      if (!store) return;
+      totals.set(store.code, (totals.get(store.code) ?? 0) + (o.amountAed ?? 0));
+    });
+    // Sort stores by total revenue descending
+    const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+    const n = sorted.length;
+    if (n === 0) return;
+    // Assign tiers: top 20% = A, next 30% = B, next 30% = C, bottom 20% = D
+    const tiers: StoreTierSetting[] = sorted.map(([code], i) => {
+      const pct = i / n;
+      let tier: StoreTier;
+      if (pct < 0.2) tier = 'A';
+      else if (pct < 0.5) tier = 'B';
+      else if (pct < 0.8) tier = 'C';
+      else tier = 'D';
+      return { storeCode: code, tier };
+    });
+    onStoreTiersChange(tiers);
+  };
+
   const setGradeOverride = (promoterId: string, grade: PromoterGrade | null) => {
     const filtered = gradeOverrides.filter(o => o.promoterId !== promoterId);
     onGradeOverridesChange(grade ? [...filtered, { promoterId, grade }] : filtered);
@@ -676,13 +702,27 @@ const SalesPerformancePage = ({
                     <span key={t} className={`sp-tier-badge ${tierCls(t)}`}>{t}</span>
                   ))}
                 </div>
+                <button
+                  className="btn btn-primary btn-small"
+                  style={{ margin: '8px 0', width: '100%' }}
+                  onClick={autoCalcTiers}
+                  disabled={filteredOrders.length === 0}
+                >
+                  Auto-calculate from Revenue
+                </button>
                 <div className="sp-tier-list">
                   {stores.filter(s => s.active).map(store => {
                     const tier = tierMap.get(store.code) ?? null;
+                    const rev = storePerfs.get(store.code)?.sales;
                     return (
                       <div key={store.code} className="sp-tier-row" onClick={() => cycleStoreTier(store.code)}>
                         <span className="sp-tier-code">{store.code}</span>
                         <span className="sp-tier-name">{store.name}</span>
+                        {rev != null && rev > 0 && (
+                          <span style={{ fontSize: 10, color: '#6b7280', marginLeft: 'auto', marginRight: 6 }}>
+                            {Math.round(rev).toLocaleString()}
+                          </span>
+                        )}
                         <span className={`sp-tier-badge ${tier ? tierCls(tier) : 'no-tier'}`}>
                           {tier ?? '—'}
                         </span>
