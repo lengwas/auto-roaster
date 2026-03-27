@@ -111,6 +111,8 @@ function App() {
             onUnmarkDate={(date) => unmarkDate(date)}
             storeTiers={storeTiers}
             gradeOverrides={gradeOverrides}
+            storePreferences={storePreferences}
+            promoterConflicts={promoterConflicts}
           />
         )}
         {activeTab === 'pc-setting' && (

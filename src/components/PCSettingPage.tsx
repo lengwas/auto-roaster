@@ -71,8 +71,10 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
     return m;
   }, [storePreferences]);
 
+  const [activeOnly, setActiveOnly] = useState(true);
+
   const filteredPromoters = promoters.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase()) && (!activeOnly || p.active)
   );
 
   const getPref = (promoterId: string, storeCode: string): PreferenceLevel | null => {
@@ -203,7 +205,7 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
         <p className="pc-section-desc">Click store badges to cycle: none → Must → Preferred → Banned</p>
 
         <div className="setting-toolbar">
-          <div className="setting-search">
+          <div className="setting-search" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="text"
               placeholder="Search promoter..."
@@ -211,6 +213,10 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+              <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
+              Active only
+            </label>
           </div>
           <div className="setting-actions">
             <span className="badge">{activePromoters.length} Active</span>

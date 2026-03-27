@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order, StoreTierSetting, PromoterGradeOverride } from '../types/types';
+import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order, StoreTierSetting, PromoterGradeOverride, StorePreference, PromoterConflict } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
 import { matchShiftSlot } from '../lib/shiftSlotUtils';
@@ -25,6 +25,8 @@ interface ShiftTableProps {
   revenueForecast?: RevenueForecastEntry[];
   storeTiers?: StoreTierSetting[];
   gradeOverrides?: PromoterGradeOverride[];
+  storePreferences?: StorePreference[];
+  promoterConflicts?: PromoterConflict[];
 }
 
 const PRESET_COLORS = [
@@ -83,7 +85,7 @@ const GRADE_TIER_FIT: Record<string, string[]> = {
   D: ['C', 'D'],
 };
 
-const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = [], onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast, storeTiers = [], gradeOverrides = [] }: ShiftTableProps) => {
+const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = [], onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast, storeTiers = [], gradeOverrides = [], storePreferences = [], promoterConflicts = [] }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
   const [noteText, setNoteText] = useState('');
   const [popup, setPopup] = useState<DateMarkPopup | null>(null);
@@ -614,42 +616,41 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
             </div>
             <div className="cell cell-fixed-left-2 col-stores">
               {(() => {
-                const grade = gradeMap.get(promoter.id) ?? 'C';
-                const fitTiers = GRADE_TIER_FIT[grade] ?? ['C', 'D'];
-                const recStores = stores
-                  .filter(s => s.active && fitTiers.includes(tierMap.get(s.code) ?? 'D'))
-                  .sort((a, b) => (storeRevenueMap.get(b.code) ?? 0) - (storeRevenueMap.get(a.code) ?? 0));
-                if (recStores.length === 0) return <span style={{ fontSize: 9, color: '#9ca3af' }}>—</span>;
-                const tierColors: Record<string, { bg: string; text: string }> = {
-                  A: { bg: '#dcfce7', text: '#166534' },
-                  B: { bg: '#dbeafe', text: '#1e40af' },
-                  C: { bg: '#fef9c3', text: '#854d0e' },
-                  D: { bg: '#fee2e2', text: '#991b1b' },
-                };
-                // Group by tier, sorted by tier order
-                const grouped = new Map<string, Store[]>();
-                for (const s of recStores) {
-                  const t = tierMap.get(s.code) ?? 'D';
-                  if (!grouped.has(t)) grouped.set(t, []);
-                  grouped.get(t)!.push(s);
-                }
-                const tierOrder = ['A', 'B', 'C', 'D'];
+                const prefs = storePreferences.filter(p => p.promoterId === promoter.id);
+                const mustStores = prefs.filter(p => p.preference === 'must').map(p => p.storeCode);
+                const bannedStores = prefs.filter(p => p.preference === 'banned').map(p => p.storeCode);
+                const conflicts = promoterConflicts.filter(c => c.promoterAId === promoter.id || c.promoterBId === promoter.id);
+                const conflictNames = conflicts.map(c => {
+                  const otherId = c.promoterAId === promoter.id ? c.promoterBId : c.promoterAId;
+                  const other = promoters.find(p => p.id === otherId);
+                  return other?.name.split(' ')[0] ?? '?';
+                });
+                const dayOff = promoter.workingDays;
+                const hasAny = mustStores.length > 0 || bannedStores.length > 0 || conflicts.length > 0 || dayOff;
+                if (!hasAny) return <span style={{ fontSize: 9, color: '#9ca3af' }}>—</span>;
+                const chipStyle = (bg: string, text: string): React.CSSProperties => ({
+                  fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: bg, color: text, fontWeight: 600, lineHeight: 1.4, whiteSpace: 'nowrap',
+                });
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {tierOrder.filter(t => grouped.has(t)).map(t => {
-                      const tc = tierColors[t] ?? tierColors.D;
-                      return (
-                        <div key={t} style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-                          <span style={{ fontSize: 8, fontWeight: 700, color: tc.text, width: 10 }}>{t}</span>
-                          {grouped.get(t)!.map(s => (
-                            <span key={s.code} style={{
-                              fontSize: 8, padding: '1px 4px', borderRadius: 3,
-                              backgroundColor: tc.bg, color: tc.text, fontWeight: 500, lineHeight: 1.4,
-                            }}>{s.code}</span>
-                          ))}
-                        </div>
-                      );
-                    })}
+                    {mustStores.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#166534' }}>Must</span>
+                        {mustStores.map(s => <span key={s} style={chipStyle('#dcfce7', '#166534')}>{s}</span>)}
+                      </div>
+                    )}
+                    {bannedStores.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#991b1b' }}>Ban</span>
+                        {bannedStores.map(s => <span key={s} style={chipStyle('#fee2e2', '#991b1b')}>{s}</span>)}
+                      </div>
+                    )}
+                    {conflictNames.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#9333ea' }}>Conflict</span>
+                        {conflictNames.map(n => <span key={n} style={chipStyle('#f3e8ff', '#7e22ce')}>{n}</span>)}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
