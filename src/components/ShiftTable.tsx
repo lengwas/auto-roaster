@@ -92,14 +92,25 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
   const [hiddenPromoterIds, setHiddenPromoterIds] = useState<Set<string>>(new Set());
   const [activeOnlyPromoters, setActiveOnlyPromoters] = useState(true);
   const [hideEmptyStores, setHideEmptyStores] = useState(true);
-  // Default to current month view
+  // Default to current month if it overlaps with dates, otherwise use dates range
   const [filterStart, setFilterStart] = useState(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    const datesStart = dates[0] ?? '';
+    const datesEnd = dates[dates.length - 1] ?? '';
+    // If current month overlaps with dates range, use current month; otherwise use dates range
+    if (monthStart <= datesEnd && monthEnd >= datesStart) return monthStart < datesStart ? datesStart : monthStart;
+    return datesStart;
   });
   const [filterEnd, setFilterEnd] = useState(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    const datesStart = dates[0] ?? '';
+    const datesEnd = dates[dates.length - 1] ?? '';
+    if (monthStart <= datesEnd && monthEnd >= datesStart) return monthEnd > datesEnd ? datesEnd : monthEnd;
+    return datesEnd;
   });
 
   const toggleStore = (id: string) => setHiddenStoreIds(prev => {
