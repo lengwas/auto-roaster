@@ -619,8 +619,39 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
                 const recStores = stores
                   .filter(s => s.active && fitTiers.includes(tierMap.get(s.code) ?? 'D'))
                   .sort((a, b) => (storeRevenueMap.get(b.code) ?? 0) - (storeRevenueMap.get(a.code) ?? 0));
-                if (recStores.length === 0) return <span style={{ fontSize: 9, color: '#9ca3af' }}>{promoter.storesLabel || '—'}</span>;
-                return <span style={{ fontSize: 9, color: '#6366f1', lineHeight: 1.3 }}>{recStores.map(s => s.code).join(', ')}</span>;
+                if (recStores.length === 0) return <span style={{ fontSize: 9, color: '#9ca3af' }}>—</span>;
+                const tierColors: Record<string, { bg: string; text: string }> = {
+                  A: { bg: '#dcfce7', text: '#166534' },
+                  B: { bg: '#dbeafe', text: '#1e40af' },
+                  C: { bg: '#fef9c3', text: '#854d0e' },
+                  D: { bg: '#fee2e2', text: '#991b1b' },
+                };
+                // Group by tier, sorted by tier order
+                const grouped = new Map<string, Store[]>();
+                for (const s of recStores) {
+                  const t = tierMap.get(s.code) ?? 'D';
+                  if (!grouped.has(t)) grouped.set(t, []);
+                  grouped.get(t)!.push(s);
+                }
+                const tierOrder = ['A', 'B', 'C', 'D'];
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {tierOrder.filter(t => grouped.has(t)).map(t => {
+                      const tc = tierColors[t] ?? tierColors.D;
+                      return (
+                        <div key={t} style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                          <span style={{ fontSize: 8, fontWeight: 700, color: tc.text, width: 10 }}>{t}</span>
+                          {grouped.get(t)!.map(s => (
+                            <span key={s.code} style={{
+                              fontSize: 8, padding: '1px 4px', borderRadius: 3,
+                              backgroundColor: tc.bg, color: tc.text, fontWeight: 500, lineHeight: 1.4,
+                            }}>{s.code}</span>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
               })()}
             </div>
             <div className="cell cell-fixed-left-3 col-day">
