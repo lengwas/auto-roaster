@@ -12,6 +12,7 @@
 import type {
   Store, Promoter, StorePreference, PromoterConflict,
 } from '../types/types';
+import { matchShiftSlot } from './shiftSlotUtils';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -396,15 +397,7 @@ export function runOptimizer(
           if (endOverride) {
             entry.timeRange = `${store.openTime}-${endOverride}`;
           } else if (store.shiftSlots && store.shiftSlots.length > 0) {
-            // Pick the right slot based on WD/WE prefix or first available
-            const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            const prefix = isWeekend ? 'WE' : 'WD';
-            const matchedSlot = store.shiftSlots.find(s => s.toUpperCase().startsWith(prefix));
-            const plainSlots = store.shiftSlots.filter(s => !s.match(/^(WD|WE)\s/i));
-            const slot = matchedSlot ?? plainSlots[0] ?? store.shiftSlots[0];
-            // Strip WD/WE prefix for the timeRange value
-            entry.timeRange = slot.replace(/^(WD|WE)\s+/i, '');
+            entry.timeRange = matchShiftSlot(store.shiftSlots, dateStr);
           } else {
             entry.timeRange = `${store.openTime}-${store.closeTime}`;
           }

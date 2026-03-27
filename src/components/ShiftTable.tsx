@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order, StoreTierSetting, PromoterGradeOverride } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
+import { matchShiftSlot } from '../lib/shiftSlotUtils';
 import './ShiftTable.css';
 
 interface RevenueForecastEntry {
@@ -235,15 +236,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     }
     const store = storeByCode.get(value);
     let timeRange = store ? `${store.openTime}-${store.closeTime}` : undefined;
-    // Use WD/WE shift slot if available
     if (store?.shiftSlots && store.shiftSlots.length > 0) {
-      const dow = new Date(date + 'T00:00:00').getDay();
-      const isWE = dow === 0 || dow === 6;
-      const prefix = isWE ? 'WE' : 'WD';
-      const matched = store.shiftSlots.find(s => s.toUpperCase().startsWith(prefix));
-      const plain = store.shiftSlots.filter(s => !s.match(/^(WD|WE)\s/i));
-      const slot = matched ?? plain[0] ?? store.shiftSlots[0];
-      timeRange = slot.replace(/^(WD|WE)\s+/i, '');
+      timeRange = matchShiftSlot(store.shiftSlots, date);
     }
     onShiftChange(promoterId, date, value, timeRange, existingNote);
   }, [onShiftChange, storeByCode, shifts]);

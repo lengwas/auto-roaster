@@ -156,17 +156,19 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
 
   const renderShiftSlotsEditor = () => (
     <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-      <label>Shift Slots <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>(format: HH:MM-HH:MM or WD HH:MM-HH:MM / WE HH:MM-HH:MM)</span></label>
+      <label>Shift Slots <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>(time or day-specific)</span></label>
       <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, lineHeight: 1.4 }}>
-        WD = Weekday (Mon-Fri), WE = Weekend (Sat-Sun). Examples:<br />
-        <code style={{ fontSize: 10 }}>10:00-19:00</code> &nbsp; <code style={{ fontSize: 10 }}>WD 12:30-21:30</code> &nbsp; <code style={{ fontSize: 10 }}>WE 13:00-22:00</code>
+        Formats: plain time, day range, or day list. Days: Sun, Mon, Tue, Wed, Thu, Fri, Sat<br />
+        <code style={{ fontSize: 10 }}>10:00-19:00</code> &nbsp;
+        <code style={{ fontSize: 10 }}>Mon-Thu 12:30-21:30</code> &nbsp;
+        <code style={{ fontSize: 10 }}>Fri,Sat,Sun 13:00-22:00</code>
       </div>
       {form.shiftSlots.map((slot, i) => (
         <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'center' }}>
           <input
             type="text"
             className="form-input"
-            placeholder="e.g. 10:00-19:00 or WD 12:30-21:30"
+            placeholder="e.g. Mon-Thu 12:30-21:30"
             value={slot}
             onChange={(e) => {
               const next = [...form.shiftSlots];
