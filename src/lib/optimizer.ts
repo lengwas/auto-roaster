@@ -389,13 +389,26 @@ export function runOptimizer(
 
     // Reassign remaining Off promoters to best available store by revenue
     // (working day but no slot in must store → send to highest-revenue alternative)
+    // Build current count map for capacity checking
+    const curCount = new Map<string, number>();
+    for (const sc of dayMap.values()) {
+      if (sc !== 'Off') curCount.set(sc, (curCount.get(sc) ?? 0) + 1);
+    }
+    // Build capacity map
+    const capMap = new Map<string, number>();
+    for (const s of activeStores) {
+      capMap.set(s.code, Math.max(1, s.maxCapacity ?? 1));
+    }
     for (const p of working) {
       if (dayMap.get(p.id) !== 'Off') continue;
-      // Find best store: not banned, check conflicts, pick highest revenue
+      // Find best store: not banned, not full, check conflicts, pick highest revenue
       let bestStore = '';
       let bestScore = -Infinity;
       for (const s of activeStores) {
         if (bannedMap.get(p.id)?.has(s.code)) continue;
+        // Check capacity
+        const cap = capMap.get(s.code) ?? 1;
+        if ((curCount.get(s.code) ?? 0) >= cap) continue;
         // Check conflicts
         let hasConflict = false;
         for (const [pidA, pidB] of conflictPairs) {
@@ -411,7 +424,10 @@ export function runOptimizer(
           bestStore = s.code;
         }
       }
-      if (bestStore) dayMap.set(p.id, bestStore);
+      if (bestStore) {
+        dayMap.set(p.id, bestStore);
+        curCount.set(bestStore, (curCount.get(bestStore) ?? 0) + 1);
+      }
     }
 
     // Build assignments + revenue
