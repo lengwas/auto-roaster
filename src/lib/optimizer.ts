@@ -219,12 +219,23 @@ export function runOptimizer(
   // Conflict pairs
   const conflictPairs: [string, string][] = conflicts.map(c => [c.promoterAId, c.promoterBId]);
 
-  // Fallback score
+  // Compute store-level average revenue for smarter fallback
+  const storeScores = new Map<string, number[]>();
+  for (const [key, val] of perfMatrix) {
+    const sc = key.split('_')[1];
+    if (!storeScores.has(sc)) storeScores.set(sc, []);
+    storeScores.get(sc)!.push(val);
+  }
+  const storeAvgMap = new Map<string, number>();
+  for (const [sc, scores] of storeScores) {
+    storeAvgMap.set(sc, scores.reduce((a, b) => a + b, 0) / scores.length);
+  }
+
   const allValues = [...perfMatrix.values()];
   const globalMean = allValues.length > 0
     ? allValues.reduce((a, b) => a + b, 0) / allValues.length
     : 500;
-  const fallbackScore = globalMean * 0.4;
+  const globalFallback = globalMean * 0.4;
   const prefBonus = globalMean * 0.25;
 
   const assignments: DraftAssignment[] = [];
@@ -254,10 +265,11 @@ export function runOptimizer(
     }
 
     // Build store slots (expand by capacity)
+    // Default minPeople to maxCapacity so high-capacity stores are fully staffed
     const storeSlots: string[] = [];
     for (const s of activeStores) {
       const baseCap = Math.max(1, s.maxCapacity ?? 1);
-      const minPeople = extra.storeMinPeople.get(s.code) ?? 0;
+      const minPeople = extra.storeMinPeople.get(s.code) ?? baseCap;
       const cap = Math.max(baseCap, minPeople);
       for (let k = 0; k < cap; k++) storeSlots.push(s.code);
     }
@@ -296,7 +308,7 @@ export function runOptimizer(
         }
 
         // Score = historical avg daily revenue + bonuses
-        const base = perfMatrix.get(`${pid}_${sc}`) ?? fallbackScore;
+        const base = perfMatrix.get(`${pid}_${sc}`) ?? globalFallback;
         let bonus = 0;
         if (preferredMap.get(pid)?.has(sc)) bonus += prefBonus;
         if (forcedStore && sc === forcedStore) bonus += globalMean * 10;
@@ -327,18 +339,24 @@ export function runOptimizer(
       const scA = dayMap.get(pidA);
       const scB = dayMap.get(pidB);
       if (scA && scB && scA !== 'Off' && scA === scB) {
-        const sA = perfMatrix.get(`${pidA}_${scA}`) ?? fallbackScore;
-        const sB = perfMatrix.get(`${pidB}_${scB}`) ?? fallbackScore;
+        const sA = perfMatrix.get(`${pidA}_${scA}`) ?? globalFallback;
+        const sB = perfMatrix.get(`${pidB}_${scB}`) ?? globalFallback;
         dayMap.set(sA <= sB ? pidA : pidB, 'Off');
       }
     }
 
-    // Enforce store_min_people: pull Off promoters into understaffed stores
+    // Enforce min staffing: pull Off promoters into understaffed stores
+    // Use maxCapacity as default minimum, override with explicit store_min_people
     const storeCount = new Map<string, number>();
     for (const sc of dayMap.values()) {
       if (sc !== 'Off') storeCount.set(sc, (storeCount.get(sc) ?? 0) + 1);
     }
-    for (const [storeCode, minN] of extra.storeMinPeople) {
+    const storeMinMap = new Map<string, number>();
+    for (const s of activeStores) {
+      const baseCap = Math.max(1, s.maxCapacity ?? 1);
+      storeMinMap.set(s.code, extra.storeMinPeople.get(s.code) ?? baseCap);
+    }
+    for (const [storeCode, minN] of storeMinMap) {
       const current = storeCount.get(storeCode) ?? 0;
       if (current < minN) {
         const shortage = minN - current;
@@ -351,8 +369,8 @@ export function runOptimizer(
             return true;
           })
           .sort((a, b) =>
-            (perfMatrix.get(`${b.id}_${storeCode}`) ?? fallbackScore) -
-            (perfMatrix.get(`${a.id}_${storeCode}`) ?? fallbackScore)
+            (perfMatrix.get(`${b.id}_${storeCode}`) ?? globalFallback) -
+            (perfMatrix.get(`${a.id}_${storeCode}`) ?? globalFallback)
           );
         for (const p of candidates.slice(0, shortage)) {
           dayMap.set(p.id, storeCode);
@@ -383,7 +401,7 @@ export function runOptimizer(
             entry.timeRange = `${store.openTime}-${store.closeTime}`;
           }
         }
-        const rev = perfMatrix.get(`${p.id}_${sc}`) ?? fallbackScore;
+        const rev = perfMatrix.get(`${p.id}_${sc}`) ?? globalFallback;
         dayRev += rev;
         dayCount++;
       }

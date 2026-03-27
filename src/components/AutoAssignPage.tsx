@@ -809,6 +809,8 @@ export default function AutoAssignPage({
             dates={dates}
             onShiftChange={handleDraftShiftChange}
             revenueForecast={revenueForecast}
+            storeTiers={storeTiers}
+            gradeOverrides={gradeOverrides}
           />
         )}
       </div>

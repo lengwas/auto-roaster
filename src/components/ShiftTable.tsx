@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order } from '../types/types';
+import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order, StoreTierSetting, PromoterGradeOverride } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
 import './ShiftTable.css';
@@ -22,6 +22,8 @@ interface ShiftTableProps {
   onMarkDate?: (date: string, label: string, color: string) => void;
   onUnmarkDate?: (date: string) => void;
   revenueForecast?: RevenueForecastEntry[];
+  storeTiers?: StoreTierSetting[];
+  gradeOverrides?: PromoterGradeOverride[];
 }
 
 const PRESET_COLORS = [
@@ -72,7 +74,15 @@ function getTodayStr(): string {
 }
 
 
-const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = [], onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast }: ShiftTableProps) => {
+// Grade-Tier fit mapping
+const GRADE_TIER_FIT: Record<string, string[]> = {
+  A: ['A', 'B'],
+  B: ['A', 'B', 'C'],
+  C: ['B', 'C', 'D'],
+  D: ['C', 'D'],
+};
+
+const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = [], onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast, storeTiers = [], gradeOverrides = [] }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
   const [noteText, setNoteText] = useState('');
   const [popup, setPopup] = useState<DateMarkPopup | null>(null);
@@ -115,6 +125,12 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
 
   const storeByCode = new Map<string, Store>();
   stores.filter(s => s.active).forEach(s => storeByCode.set(s.code, s));
+
+  // Tier & grade lookups
+  const tierMap = new Map<string, string>();
+  storeTiers.forEach(t => tierMap.set(t.storeCode, t.tier));
+  const gradeMap = new Map<string, string>();
+  gradeOverrides.forEach(g => gradeMap.set(g.promoterId, g.grade));
 
   const visibleDates = dates.filter(d => d >= filterStart && d <= filterEnd);
   const dateInfos = visibleDates.map(formatDate);
@@ -161,7 +177,11 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     !hiddenStoreIds.has(s.id) &&
     (!hideEmptyStores || storesWithAssignments.has(s.id))
   );
+  const TIER_ORDER: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
   const visibleStores = [...filteredStores].sort((a, b) => {
+    const ta = TIER_ORDER[tierMap.get(a.code) ?? 'D'] ?? 3;
+    const tb = TIER_ORDER[tierMap.get(b.code) ?? 'D'] ?? 3;
+    if (ta !== tb) return ta - tb;
     const ra = storeRevenueMap.get(a.code) ?? -Infinity;
     const rb = storeRevenueMap.get(b.code) ?? -Infinity;
     return rb - ra;
@@ -458,6 +478,9 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
               >
                 <div className="cell cell-fixed-left col-name" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)' }}>
                   {store.code}
+                  {tierMap.has(store.code) && (
+                    <span style={{ fontSize: 9, color: '#6366f1', marginLeft: 3, fontWeight: 600 }}>({tierMap.get(store.code)})</span>
+                  )}
                   {store.extraAllowance && (
                     <span className="extra-allowance">{store.extraAllowance}</span>
                   )}
@@ -497,6 +520,11 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
           <div key={promoter.id} className="grid-row promoter-row">
             <div className="cell cell-fixed-left col-name">
               {promoter.name}
+              {(() => {
+                const grade = gradeMap.get(promoter.id) ?? 'C';
+                const gradeColor = grade === 'A' ? '#059669' : grade === 'B' ? '#2563eb' : grade === 'C' ? '#d97706' : '#dc2626';
+                return <span style={{ fontSize: 9, color: gradeColor, marginLeft: 3, fontWeight: 700 }}>({grade})</span>;
+              })()}
               {rev != null && rev !== 0 && (
                 <span style={{ fontSize: 9, color: rev > 0 ? '#059669' : '#dc2626', marginLeft: 4 }}>
                   {rev > 0 ? '+' : ''}{Math.round(rev).toLocaleString()}
@@ -505,6 +533,13 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
             </div>
             <div className="cell cell-fixed-left-2 col-stores">
               {promoter.storesLabel}
+              {(() => {
+                const grade = gradeMap.get(promoter.id) ?? 'C';
+                const fitTiers = GRADE_TIER_FIT[grade] ?? ['C', 'D'];
+                const recStores = stores.filter(s => s.active && fitTiers.includes(tierMap.get(s.code) ?? 'D'));
+                if (recStores.length === 0) return null;
+                return <span style={{ fontSize: 8, color: '#6366f1', display: 'block', lineHeight: 1.2 }}>{recStores.map(s => s.code).join(', ')}</span>;
+              })()}
             </div>
             <div className="cell cell-fixed-left-3 col-day">
               {promoter.workingDays}

@@ -98,6 +98,8 @@ function App() {
             specialDates={specialDates}
             onMarkDate={(date, label, color) => markDate(date, label, color)}
             onUnmarkDate={(date) => unmarkDate(date)}
+            storeTiers={storeTiers}
+            gradeOverrides={gradeOverrides}
           />
         )}
         {activeTab === 'pc-setting' && (
