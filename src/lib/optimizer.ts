@@ -370,6 +370,11 @@ export function runOptimizer(
             if (bannedMap.get(p.id)?.has(storeCode)) return false;
             const hasMust = mustMap.has(p.id) && mustMap.get(p.id)!.size > 0;
             if (hasMust && !mustMap.get(p.id)!.has(storeCode)) return false;
+            // Check conflicts: skip if a conflicting promoter is already at this store
+            for (const [pidA, pidB] of conflictPairs) {
+              const other = pidA === p.id ? pidB : pidB === p.id ? pidA : null;
+              if (other && dayMap.get(other) === storeCode) return false;
+            }
             return true;
           })
           .sort((a, b) =>
