@@ -72,7 +72,7 @@ export const mockPromoters: Promoter[] = [
   { id: 'p47', name: 'Romnick Co',    storesLabel: '',              active: true, workingDays: '', role: 'promoter' },
 ];
 
-// Generate dates starting from the 1st of the current month, 3 months forward
+// Generate dates from 3 months back to 3 months forward (~6 months)
 const getDates = (startDate: Date, days: number) => {
   const dates: string[] = [];
   for (let i = 0; i < days; i++) {
@@ -84,8 +84,8 @@ const getDates = (startDate: Date, days: number) => {
 };
 
 const today = new Date();
-const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-export const shiftDates = getDates(startOfMonth, 92); // ~3 months
+const start = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+export const shiftDates = getDates(start, 183); // ~6 months
 
 // Generate store counts from actual shift assignments
 export const generateStoreCounts = (stores: Store[], dates: string[], shifts: Shift[]): StoreCount[] => {

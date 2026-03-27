@@ -91,8 +91,15 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
   const [hiddenPromoterIds, setHiddenPromoterIds] = useState<Set<string>>(new Set());
   const [activeOnlyPromoters, setActiveOnlyPromoters] = useState(true);
   const [hideEmptyStores, setHideEmptyStores] = useState(true);
-  const [filterStart, setFilterStart] = useState(dates[0] ?? '');
-  const [filterEnd, setFilterEnd] = useState(dates[dates.length - 1] ?? '');
+  // Default to current month view
+  const [filterStart, setFilterStart] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [filterEnd, setFilterEnd] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   const toggleStore = (id: string) => setHiddenStoreIds(prev => {
     const next = new Set(prev);
@@ -143,11 +150,26 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     )
   );
   // Compute net revenue per store and per promoter from orders
-  // Use all orders (not filtered by visible dates — orders are historical, shift dates may be future)
+  // Warehouse text → store code fallback map (when store.warehouse is not set)
+  const WAREHOUSE_CODE_MAP: Record<string, string> = {
+    'vir - dbm': 'VDM', 'vir - moe': 'VME', 'vir - dbh': 'VDH',
+    'vir - mrn': 'VMN', 'vir - mdf': 'VMF', 'vir - nkm': 'VNK',
+    'vir - yas': 'VYM', 'vir - amy': 'VAY', 'vir - rem': 'VRM',
+    'vir - adm': 'VAD', 'vir - arb': 'VAY', 'vir - azc': 'VNK',
+    'jsm - moe': 'JME', 'jsm - dbm': 'JDM', 'jsm - dbh': 'JDH',
+    'bdr - dbm': 'BDM', 'bdr - dbh': 'JDH',
+    'hls - dbm': 'HDM', 'sdg - dbm': 'SDM',
+    'air - 48': 'AIR', 'air - dcc': 'ADC', 'img - wld': 'IMG',
+  };
   const storeRevenueMap = new Map<string, number>();
   const promoterRevenueMap = new Map<string, number>();
   if (orders.length > 0) {
     const whToCode = new Map<string, string>();
+    // Add hardcoded warehouse mappings first
+    for (const [wh, code] of Object.entries(WAREHOUSE_CODE_MAP)) {
+      whToCode.set(wh, code);
+    }
+    // Override with store-specific mappings
     stores.forEach(s => {
       if (s.warehouse) whToCode.set(s.warehouse.toLowerCase().trim(), s.code);
       if (s.platform) whToCode.set(s.platform.toLowerCase().trim(), s.code);
@@ -161,12 +183,13 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     });
     for (const o of orders) {
       const net = (o.amountAed ?? 0) - (o.paidAmountAed ?? 0);
-      if (o.warehouse) {
-        const code = whToCode.get(o.warehouse.toLowerCase().trim());
-        if (code) storeRevenueMap.set(code, (storeRevenueMap.get(code) ?? 0) + net);
-      }
+      const wh = (o.warehouse ?? '').toLowerCase().trim();
+      const pl = (o.platform ?? '').toLowerCase().trim();
+      const code = whToCode.get(wh) ?? whToCode.get(pl);
+      if (code) storeRevenueMap.set(code, (storeRevenueMap.get(code) ?? 0) + net);
       if (o.salesperson) {
-        const pid = nameToId.get(o.salesperson.toLowerCase().trim());
+        const pid = nameToId.get(o.salesperson.toLowerCase().trim())
+                 ?? nameToId.get(o.salesperson.split(' ')[0].toLowerCase().trim());
         if (pid) promoterRevenueMap.set(pid, (promoterRevenueMap.get(pid) ?? 0) + net);
       }
     }
@@ -199,18 +222,31 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
 
   const handleChange = useCallback((promoterId: string, date: string, value: string) => {
     if (!onShiftChange) return;
+    // Preserve existing note when changing shift type
+    const existingShift = shifts.find(s => s.promoterId === promoterId && s.date === date);
+    const existingNote = existingShift?.note;
     if (value === '-') {
       onShiftChange(promoterId, date, '', undefined, undefined);
       return;
     }
     if (SPECIAL_SHIFTS.includes(value as typeof SPECIAL_SHIFTS[number])) {
-      onShiftChange(promoterId, date, value, undefined, undefined);
+      onShiftChange(promoterId, date, value, undefined, existingNote);
       return;
     }
     const store = storeByCode.get(value);
-    const timeRange = store ? `${store.openTime}-${store.closeTime}` : undefined;
-    onShiftChange(promoterId, date, value, timeRange, undefined);
-  }, [onShiftChange, storeByCode]);
+    let timeRange = store ? `${store.openTime}-${store.closeTime}` : undefined;
+    // Use WD/WE shift slot if available
+    if (store?.shiftSlots && store.shiftSlots.length > 0) {
+      const dow = new Date(date + 'T00:00:00').getDay();
+      const isWE = dow === 0 || dow === 6;
+      const prefix = isWE ? 'WE' : 'WD';
+      const matched = store.shiftSlots.find(s => s.toUpperCase().startsWith(prefix));
+      const plain = store.shiftSlots.filter(s => !s.match(/^(WD|WE)\s/i));
+      const slot = matched ?? plain[0] ?? store.shiftSlots[0];
+      timeRange = slot.replace(/^(WD|WE)\s+/i, '');
+    }
+    onShiftChange(promoterId, date, value, timeRange, existingNote);
+  }, [onShiftChange, storeByCode, shifts]);
 
   const handleNoteClick = (key: string, currentNote: string) => {
     setEditingNote(key);
@@ -321,6 +357,19 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
           )}
         </button>
         <div className="date-range-filter">
+          <button
+            className="date-range-reset"
+            onClick={() => {
+              const d = new Date(filterStart + 'T00:00:00');
+              d.setMonth(d.getMonth() - 1);
+              const s = d.toISOString().split('T')[0];
+              const e = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+              if (s >= (dates[0] ?? '')) { setFilterStart(s); setFilterEnd(e < (dates[dates.length - 1] ?? '') ? e : dates[dates.length - 1] ?? ''); }
+            }}
+            title="Previous month"
+          >
+            ◀
+          </button>
           <input
             type="date"
             className="date-range-input"
@@ -340,10 +389,37 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
           />
           <button
             className="date-range-reset"
+            onClick={() => {
+              const d = new Date(filterStart + 'T00:00:00');
+              d.setMonth(d.getMonth() + 1);
+              const s = d.toISOString().split('T')[0];
+              const e = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+              if (s <= (dates[dates.length - 1] ?? '')) { setFilterStart(s); setFilterEnd(e < (dates[dates.length - 1] ?? '') ? e : dates[dates.length - 1] ?? ''); }
+            }}
+            title="Next month"
+          >
+            ▶
+          </button>
+          <button
+            className="date-range-reset"
+            onClick={() => {
+              const t = getTodayStr();
+              const d = new Date(t + 'T00:00:00');
+              const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+              const e = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+              setFilterStart(s >= (dates[0] ?? '') ? s : dates[0] ?? '');
+              setFilterEnd(e <= (dates[dates.length - 1] ?? '') ? e : dates[dates.length - 1] ?? '');
+            }}
+            title="Jump to current month"
+          >
+            Today
+          </button>
+          <button
+            className="date-range-reset"
             onClick={() => { setFilterStart(dates[0] ?? ''); setFilterEnd(dates[dates.length - 1] ?? ''); }}
             title="Reset to full range"
           >
-            All dates
+            All
           </button>
         </div>
       </div>
@@ -532,13 +608,14 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
               )}
             </div>
             <div className="cell cell-fixed-left-2 col-stores">
-              {promoter.storesLabel}
               {(() => {
                 const grade = gradeMap.get(promoter.id) ?? 'C';
                 const fitTiers = GRADE_TIER_FIT[grade] ?? ['C', 'D'];
-                const recStores = stores.filter(s => s.active && fitTiers.includes(tierMap.get(s.code) ?? 'D'));
-                if (recStores.length === 0) return null;
-                return <span style={{ fontSize: 8, color: '#6366f1', display: 'block', lineHeight: 1.2 }}>{recStores.map(s => s.code).join(', ')}</span>;
+                const recStores = stores
+                  .filter(s => s.active && fitTiers.includes(tierMap.get(s.code) ?? 'D'))
+                  .sort((a, b) => (storeRevenueMap.get(b.code) ?? 0) - (storeRevenueMap.get(a.code) ?? 0));
+                if (recStores.length === 0) return <span style={{ fontSize: 9, color: '#9ca3af' }}>{promoter.storesLabel || '—'}</span>;
+                return <span style={{ fontSize: 9, color: '#6366f1', lineHeight: 1.3 }}>{recStores.map(s => s.code).join(', ')}</span>;
               })()}
             </div>
             <div className="cell cell-fixed-left-3 col-day">
