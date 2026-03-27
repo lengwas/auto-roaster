@@ -309,7 +309,10 @@ export function runOptimizer(
         }
 
         // Score = historical avg daily revenue + bonuses
-        const base = perfMatrix.get(`${pid}_${sc}`) ?? globalFallback;
+        // Use store average revenue as fallback so higher-revenue stores are preferred
+        const base = perfMatrix.get(`${pid}_${sc}`)
+                  ?? storeAvgMap.get(sc)
+                  ?? globalFallback;
         let bonus = 0;
         if (preferredMap.get(pid)?.has(sc)) bonus += prefBonus;
         if (forcedStore && sc === forcedStore) bonus += globalMean * 10;

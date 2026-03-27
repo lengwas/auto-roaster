@@ -348,13 +348,25 @@
 
 /* Today column highlight */
 .col-today {
-  background-color: #dbeafe !important;
-  border-left: 2px solid #2563eb;
-  border-right: 2px solid #2563eb;
+  background-color: rgba(37, 99, 235, 0.06) !important;
+  border-left: 3px solid #2563eb !important;
+  border-right: 3px solid #2563eb !important;
 }
-.header-date-row .col-today {
+.date-header-cell.col-today {
   background-color: #2563eb !important;
   color: white !important;
+  font-weight: 700;
+  border-top: 3px solid #2563eb !important;
+}
+.header-dow-row .col-today {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  font-weight: 700;
+}
+.header-revenue-row .col-today {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  font-weight: 700;
 }
 
 .text-dash { color: var(--text-muted); }
