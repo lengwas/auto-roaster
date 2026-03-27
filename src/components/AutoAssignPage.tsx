@@ -811,6 +811,8 @@ export default function AutoAssignPage({
             revenueForecast={revenueForecast}
             storeTiers={storeTiers}
             gradeOverrides={gradeOverrides}
+            storePreferences={storePreferences}
+            promoterConflicts={promoterConflicts}
           />
         )}
       </div>
