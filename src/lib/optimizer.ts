@@ -379,6 +379,33 @@ export function runOptimizer(
       }
     }
 
+    // Reassign remaining Off promoters to best available store by revenue
+    // (working day but no slot in must store → send to highest-revenue alternative)
+    for (const p of working) {
+      if (dayMap.get(p.id) !== 'Off') continue;
+      // Find best store: not banned, check conflicts, pick highest revenue
+      let bestStore = '';
+      let bestScore = -Infinity;
+      for (const s of activeStores) {
+        if (bannedMap.get(p.id)?.has(s.code)) continue;
+        // Check conflicts
+        let hasConflict = false;
+        for (const [pidA, pidB] of conflictPairs) {
+          const other = pidA === p.id ? pidB : pidB === p.id ? pidA : null;
+          if (other && dayMap.get(other) === s.code) { hasConflict = true; break; }
+        }
+        if (hasConflict) continue;
+        const score = perfMatrix.get(`${p.id}_${s.code}`)
+                   ?? storeAvgMap.get(s.code)
+                   ?? globalFallback;
+        if (score > bestScore) {
+          bestScore = score;
+          bestStore = s.code;
+        }
+      }
+      if (bestStore) dayMap.set(p.id, bestStore);
+    }
+
     // Build assignments + revenue
     let dayRev = 0;
     let dayCount = 0;
