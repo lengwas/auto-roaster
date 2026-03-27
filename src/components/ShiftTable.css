@@ -346,9 +346,8 @@
 .dow-sun { color: #dc2626; }
 .dow-sat { color: #dc2626; }
 
-/* Today column highlight */
+/* Today column highlight — keep data cell colors, highlight header/borders only */
 .col-today {
-  background-color: rgba(37, 99, 235, 0.06) !important;
   border-left: 3px solid #2563eb !important;
   border-right: 3px solid #2563eb !important;
 }
@@ -359,8 +358,8 @@
   border-top: 3px solid #2563eb !important;
 }
 .header-dow-row .col-today {
-  background-color: #eff6ff !important;
-  color: #2563eb !important;
+  background-color: #1e40af !important;
+  color: white !important;
   font-weight: 700;
 }
 .header-revenue-row .col-today {
