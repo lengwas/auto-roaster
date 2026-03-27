@@ -154,45 +154,129 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
     setDirtyIds(prev => { const next = new Set(prev); next.delete(storeId); return next; });
   };
 
+  const SLOT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+  // Parse a slot string into { days, start, end }
+  const parseSlot = (slot: string): { days: string[]; start: string; end: string } => {
+    const match = slot.match(/^([A-Za-z,\- ]+?)\s+(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
+    if (match) {
+      const dayPart = match[1];
+      // Parse day range like "Mon-Thu" or day list like "Fri,Sat,Sun"
+      const rangeMatch = dayPart.match(/^([A-Za-z]+)-([A-Za-z]+)$/);
+      if (rangeMatch) {
+        const si = SLOT_DAYS.findIndex(d => d.toLowerCase() === rangeMatch[1].toLowerCase());
+        const ei = SLOT_DAYS.findIndex(d => d.toLowerCase() === rangeMatch[2].toLowerCase());
+        if (si >= 0 && ei >= 0) {
+          const days: string[] = [];
+          if (si <= ei) { for (let k = si; k <= ei; k++) days.push(SLOT_DAYS[k]); }
+          else { for (let k = si; k < 7; k++) days.push(SLOT_DAYS[k]); for (let k = 0; k <= ei; k++) days.push(SLOT_DAYS[k]); }
+          return { days, start: match[2], end: match[3] };
+        }
+      }
+      const days = dayPart.split(',').map(d => d.trim()).filter(d => SLOT_DAYS.some(sd => sd.toLowerCase() === d.toLowerCase()))
+        .map(d => SLOT_DAYS.find(sd => sd.toLowerCase() === d.toLowerCase())!);
+      if (days.length > 0) return { days, start: match[2], end: match[3] };
+    }
+    // Plain time like "10:00-19:00"
+    const timeMatch = slot.match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
+    if (timeMatch) return { days: [], start: timeMatch[1], end: timeMatch[2] };
+    return { days: [], start: '', end: '' };
+  };
+
+  // Serialize { days, start, end } back to string
+  const serializeSlot = (days: string[], start: string, end: string): string => {
+    if (!start || !end) return '';
+    if (days.length === 0) return `${start}-${end}`;
+    // Try to make a compact range if consecutive
+    const indices = days.map(d => SLOT_DAYS.indexOf(d)).sort((a, b) => a - b);
+    let isConsecutive = true;
+    for (let k = 1; k < indices.length; k++) {
+      if (indices[k] !== indices[k - 1] + 1) { isConsecutive = false; break; }
+    }
+    if (isConsecutive && indices.length >= 2) {
+      return `${SLOT_DAYS[indices[0]]}-${SLOT_DAYS[indices[indices.length - 1]]} ${start}-${end}`;
+    }
+    return `${days.join(',')} ${start}-${end}`;
+  };
+
+  const updateSlot = (idx: number, days: string[], start: string, end: string) => {
+    const next = [...form.shiftSlots];
+    next[idx] = serializeSlot(days, start, end);
+    setForm({ ...form, shiftSlots: next });
+  };
+
   const renderShiftSlotsEditor = () => (
     <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-      <label>Shift Slots <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>(time or day-specific)</span></label>
+      <label>Shift Slots <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>(กะเช้า/บ่าย, วันธรรมดา/วันหยุด)</span></label>
       <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, lineHeight: 1.4 }}>
-        Formats: plain time, day range, or day list. Days: Sun, Mon, Tue, Wed, Thu, Fri, Sat<br />
-        <code style={{ fontSize: 10 }}>10:00-19:00</code> &nbsp;
-        <code style={{ fontSize: 10 }}>Mon-Thu 12:30-21:30</code> &nbsp;
-        <code style={{ fontSize: 10 }}>Fri,Sat,Sun 13:00-22:00</code>
+        เลือกวัน + เวลาเข้า-ออก กะ, ถ้าไม่เลือกวัน = ใช้ทุกวัน
       </div>
-      {form.shiftSlots.map((slot, i) => (
-        <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'center' }}>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="e.g. Mon-Thu 12:30-21:30"
-            value={slot}
-            onChange={(e) => {
-              const next = [...form.shiftSlots];
-              next[i] = e.target.value;
-              setForm({ ...form, shiftSlots: next });
-            }}
-            style={{ flex: 1 }}
-          />
-          <button
-            type="button"
-            className="btn btn-small btn-danger-ghost"
-            onClick={() => setForm({ ...form, shiftSlots: form.shiftSlots.filter((_, j) => j !== i) })}
-          >
-            ×
-          </button>
-        </div>
-      ))}
+      {form.shiftSlots.map((slot, i) => {
+        const parsed = parseSlot(slot);
+        return (
+          <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start', padding: '8px 10px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap' }}>
+                {SLOT_DAYS.map(d => {
+                  const active = parsed.days.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => {
+                        const next = active ? parsed.days.filter(x => x !== d) : [...parsed.days, d];
+                        updateSlot(i, next, parsed.start, parsed.end);
+                      }}
+                      style={{
+                        fontSize: 10, padding: '2px 6px', borderRadius: 4, border: '1px solid',
+                        borderColor: active ? '#2563eb' : '#d1d5db',
+                        backgroundColor: active ? '#2563eb' : 'white',
+                        color: active ? 'white' : '#6b7280',
+                        cursor: 'pointer', fontWeight: active ? 600 : 400,
+                      }}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+                {parsed.days.length === 0 && <span style={{ fontSize: 10, color: '#9ca3af', alignSelf: 'center', marginLeft: 4 }}>ทุกวัน</span>}
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={parsed.start}
+                  onChange={(e) => updateSlot(i, parsed.days, e.target.value, parsed.end)}
+                  style={{ width: 110, fontSize: 12 }}
+                />
+                <span style={{ color: '#9ca3af' }}>—</span>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={parsed.end}
+                  onChange={(e) => updateSlot(i, parsed.days, parsed.start, e.target.value)}
+                  style={{ width: 110, fontSize: 12 }}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-small btn-danger-ghost"
+              onClick={() => setForm({ ...form, shiftSlots: form.shiftSlots.filter((_, j) => j !== i) })}
+              style={{ marginTop: 4 }}
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
       <button
         type="button"
         className="btn btn-small btn-ghost"
         onClick={() => setForm({ ...form, shiftSlots: [...form.shiftSlots, ''] })}
         style={{ marginTop: 4 }}
       >
-        + Add Slot
+        + Add Shift
       </button>
     </div>
   );
