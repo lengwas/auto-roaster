@@ -430,36 +430,63 @@ export function runOptimizer(
       }
     }
 
+    // Pre-compute shift slot assignments per store:
+    // For stores with multiple slots, assign best performer → latest (afternoon) slot
+    const storeSlotAssign = new Map<string, Map<string, string>>(); // storeCode → (promoterId → timeRange)
+    {
+      // Group promoters by assigned store
+      const storePromoters = new Map<string, string[]>(); // storeCode → promoterIds
+      for (const p of working) {
+        const sc = dayMap.get(p.id);
+        if (sc && sc !== 'Off') {
+          if (!storePromoters.has(sc)) storePromoters.set(sc, []);
+          storePromoters.get(sc)!.push(p.id);
+        }
+      }
+      for (const [sc, pids] of storePromoters) {
+        const store = activeStores.find(s => s.code === sc);
+        if (!store?.shiftSlots?.length) continue;
+        const allSlots = matchAllShiftSlots(store.shiftSlots, dateStr);
+        if (allSlots.length <= 1) continue;
+        // Sort slots by start time ascending (early → late)
+        const sortedSlots = [...allSlots].sort((a, b) => a.localeCompare(b));
+        // Sort promoters by performance DESC (best first)
+        const sorted = [...pids].sort((a, b) =>
+          (perfMatrix.get(`${b}_${sc}`) ?? storeAvgMap.get(sc) ?? globalFallback) -
+          (perfMatrix.get(`${a}_${sc}`) ?? storeAvgMap.get(sc) ?? globalFallback)
+        );
+        // Best performer → last slot (afternoon/peak), weakest → first slot (morning)
+        const slotMap = new Map<string, string>();
+        for (let k = 0; k < sorted.length; k++) {
+          // Assign from the end: best gets last slot, second best gets second-to-last, etc.
+          const slotIdx = sortedSlots.length - 1 - (k % sortedSlots.length);
+          slotMap.set(sorted[k], sortedSlots[slotIdx]);
+        }
+        storeSlotAssign.set(sc, slotMap);
+      }
+    }
+
     // Build assignments + revenue
     let dayRev = 0;
     let dayCount = 0;
     const workingIds = new Set(working.map(p => p.id));
-
-    // Track slot index per store for round-robin distribution
-    const storeSlotIdx = new Map<string, number>();
 
     for (const p of activePromoters) {
       const sc = workingIds.has(p.id) ? (dayMap.get(p.id) ?? 'Off') : 'Off';
       const entry: DraftAssignment = { promoterId: p.id, date: dateStr, store: sc };
 
       if (sc !== 'Off') {
-        // Determine timeRange - distribute multiple slots round-robin
         const store = activeStores.find(s => s.code === sc);
         const fname = firstName(p.name);
         const endOverride = extra.promoterEndTime.get(fname);
         if (store) {
           if (endOverride) {
             entry.timeRange = `${store.openTime}-${endOverride}`;
+          } else if (storeSlotAssign.has(sc) && storeSlotAssign.get(sc)!.has(p.id)) {
+            // Performance-based slot assignment
+            entry.timeRange = storeSlotAssign.get(sc)!.get(p.id)!;
           } else if (store.shiftSlots && store.shiftSlots.length > 0) {
-            const allSlots = matchAllShiftSlots(store.shiftSlots, dateStr);
-            if (allSlots.length > 1) {
-              // Round-robin: each promoter gets a different slot
-              const idx = storeSlotIdx.get(sc) ?? 0;
-              entry.timeRange = allSlots[idx % allSlots.length];
-              storeSlotIdx.set(sc, idx + 1);
-            } else {
-              entry.timeRange = matchShiftSlot(store.shiftSlots, dateStr);
-            }
+            entry.timeRange = matchShiftSlot(store.shiftSlots, dateStr);
           } else {
             entry.timeRange = `${store.openTime}-${store.closeTime}`;
           }
