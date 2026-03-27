@@ -19,6 +19,7 @@ function mapRow(row: Record<string, unknown>): Store {
     closeTime: fmtTime(row.close_time || '22:00'),
     extraAllowance: row.extra_allowance ? String(row.extra_allowance) : undefined,
     maxCapacity: row.max_capacity ? Number(row.max_capacity) : undefined,
+    shiftSlots: Array.isArray(row.shift_slots) ? (row.shift_slots as string[]) : undefined,
     platform: row.platform ? String(row.platform) : undefined,
     warehouse: row.warehouse ? String(row.warehouse) : undefined,
   };
@@ -41,22 +42,37 @@ export function useStores() {
       });
   }, []);
 
-  function saveStore(s: Store) {
-    const payload = {
+  async function saveStore(s: Store) {
+    const payload: Record<string, unknown> = {
       code: s.code, name: s.name, active: s.active,
       open_time: s.openTime, close_time: s.closeTime,
       extra_allowance: s.extraAllowance ?? null,
       max_capacity: s.maxCapacity ?? null,
+      shift_slots: s.shiftSlots?.filter(sl => sl.trim()).length ? s.shiftSlots.filter(sl => sl.trim()) : null,
       platform: s.platform ?? null,
       warehouse: s.warehouse ?? null,
     };
     // IDs from Supabase are UUIDs; locally-generated IDs start with "store_"
-    if (s.id.startsWith('store_')) {
-      supabase.from('stores').insert(payload)
-        .then(({ error }) => { if (error) console.error('Failed to insert store:', error); });
-    } else {
-      supabase.from('stores').update(payload).eq('id', s.id)
-        .then(({ error }) => { if (error) console.error('Failed to update store:', error); });
+    const isNew = s.id.startsWith('store_');
+    const op = isNew
+      ? supabase.from('stores').insert(payload)
+      : supabase.from('stores').update(payload).eq('id', s.id);
+    const { error } = await op;
+    if (error) {
+      // Retry without shift_slots/platform/warehouse if column doesn't exist
+      if (error.message?.includes('shift_slots') || error.message?.includes('column')) {
+        console.warn('Retrying save without shift_slots (column may not exist yet):', error.message);
+        delete payload.shift_slots;
+        delete payload.platform;
+        delete payload.warehouse;
+        const op2 = isNew
+          ? supabase.from('stores').insert(payload)
+          : supabase.from('stores').update(payload).eq('id', s.id);
+        const { error: e2 } = await op2;
+        if (e2) console.error('Failed to save store:', e2);
+      } else {
+        console.error('Failed to save store:', error);
+      }
     }
   }
 
