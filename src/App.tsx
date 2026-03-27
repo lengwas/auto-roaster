@@ -6,7 +6,7 @@ import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
 import SalesPerformancePage from './components/SalesPerformancePage';
 import AutoAssignPage from './components/AutoAssignPage';
-import { shiftDates, generateStoreCounts } from './data/mockData';
+import { getDates, generateStoreCounts } from './data/mockData';
 import { useStores } from './hooks/useStores';
 import { usePromoters } from './hooks/usePromoters';
 import { useSpecialDates } from './hooks/useSpecialDates';
@@ -34,16 +34,27 @@ function App() {
   const { promoters, setPromoters, savePromoter, insertPromoter } = usePromoters();
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
   const [showExport, setShowExport] = useState(false);
-  const { shifts, saveShift, error: shiftsError } = useShifts(shiftDates[0], shiftDates[shiftDates.length - 1]);
+  const { shifts, saveShift, error: shiftsError, earliestDate } = useShifts();
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts();
   const { orders } = useOrders();
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
   const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
 
+  // Dynamic date range: from earliest shift (or 3 months ago) to 3 months forward
+  const shiftDates = useMemo(() => {
+    const today = new Date();
+    const defaultStart = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+    const endDate = new Date(today.getFullYear(), today.getMonth() + 3, 0);
+    const startDate = earliestDate
+      ? new Date(Math.min(new Date(earliestDate + 'T00:00:00').getTime(), defaultStart.getTime()))
+      : defaultStart;
+    return getDates(startDate, endDate);
+  }, [earliestDate]);
+
   const storeCounts = useMemo(
     () => generateStoreCounts(stores, shiftDates, shifts),
-    [stores, shifts]
+    [stores, shifts, shiftDates]
   );
 
   const handleShiftChange = useCallback((promoterId: string, date: string, newType: string, timeRange?: string, note?: string) => {

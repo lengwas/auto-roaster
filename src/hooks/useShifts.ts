@@ -13,39 +13,37 @@ function mapRow(row: Record<string, unknown>): Shift {
   };
 }
 
-export function useShifts(fromDate: string, toDate: string) {
+export function useShifts() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [earliestDate, setEarliestDate] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    console.log(`[useShifts] Fetching shifts from ${fromDate} to ${toDate}`);
+
+    // Fetch ALL shifts (no date filter)
     supabase
       .from('shifts')
       .select('*')
-      .gte('date', fromDate)
-      .lte('date', toDate)
       .then(({ data, error }) => {
         if (error) {
           console.error('[useShifts] Failed to load shifts from Supabase:', error.message, error);
           setError(error.message);
         } else {
-          console.log(`[useShifts] Loaded ${data?.length ?? 0} shifts. First row:`, data?.[0]);
+          console.log(`[useShifts] Loaded ${data?.length ?? 0} shifts.`);
           if (data && data.length > 0) {
-            setShifts(data.map(r => mapRow(r as Record<string, unknown>)));
+            const mapped = data.map(r => mapRow(r as Record<string, unknown>));
+            setShifts(mapped);
+            // Find earliest date
+            const minDate = mapped.reduce((min, s) => s.date < min ? s.date : min, mapped[0].date);
+            setEarliestDate(minDate);
           }
         }
         setLoading(false);
       });
-
-    // Debug: count ALL shifts regardless of date range
-    supabase.from('shifts').select('*', { count: 'exact', head: true })
-      .then(({ count, error }) => {
-        console.log(`[useShifts] Total shifts in DB (all dates): ${count ?? 'unknown'}`, error?.message ?? '');
-      });
-  }, [fromDate, toDate]);
+  }, []);
 
   async function saveShift(
     promoterId: string,
@@ -85,5 +83,5 @@ export function useShifts(fromDate: string, toDate: string) {
     }
   }
 
-  return { shifts, setShifts, saveShift, loading, error };
+  return { shifts, setShifts, saveShift, loading, error, earliestDate };
 }
