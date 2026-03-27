@@ -23,10 +23,11 @@ export function useShifts() {
     setLoading(true);
     setError(null);
 
-    // Fetch ALL shifts (no date filter)
+    // Fetch ALL shifts (no date filter), override default 1000 row limit
     supabase
       .from('shifts')
       .select('*')
+      .limit(50000)
       .then(({ data, error }) => {
         if (error) {
           console.error('[useShifts] Failed to load shifts from Supabase:', error.message, error);
