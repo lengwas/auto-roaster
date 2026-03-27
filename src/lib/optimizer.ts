@@ -12,7 +12,7 @@
 import type {
   Store, Promoter, StorePreference, PromoterConflict,
 } from '../types/types';
-import { matchShiftSlot } from './shiftSlotUtils';
+import { matchShiftSlot, matchAllShiftSlots } from './shiftSlotUtils';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -435,12 +435,15 @@ export function runOptimizer(
     let dayCount = 0;
     const workingIds = new Set(working.map(p => p.id));
 
+    // Track slot index per store for round-robin distribution
+    const storeSlotIdx = new Map<string, number>();
+
     for (const p of activePromoters) {
       const sc = workingIds.has(p.id) ? (dayMap.get(p.id) ?? 'Off') : 'Off';
       const entry: DraftAssignment = { promoterId: p.id, date: dateStr, store: sc };
 
       if (sc !== 'Off') {
-        // Determine timeRange
+        // Determine timeRange - distribute multiple slots round-robin
         const store = activeStores.find(s => s.code === sc);
         const fname = firstName(p.name);
         const endOverride = extra.promoterEndTime.get(fname);
@@ -448,7 +451,15 @@ export function runOptimizer(
           if (endOverride) {
             entry.timeRange = `${store.openTime}-${endOverride}`;
           } else if (store.shiftSlots && store.shiftSlots.length > 0) {
-            entry.timeRange = matchShiftSlot(store.shiftSlots, dateStr);
+            const allSlots = matchAllShiftSlots(store.shiftSlots, dateStr);
+            if (allSlots.length > 1) {
+              // Round-robin: each promoter gets a different slot
+              const idx = storeSlotIdx.get(sc) ?? 0;
+              entry.timeRange = allSlots[idx % allSlots.length];
+              storeSlotIdx.set(sc, idx + 1);
+            } else {
+              entry.timeRange = matchShiftSlot(store.shiftSlots, dateStr);
+            }
           } else {
             entry.timeRange = `${store.openTime}-${store.closeTime}`;
           }

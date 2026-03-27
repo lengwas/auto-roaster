@@ -54,6 +54,32 @@ function parseDayPrefix(slot: string): { days: number[] | null; time: string } {
 }
 
 /**
+ * Return ALL matching shift time ranges for a given date.
+ * Day-specific slots are preferred; if none match, fall back to plain slots.
+ */
+export function matchAllShiftSlots(slots: string[], dateStr: string): string[] {
+  if (slots.length === 0) return [];
+
+  const dayIdx = getDayIndex(dateStr);
+
+  // Collect day-specific matches
+  const daySpecific: string[] = [];
+  const plain: string[] = [];
+  for (const slot of slots) {
+    const { days, time } = parseDayPrefix(slot);
+    if (days && days.includes(dayIdx)) {
+      daySpecific.push(time);
+    } else if (!days && time) {
+      plain.push(time);
+    }
+  }
+
+  if (daySpecific.length > 0) return daySpecific;
+  if (plain.length > 0) return plain;
+  return [parseDayPrefix(slots[0]).time];
+}
+
+/**
  * Find the best matching shift slot for a given date.
  * Returns the time portion (without day prefix) of the matched slot.
  */

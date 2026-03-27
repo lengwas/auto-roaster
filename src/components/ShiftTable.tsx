@@ -626,13 +626,20 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
                   return other?.name.split(' ')[0] ?? '?';
                 });
                 const dayOff = promoter.workingDays;
-                const hasAny = mustStores.length > 0 || bannedStores.length > 0 || conflicts.length > 0 || dayOff;
+                const daysOffList = dayOff ? dayOff.split(',').map(d => d.trim()).filter(Boolean) : [];
+                const hasAny = mustStores.length > 0 || bannedStores.length > 0 || conflicts.length > 0 || daysOffList.length > 0;
                 if (!hasAny) return <span style={{ fontSize: 9, color: '#9ca3af' }}>—</span>;
                 const chipStyle = (bg: string, text: string): React.CSSProperties => ({
                   fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: bg, color: text, fontWeight: 600, lineHeight: 1.4, whiteSpace: 'nowrap',
                 });
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {daysOffList.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#b45309' }}>Off</span>
+                        {daysOffList.map(d => <span key={d} style={chipStyle('#fef3c7', '#92400e')}>{d}</span>)}
+                      </div>
+                    )}
                     {mustStores.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
                         <span style={{ fontSize: 8, fontWeight: 700, color: '#166534' }}>Must</span>
