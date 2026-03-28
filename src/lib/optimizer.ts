@@ -193,6 +193,13 @@ export function runOptimizer(
   const activeStores = stores.filter(s => s.active);
   const allStoreCodes = new Set(activeStores.map(s => s.code));
 
+  // Debug: log stores with shift slots
+  for (const s of activeStores) {
+    if (s.shiftSlots && s.shiftSlots.length > 0) {
+      console.log(`[Optimizer] ${s.code} shiftSlots:`, s.shiftSlots, 'maxCapacity:', s.maxCapacity);
+    }
+  }
+
   // Preference lookups
   const mustMap = new Map<string, Set<string>>();
   const preferredMap = new Map<string, Set<string>>();
@@ -266,12 +273,17 @@ export function runOptimizer(
     }
 
     // Build store slots (expand by capacity)
-    // Default minPeople to maxCapacity so high-capacity stores are fully staffed
+    // Consider: maxCapacity, shiftSlots count (for date), and explicit minPeople
     const storeSlots: string[] = [];
     for (const s of activeStores) {
       const baseCap = Math.max(1, s.maxCapacity ?? 1);
+      // If store has multiple shift slots for this day, need at least that many people
+      const slotsForDay = s.shiftSlots?.length
+        ? matchAllShiftSlots(s.shiftSlots, dateStr).length
+        : 0;
+      const minFromSlots = slotsForDay > 1 ? slotsForDay : 0;
       const minPeople = extra.storeMinPeople.get(s.code) ?? baseCap;
-      const cap = Math.max(baseCap, minPeople);
+      const cap = Math.max(baseCap, minPeople, minFromSlots);
       for (let k = 0; k < cap; k++) storeSlots.push(s.code);
     }
 
@@ -358,7 +370,11 @@ export function runOptimizer(
     const storeMinMap = new Map<string, number>();
     for (const s of activeStores) {
       const baseCap = Math.max(1, s.maxCapacity ?? 1);
-      storeMinMap.set(s.code, extra.storeMinPeople.get(s.code) ?? baseCap);
+      const slotsForDay = s.shiftSlots?.length
+        ? matchAllShiftSlots(s.shiftSlots, dateStr).length
+        : 0;
+      const effectiveCap = Math.max(baseCap, slotsForDay > 1 ? slotsForDay : 0);
+      storeMinMap.set(s.code, extra.storeMinPeople.get(s.code) ?? effectiveCap);
     }
     for (const [storeCode, minN] of storeMinMap) {
       const current = storeCount.get(storeCode) ?? 0;
@@ -394,10 +410,14 @@ export function runOptimizer(
     for (const sc of dayMap.values()) {
       if (sc !== 'Off') curCount.set(sc, (curCount.get(sc) ?? 0) + 1);
     }
-    // Build capacity map
+    // Build capacity map (same logic as store slot expansion)
     const capMap = new Map<string, number>();
     for (const s of activeStores) {
-      capMap.set(s.code, Math.max(1, s.maxCapacity ?? 1));
+      const baseCap = Math.max(1, s.maxCapacity ?? 1);
+      const slotsForDay = s.shiftSlots?.length
+        ? matchAllShiftSlots(s.shiftSlots, dateStr).length
+        : 0;
+      capMap.set(s.code, Math.max(baseCap, slotsForDay > 1 ? slotsForDay : 0));
     }
     for (const p of working) {
       if (dayMap.get(p.id) !== 'Off') continue;
@@ -445,9 +465,16 @@ export function runOptimizer(
       }
       for (const [sc, pids] of storePromoters) {
         const store = activeStores.find(s => s.code === sc);
-        if (!store?.shiftSlots?.length) continue;
+        if (!store?.shiftSlots?.length) {
+          if (pids.length > 1) console.log(`[Optimizer] ${sc} has ${pids.length} promoters but NO shiftSlots configured`);
+          continue;
+        }
         const allSlots = matchAllShiftSlots(store.shiftSlots, dateStr);
-        if (allSlots.length <= 1) continue;
+        if (allSlots.length <= 1) {
+          if (pids.length > 1) console.log(`[Optimizer] ${sc} has ${pids.length} promoters but only ${allSlots.length} matching slot for ${dateStr}`);
+          continue;
+        }
+        console.log(`[Optimizer] ${sc}: assigning ${pids.length} promoters to ${allSlots.length} slots:`, allSlots);
         // Sort slots by start time ascending (early → late)
         const sortedSlots = [...allSlots].sort((a, b) => a.localeCompare(b));
         // Sort promoters by performance DESC (best first)
