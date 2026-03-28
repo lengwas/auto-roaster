@@ -273,17 +273,12 @@ export function runOptimizer(
     }
 
     // Build store slots (expand by capacity)
-    // Consider: maxCapacity, shiftSlots count (for date), and explicit minPeople
+    // Use maxCapacity as source of truth (shift slots may differ per DOW, not per person)
     const storeSlots: string[] = [];
     for (const s of activeStores) {
       const baseCap = Math.max(1, s.maxCapacity ?? 1);
-      // If store has multiple shift slots for this day, need at least that many people
-      const slotsForDay = s.shiftSlots?.length
-        ? matchAllShiftSlots(s.shiftSlots, dateStr).length
-        : 0;
-      const minFromSlots = slotsForDay > 1 ? slotsForDay : 0;
       const minPeople = extra.storeMinPeople.get(s.code) ?? baseCap;
-      const cap = Math.max(baseCap, minPeople, minFromSlots);
+      const cap = Math.max(baseCap, minPeople);
       for (let k = 0; k < cap; k++) storeSlots.push(s.code);
     }
 
@@ -370,11 +365,7 @@ export function runOptimizer(
     const storeMinMap = new Map<string, number>();
     for (const s of activeStores) {
       const baseCap = Math.max(1, s.maxCapacity ?? 1);
-      const slotsForDay = s.shiftSlots?.length
-        ? matchAllShiftSlots(s.shiftSlots, dateStr).length
-        : 0;
-      const effectiveCap = Math.max(baseCap, slotsForDay > 1 ? slotsForDay : 0);
-      storeMinMap.set(s.code, extra.storeMinPeople.get(s.code) ?? effectiveCap);
+      storeMinMap.set(s.code, extra.storeMinPeople.get(s.code) ?? baseCap);
     }
     for (const [storeCode, minN] of storeMinMap) {
       const current = storeCount.get(storeCode) ?? 0;
@@ -410,14 +401,10 @@ export function runOptimizer(
     for (const sc of dayMap.values()) {
       if (sc !== 'Off') curCount.set(sc, (curCount.get(sc) ?? 0) + 1);
     }
-    // Build capacity map (same logic as store slot expansion)
+    // Build capacity map
     const capMap = new Map<string, number>();
     for (const s of activeStores) {
-      const baseCap = Math.max(1, s.maxCapacity ?? 1);
-      const slotsForDay = s.shiftSlots?.length
-        ? matchAllShiftSlots(s.shiftSlots, dateStr).length
-        : 0;
-      capMap.set(s.code, Math.max(baseCap, slotsForDay > 1 ? slotsForDay : 0));
+      capMap.set(s.code, Math.max(1, s.maxCapacity ?? 1));
     }
     for (const p of working) {
       if (dayMap.get(p.id) !== 'Off') continue;
