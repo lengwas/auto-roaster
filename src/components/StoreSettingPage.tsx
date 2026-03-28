@@ -243,19 +243,32 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <input
-                  type="time"
+                  type="text"
                   className="form-input"
+                  placeholder="10:00"
                   value={parsed.start}
-                  onChange={(e) => updateSlot(i, parsed.days, e.target.value, parsed.end)}
-                  style={{ width: 110, fontSize: 12 }}
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/[^\d:]/g, '');
+                    // Auto-insert colon: "1000" → "10:00"
+                    if (v.length === 4 && !v.includes(':')) v = v.slice(0, 2) + ':' + v.slice(2);
+                    updateSlot(i, parsed.days, v, parsed.end);
+                  }}
+                  style={{ width: 80, fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}
+                  maxLength={5}
                 />
-                <span style={{ color: '#9ca3af' }}>—</span>
+                <span style={{ color: '#9ca3af', fontWeight: 600 }}>—</span>
                 <input
-                  type="time"
+                  type="text"
                   className="form-input"
+                  placeholder="19:00"
                   value={parsed.end}
-                  onChange={(e) => updateSlot(i, parsed.days, parsed.start, e.target.value)}
-                  style={{ width: 110, fontSize: 12 }}
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/[^\d:]/g, '');
+                    if (v.length === 4 && !v.includes(':')) v = v.slice(0, 2) + ':' + v.slice(2);
+                    updateSlot(i, parsed.days, parsed.start, v);
+                  }}
+                  style={{ width: 80, fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}
+                  maxLength={5}
                 />
               </div>
             </div>

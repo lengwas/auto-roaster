@@ -115,7 +115,7 @@
 .setting-table-wrap {
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: auto;
   background: var(--bg-surface);
 }
 
