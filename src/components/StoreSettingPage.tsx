@@ -188,7 +188,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
     if (!start || !end) return '';
     if (days.length === 0) return `${start}-${end}`;
     // Try to make a compact range if consecutive
-    const indices = days.map(d => SLOT_DAYS.indexOf(d)).sort((a, b) => a - b);
+    const indices = days.map(d => (SLOT_DAYS as readonly string[]).indexOf(d)).sort((a, b) => a - b);
     let isConsecutive = true;
     for (let k = 1; k < indices.length; k++) {
       if (indices[k] !== indices[k - 1] + 1) { isConsecutive = false; break; }

@@ -77,13 +77,6 @@ function getTodayStr(): string {
 }
 
 
-// Grade-Tier fit mapping
-const GRADE_TIER_FIT: Record<string, string[]> = {
-  A: ['A', 'B'],
-  B: ['A', 'B', 'C'],
-  C: ['B', 'C', 'D'],
-  D: ['C', 'D'],
-};
 
 const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = [], onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast, storeTiers = [], gradeOverrides = [], storePreferences = [], promoterConflicts = [] }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
