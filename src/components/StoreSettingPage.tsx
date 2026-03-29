@@ -76,11 +76,13 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
 
   const openAddForm = () => {
     setForm(EMPTY_STORE);
+    setSlotEdits([]);
     setEditingId(null);
     setShowForm(true);
   };
 
   const openEditForm = (store: Store) => {
+    const slots = store.shiftSlots ?? [];
     setForm({
       code: store.code,
       name: store.name,
@@ -89,10 +91,11 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
       closeTime: store.closeTime,
       extraAllowance: store.extraAllowance || '',
       maxCapacity: store.maxCapacity,
-      shiftSlots: store.shiftSlots ?? [],
+      shiftSlots: slots,
       platform: store.platform || '',
       warehouse: store.warehouse || '',
     });
+    setSlotEdits(slots.map(s => parseSlot(s)));
     setEditingId(store.id);
     setShowForm(true);
   };
@@ -100,8 +103,12 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
   const handleSave = () => {
     if (!form.code.trim() || !form.name.trim()) return;
 
+    // Serialize slotEdits at save time (the sole source of truth)
+    const slots = slotEdits
+      .map(e => serializeSlot(e.days, e.start, e.end))
+      .filter(s => s.trim());
+
     if (editingId) {
-      const slots = form.shiftSlots.filter(s => s.trim());
       const updated = stores.map((s) =>
         s.id === editingId
           ? {
@@ -117,7 +124,6 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
       onStoresChange(updated);
       markDirty(editingId);
     } else {
-      const slots = form.shiftSlots.filter(s => s.trim());
       const newStore: Store = {
         id: `store_${Date.now()}`,
         code: form.code.trim().toUpperCase(),
@@ -198,24 +204,10 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
     return `${days.join(',')} ${start}-${end}`;
   };
 
-  // Structured editing state: each slot stored as { days, start, end } to avoid roundtrip bugs
+  // Structured editing state: slotEdits is the SOLE source of truth while editing.
+  // Only serialized to form.shiftSlots at save time to avoid roundtrip data loss.
   type SlotEdit = { days: string[]; start: string; end: string };
-  const [slotEdits, setSlotEdits] = useState<SlotEdit[]>(() =>
-    form.shiftSlots.map(s => parseSlot(s))
-  );
-
-  // Sync slotEdits when form.shiftSlots changes (e.g., opening a different store)
-  const prevSlotsRef = useRef(form.shiftSlots);
-  if (form.shiftSlots !== prevSlotsRef.current) {
-    prevSlotsRef.current = form.shiftSlots;
-    setSlotEdits(form.shiftSlots.map(s => parseSlot(s)));
-  }
-
-  // Write slotEdits back to form.shiftSlots (serialized) whenever slotEdits changes
-  const syncSlotsToForm = (edits: SlotEdit[]) => {
-    setSlotEdits(edits);
-    setForm(f => ({ ...f, shiftSlots: edits.map(e => serializeSlot(e.days, e.start, e.end)) }));
-  };
+  const [slotEdits, setSlotEdits] = useState<SlotEdit[]>([]);
 
   const formatTime = (v: string) => {
     v = v.replace(/[^\d:]/g, '');
@@ -243,7 +235,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
                         const nextDays = active ? slot.days.filter(x => x !== d) : [...slot.days, d];
                         const next = [...slotEdits];
                         next[i] = { ...slot, days: nextDays };
-                        syncSlotsToForm(next);
+                        setSlotEdits(next);
                       }}
                       style={{
                         fontSize: 10, padding: '2px 6px', borderRadius: 4, border: '1px solid',
@@ -268,7 +260,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
                   onChange={(e) => {
                     const next = [...slotEdits];
                     next[i] = { ...slot, start: formatTime(e.target.value) };
-                    syncSlotsToForm(next);
+                    setSlotEdits(next);
                   }}
                   style={{ width: 80, fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}
                   maxLength={5}
@@ -282,7 +274,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
                   onChange={(e) => {
                     const next = [...slotEdits];
                     next[i] = { ...slot, end: formatTime(e.target.value) };
-                    syncSlotsToForm(next);
+                    setSlotEdits(next);
                   }}
                   style={{ width: 80, fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}
                   maxLength={5}
@@ -292,7 +284,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
             <button
               type="button"
               className="btn btn-small btn-danger-ghost"
-              onClick={() => syncSlotsToForm(slotEdits.filter((_, j) => j !== i))}
+              onClick={() => setSlotEdits(slotEdits.filter((_, j) => j !== i))}
               style={{ marginTop: 4 }}
             >
               ×
@@ -302,7 +294,7 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
       <button
         type="button"
         className="btn btn-small btn-ghost"
-        onClick={() => syncSlotsToForm([...slotEdits, { days: [], start: '', end: '' }])}
+        onClick={() => setSlotEdits([...slotEdits, { days: [], start: '', end: '' }])}
         style={{ marginTop: 4 }}
       >
         + Add Shift
