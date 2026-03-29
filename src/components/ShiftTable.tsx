@@ -188,30 +188,33 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
       const firstName = p.name.split(' ')[0].toLowerCase().trim();
       if (!nameToId.has(firstName)) nameToId.set(firstName, p.id);
     });
+    // Filter orders to last 3 months for revenue sorting
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    const cutoff = threeMonthsAgo.toISOString().split('T')[0];
     for (const o of orders) {
       const net = (o.amountAed ?? 0) - (o.paidAmountAed ?? 0);
       const wh = (o.warehouse ?? '').toLowerCase().trim();
       const pl = (o.platform ?? '').toLowerCase().trim();
       const code = whToCode.get(wh) ?? whToCode.get(pl);
-      if (code) storeRevenueMap.set(code, (storeRevenueMap.get(code) ?? 0) + net);
-      if (o.salesperson) {
-        const pid = nameToId.get(o.salesperson.toLowerCase().trim())
-                 ?? nameToId.get(o.salesperson.split(' ')[0].toLowerCase().trim());
-        if (pid) promoterRevenueMap.set(pid, (promoterRevenueMap.get(pid) ?? 0) + net);
+      // Only count last 3 months for store/promoter revenue
+      if (o.date >= cutoff) {
+        if (code) storeRevenueMap.set(code, (storeRevenueMap.get(code) ?? 0) + net);
+        if (o.salesperson) {
+          const pid = nameToId.get(o.salesperson.toLowerCase().trim())
+                   ?? nameToId.get(o.salesperson.split(' ')[0].toLowerCase().trim());
+          if (pid) promoterRevenueMap.set(pid, (promoterRevenueMap.get(pid) ?? 0) + net);
+        }
       }
     }
   }
 
-  // Sort stores by net revenue descending
+  // Sort stores by net revenue (last 3 months) descending
   const filteredStores = stores.filter(s =>
     !hiddenStoreIds.has(s.id) &&
     (!hideEmptyStores || storesWithAssignments.has(s.id))
   );
-  const TIER_ORDER: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
   const visibleStores = [...filteredStores].sort((a, b) => {
-    const ta = TIER_ORDER[tierMap.get(a.code) ?? 'D'] ?? 3;
-    const tb = TIER_ORDER[tierMap.get(b.code) ?? 'D'] ?? 3;
-    if (ta !== tb) return ta - tb;
     const ra = storeRevenueMap.get(a.code) ?? -Infinity;
     const rb = storeRevenueMap.get(b.code) ?? -Infinity;
     return rb - ra;
