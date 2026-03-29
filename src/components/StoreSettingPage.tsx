@@ -183,11 +183,10 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
     return { days: [], start: '', end: '' };
   };
 
-  // Serialize { days, start, end } back to string
+  // Serialize { days, start, end } back to string (only used on save)
   const serializeSlot = (days: string[], start: string, end: string): string => {
     if (!start || !end) return '';
     if (days.length === 0) return `${start}-${end}`;
-    // Try to make a compact range if consecutive
     const indices = days.map(d => (SLOT_DAYS as readonly string[]).indexOf(d)).sort((a, b) => a - b);
     let isConsecutive = true;
     for (let k = 1; k < indices.length; k++) {
@@ -199,10 +198,29 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
     return `${days.join(',')} ${start}-${end}`;
   };
 
-  const updateSlot = (idx: number, days: string[], start: string, end: string) => {
-    const next = [...form.shiftSlots];
-    next[idx] = serializeSlot(days, start, end);
-    setForm({ ...form, shiftSlots: next });
+  // Structured editing state: each slot stored as { days, start, end } to avoid roundtrip bugs
+  type SlotEdit = { days: string[]; start: string; end: string };
+  const [slotEdits, setSlotEdits] = useState<SlotEdit[]>(() =>
+    form.shiftSlots.map(s => parseSlot(s))
+  );
+
+  // Sync slotEdits when form.shiftSlots changes (e.g., opening a different store)
+  const prevSlotsRef = useRef(form.shiftSlots);
+  if (form.shiftSlots !== prevSlotsRef.current) {
+    prevSlotsRef.current = form.shiftSlots;
+    setSlotEdits(form.shiftSlots.map(s => parseSlot(s)));
+  }
+
+  // Write slotEdits back to form.shiftSlots (serialized) whenever slotEdits changes
+  const syncSlotsToForm = (edits: SlotEdit[]) => {
+    setSlotEdits(edits);
+    setForm(f => ({ ...f, shiftSlots: edits.map(e => serializeSlot(e.days, e.start, e.end)) }));
+  };
+
+  const formatTime = (v: string) => {
+    v = v.replace(/[^\d:]/g, '');
+    if (v.length === 4 && !v.includes(':')) v = v.slice(0, 2) + ':' + v.slice(2);
+    return v;
   };
 
   const renderShiftSlotsEditor = () => (
@@ -211,21 +229,21 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
       <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, lineHeight: 1.4 }}>
         เลือกวัน + เวลาเข้า-ออก กะ, ถ้าไม่เลือกวัน = ใช้ทุกวัน
       </div>
-      {form.shiftSlots.map((slot, i) => {
-        const parsed = parseSlot(slot);
-        return (
+      {slotEdits.map((slot, i) => (
           <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start', padding: '8px 10px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb' }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap' }}>
                 {SLOT_DAYS.map(d => {
-                  const active = parsed.days.includes(d);
+                  const active = slot.days.includes(d);
                   return (
                     <button
                       key={d}
                       type="button"
                       onClick={() => {
-                        const next = active ? parsed.days.filter(x => x !== d) : [...parsed.days, d];
-                        updateSlot(i, next, parsed.start, parsed.end);
+                        const nextDays = active ? slot.days.filter(x => x !== d) : [...slot.days, d];
+                        const next = [...slotEdits];
+                        next[i] = { ...slot, days: nextDays };
+                        syncSlotsToForm(next);
                       }}
                       style={{
                         fontSize: 10, padding: '2px 6px', borderRadius: 4, border: '1px solid',
@@ -239,19 +257,18 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
                     </button>
                   );
                 })}
-                {parsed.days.length === 0 && <span style={{ fontSize: 10, color: '#9ca3af', alignSelf: 'center', marginLeft: 4 }}>ทุกวัน</span>}
+                {slot.days.length === 0 && <span style={{ fontSize: 10, color: '#9ca3af', alignSelf: 'center', marginLeft: 4 }}>ทุกวัน</span>}
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <input
                   type="text"
                   className="form-input"
                   placeholder="10:00"
-                  value={parsed.start}
+                  value={slot.start}
                   onChange={(e) => {
-                    let v = e.target.value.replace(/[^\d:]/g, '');
-                    // Auto-insert colon: "1000" → "10:00"
-                    if (v.length === 4 && !v.includes(':')) v = v.slice(0, 2) + ':' + v.slice(2);
-                    updateSlot(i, parsed.days, v, parsed.end);
+                    const next = [...slotEdits];
+                    next[i] = { ...slot, start: formatTime(e.target.value) };
+                    syncSlotsToForm(next);
                   }}
                   style={{ width: 80, fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}
                   maxLength={5}
@@ -261,11 +278,11 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
                   type="text"
                   className="form-input"
                   placeholder="19:00"
-                  value={parsed.end}
+                  value={slot.end}
                   onChange={(e) => {
-                    let v = e.target.value.replace(/[^\d:]/g, '');
-                    if (v.length === 4 && !v.includes(':')) v = v.slice(0, 2) + ':' + v.slice(2);
-                    updateSlot(i, parsed.days, parsed.start, v);
+                    const next = [...slotEdits];
+                    next[i] = { ...slot, end: formatTime(e.target.value) };
+                    syncSlotsToForm(next);
                   }}
                   style={{ width: 80, fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}
                   maxLength={5}
@@ -275,18 +292,17 @@ const StoreSettingPage = ({ stores, promoters = [], storePreferences = [], onSto
             <button
               type="button"
               className="btn btn-small btn-danger-ghost"
-              onClick={() => setForm({ ...form, shiftSlots: form.shiftSlots.filter((_, j) => j !== i) })}
+              onClick={() => syncSlotsToForm(slotEdits.filter((_, j) => j !== i))}
               style={{ marginTop: 4 }}
             >
               ×
             </button>
           </div>
-        );
-      })}
+      ))}
       <button
         type="button"
         className="btn btn-small btn-ghost"
-        onClick={() => setForm({ ...form, shiftSlots: [...form.shiftSlots, ''] })}
+        onClick={() => syncSlotsToForm([...slotEdits, { days: [], start: '', end: '' }])}
         style={{ marginTop: 4 }}
       >
         + Add Shift
