@@ -123,6 +123,7 @@ interface Props {
   promoterConflicts: PromoterConflict[];
   storeTiers: StoreTierSetting[];
   gradeOverrides: PromoterGradeOverride[];
+  existingShifts?: Shift[];
   onShiftsApply: (shifts: Shift[]) => void;
 }
 
@@ -294,7 +295,7 @@ function buildContext(
 // ── component ──────────────────────────────────────────────────────────────
 export default function AutoAssignPage({
   stores, promoters, storePreferences, promoterConflicts,
-  storeTiers, gradeOverrides, onShiftsApply,
+  storeTiers, gradeOverrides, existingShifts = [], onShiftsApply,
 }: Props) {
   const today = todayStr();
   const [startDate, setStartDate] = useState(addDays(today, 1));
@@ -499,8 +500,20 @@ export default function AutoAssignPage({
   }
 
   // ── apply to main ─────────────────────────────────────────────────────
+  type ConflictInfo = {
+    promoterName: string;
+    date: string;
+    existingStore: string;
+    existingTime?: string;
+    newStore: string;
+    newTime?: string;
+  };
+  const [applyConflicts, setApplyConflicts] = useState<ConflictInfo[]>([]);
+  const [showApplyConfirm, setShowApplyConfirm] = useState(false);
+  const [pendingShifts, setPendingShifts] = useState<Shift[]>([]);
+
   function applyDraft() {
-    const shifts: Shift[] = draft
+    const newShifts: Shift[] = draft
       .filter((a) => a.store && a.store !== 'Off')
       .map((a) => ({
         id: `aa_${a.promoterId}_${a.date}`,
@@ -509,7 +522,44 @@ export default function AutoAssignPage({
         type: a.store,
         timeRange: a.timeRange,
       }));
-    onShiftsApply(shifts);
+
+    // Detect conflicts with existing shifts
+    const conflicts: ConflictInfo[] = [];
+    const promoterMap = new Map(promoters.map(p => [p.id, p.name]));
+    for (const ns of newShifts) {
+      const existing = existingShifts.find(
+        s => s.promoterId === ns.promoterId && s.date === ns.date
+      );
+      if (existing && existing.type !== ns.type) {
+        conflicts.push({
+          promoterName: promoterMap.get(ns.promoterId) ?? ns.promoterId,
+          date: ns.date,
+          existingStore: existing.type,
+          existingTime: existing.timeRange,
+          newStore: ns.type,
+          newTime: ns.timeRange,
+        });
+      }
+    }
+
+    if (conflicts.length > 0) {
+      setApplyConflicts(conflicts);
+      setPendingShifts(newShifts);
+      setShowApplyConfirm(true);
+    } else {
+      onShiftsApply(newShifts);
+      setApplied(true);
+    }
+  }
+
+  const [applied, setApplied] = useState(false);
+
+  function confirmApply() {
+    onShiftsApply(pendingShifts);
+    setShowApplyConfirm(false);
+    setApplyConflicts([]);
+    setPendingShifts([]);
+    setApplied(true);
   }
 
   // ── draft ↔ Shift[] conversion ────────────────────────────────────────
@@ -715,9 +765,13 @@ export default function AutoAssignPage({
           </div>
 
           {draft.length > 0 && (
-            <button className="aa-btn-apply" onClick={applyDraft}>
-              Apply to Shift Table →
-            </button>
+            applied ? (
+              <div className="save-status-ok" style={{ padding: '10px 18px', fontSize: 14 }}>✓ Applied to Shift Table</div>
+            ) : (
+              <button className="aa-btn-apply" onClick={applyDraft}>
+                Apply to Shift Table →
+              </button>
+            )
           )}
         </div>
 
@@ -807,6 +861,7 @@ export default function AutoAssignPage({
             shifts={draftShifts}
             storeCounts={draftStoreCounts}
             dates={dates}
+            orders={orders}
             onShiftChange={handleDraftShiftChange}
             revenueForecast={revenueForecast}
             storeTiers={storeTiers}
@@ -816,6 +871,61 @@ export default function AutoAssignPage({
           />
         )}
       </div>
+
+      {/* Conflict confirmation dialog */}
+      {showApplyConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 24, maxWidth: 700, maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, color: '#dc2626' }}>⚠ พบความขัดแย้งกับ Shift Table ปัจจุบัน ({applyConflicts.length} รายการ)</h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
+              Auto Assign จะเขียนทับ shift เดิม — กรุณาตรวจสอบก่อนยืนยัน
+            </p>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
+                  <th style={{ padding: '8px 6px' }}>Promoter</th>
+                  <th style={{ padding: '8px 6px' }}>Date</th>
+                  <th style={{ padding: '8px 6px', color: '#dc2626' }}>Existing</th>
+                  <th style={{ padding: '8px 6px' }}>→</th>
+                  <th style={{ padding: '8px 6px', color: '#16a34a' }}>Auto Assign</th>
+                </tr>
+              </thead>
+              <tbody>
+                {applyConflicts.slice(0, 50).map((c, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px' }}>{c.promoterName}</td>
+                    <td style={{ padding: '6px' }}>{c.date}</td>
+                    <td style={{ padding: '6px', background: '#fef2f2' }}>
+                      <strong>{c.existingStore}</strong>{c.existingTime ? ` ${c.existingTime}` : ''}
+                    </td>
+                    <td style={{ padding: '6px', textAlign: 'center' }}>→</td>
+                    <td style={{ padding: '6px', background: '#f0fdf4' }}>
+                      <strong>{c.newStore}</strong>{c.newTime ? ` ${c.newTime}` : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {applyConflicts.length > 50 && (
+              <p style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>...และอีก {applyConflicts.length - 50} รายการ</p>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => { setShowApplyConfirm(false); setApplyConflicts([]); setPendingShifts([]); }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={confirmApply}
+              >
+                ยืนยัน — เขียนทับ {applyConflicts.length} shift
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
