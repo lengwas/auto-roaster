@@ -168,8 +168,9 @@ function App() {
             storeTiers={storeTiers}
             gradeOverrides={gradeOverrides}
             existingShifts={shifts}
-            onShiftsApply={(newShifts) => {
-              newShifts.forEach((s) => saveShift(s.promoterId, s.date, s.type, s.timeRange));
+            onShiftsApply={async (newShifts) => {
+              await Promise.all(newShifts.map((s) => saveShift(s.promoterId, s.date, s.type, s.timeRange)));
+              setActiveTab('shift');
             }}
           />
         )}
