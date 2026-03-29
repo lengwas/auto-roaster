@@ -32,20 +32,19 @@ export function usePromoters() {
   }, []);
 
   async function savePromoter(p: Promoter): Promise<string | null> {
-    const { error } = await supabase
-      .from('promoters')
-      .update({ active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays, role: p.role })
-      .eq('id', p.id);
-    if (error) {
-      console.warn('Save with role failed, retrying without role:', error.message);
-      // Fallback: save without role column (in case the column doesn't exist yet)
-      const { error: error2 } = await supabase
-        .from('promoters')
-        .update({ active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays })
-        .eq('id', p.id);
-      if (error2) {
-        console.error('Failed to save promoter:', error2);
-        return error2.message;
+    // Try with all columns, then progressively remove optional ones
+    const payloads: Record<string, unknown>[] = [
+      { active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays, role: p.role },
+      { active: p.active, name: p.name, day_off: p.workingDays, role: p.role },
+      { active: p.active, name: p.name, day_off: p.workingDays },
+    ];
+    for (let i = 0; i < payloads.length; i++) {
+      const { error } = await supabase.from('promoters').update(payloads[i]).eq('id', p.id);
+      if (!error) return null;
+      console.warn(`Save attempt ${i + 1} failed:`, error.message);
+      if (i === payloads.length - 1) {
+        console.error('All save attempts failed for promoter:', p.id);
+        return error.message;
       }
     }
     return null;
