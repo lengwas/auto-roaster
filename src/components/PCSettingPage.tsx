@@ -246,7 +246,7 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
             {prefSaved && <span className="save-status-ok">✓ Preference saved</span>}
             {saveStatus === 'saved' && <span className="save-status-ok">✓ Saved</span>}
             {saveStatus === 'error' && (
-              <span className="save-status-err" title={saveError ?? ''}>⚠ Save failed</span>
+              <span className="save-status-err">⚠ Save failed: {saveError}</span>
             )}
             {(saveStatus === 'idle' || saveStatus === 'error') && (
               <button

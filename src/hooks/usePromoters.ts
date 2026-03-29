@@ -39,12 +39,31 @@ export function usePromoters() {
       { active: p.active, name: p.name, day_off: p.workingDays },
     ];
     for (let i = 0; i < payloads.length; i++) {
-      const { error } = await supabase.from('promoters').update(payloads[i]).eq('id', p.id);
-      if (!error) return null;
-      console.warn(`Save attempt ${i + 1} failed:`, error.message);
+      const { error, count } = await supabase
+        .from('promoters')
+        .update(payloads[i], { count: 'exact' })
+        .eq('id', p.id);
+      if (!error) {
+        if (count === 0) {
+          console.warn(`Save attempt ${i + 1}: 0 rows updated for id=${p.id} (RLS or id mismatch)`);
+          // Try with numeric id in case the column is integer
+          const numericId = Number(p.id);
+          if (!isNaN(numericId)) {
+            const { error: e2 } = await supabase
+              .from('promoters')
+              .update(payloads[i])
+              .eq('id', numericId);
+            if (!e2) return null;
+          }
+          if (i === payloads.length - 1) return `No rows updated for ${p.name} (check RLS policies)`;
+          continue;
+        }
+        return null;
+      }
+      console.warn(`Save attempt ${i + 1} failed:`, error.message, error.code, error.details);
       if (i === payloads.length - 1) {
-        console.error('All save attempts failed for promoter:', p.id);
-        return error.message;
+        console.error('All save attempts failed for promoter:', p.id, p.name);
+        return `${error.message} (${error.code})`;
       }
     }
     return null;
