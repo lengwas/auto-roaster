@@ -240,21 +240,28 @@ export function runOptimizer(
     storePerfAvg.set(sc, scores.reduce((a, b) => a + b, 0) / scores.length);
   }
 
-  // Build storeAvgMap: use actual net revenue (normalized to daily) as primary,
-  // fall back to perf-matrix average if no order data
+  // Build storeAvgMap: use actual net revenue (normalized) as primary fallback.
+  // Stores with zero/no revenue get near-zero score so they're deprioritized.
   const storeAvgMap = new Map<string, number>();
+  const allValues = [...perfMatrix.values()];
+  const globalMean = allValues.length > 0
+    ? allValues.reduce((a, b) => a + b, 0) / allValues.length
+    : 500;
+  const globalFallback = globalMean * 0.4;
+  const prefBonus = globalMean * 0.25;
+
   if (storeNetRevenue && storeNetRevenue.size > 0) {
-    // Normalize total 3-month revenue to daily average (~90 days)
     const maxRev = Math.max(...storeNetRevenue.values());
+    const perfMax = storePerfAvg.size > 0 ? Math.max(...storePerfAvg.values()) : globalMean;
     for (const s of activeStores) {
       const rev = storeNetRevenue.get(s.code);
-      if (rev != null && maxRev > 0) {
-        // Scale to be comparable with perf matrix values (daily revenue range)
-        const perfMax = storePerfAvg.size > 0 ? Math.max(...storePerfAvg.values()) : 1000;
+      if (rev != null && rev > 0 && maxRev > 0) {
+        // Scale proportionally: top store → perfMax, zero → near zero
         storeAvgMap.set(s.code, (rev / maxRev) * perfMax);
       } else {
-        const pa = storePerfAvg.get(s.code);
-        if (pa != null) storeAvgMap.set(s.code, pa);
+        // No revenue or zero revenue → very low score (1% of globalMean)
+        // so optimizer avoids sending people to stores with no sales
+        storeAvgMap.set(s.code, globalMean * 0.01);
       }
     }
   } else {
@@ -262,13 +269,6 @@ export function runOptimizer(
       storeAvgMap.set(sc, avg);
     }
   }
-
-  const allValues = [...perfMatrix.values()];
-  const globalMean = allValues.length > 0
-    ? allValues.reduce((a, b) => a + b, 0) / allValues.length
-    : 500;
-  const globalFallback = globalMean * 0.4;
-  const prefBonus = globalMean * 0.25;
 
   const assignments: DraftAssignment[] = [];
   const dailySummary: DaySummary[] = [];
