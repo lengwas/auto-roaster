@@ -77,6 +77,32 @@ function buildPerfMatrix(
   return result;
 }
 
+// Build storeCode → total net revenue (amount - pmgw) from orders
+function buildStoreNetRevenue(
+  orders: Order[],
+  stores: Store[],
+): Map<string, number> {
+  const excluded = new Set(['cancelled', 'returned']);
+  const whMap = new Map<string, string>(
+    Object.entries(WAREHOUSE_CODE_MAP)
+  );
+  for (const s of stores) {
+    if (s.warehouse) whMap.set(s.warehouse.toLowerCase(), s.code);
+    if (s.platform) whMap.set(s.platform.toLowerCase(), s.code);
+    whMap.set(s.code.toLowerCase(), s.code);
+  }
+  const rev = new Map<string, number>();
+  for (const o of orders) {
+    if (excluded.has(o.status.toLowerCase())) continue;
+    const net = (o.amountAed ?? 0) - (o.paidAmountAed ?? 0);
+    const wh = (o.warehouse ?? '').toLowerCase().trim();
+    const pl = (o.platform ?? '').toLowerCase().trim();
+    const sc = whMap.get(wh) ?? whMap.get(pl);
+    if (sc) rev.set(sc, (rev.get(sc) ?? 0) + net);
+  }
+  return rev;
+}
+
 interface DraftAssignment {
   promoterId: string;
   date: string;
@@ -438,7 +464,7 @@ export default function AutoAssignPage({
       const extra = loadConstraints(parsedConstraints as OptimizerParsedConstraints | null);
       const result = runOptimizer(
         dates, promoters, stores, storePreferences, promoterConflicts,
-        perfMatrix, extra,
+        perfMatrix, extra, storeNetRev,
       );
       const mapped: DraftAssignment[] = result.assignments.map(a => ({
         promoterId: a.promoterId,
@@ -617,6 +643,10 @@ export default function AutoAssignPage({
   const perfMatrix = useMemo(
     () => buildPerfMatrix(orders, promoters, stores),
     [orders, promoters, stores],
+  );
+  const storeNetRev = useMemo(
+    () => buildStoreNetRevenue(orders, stores),
+    [orders, stores],
   );
 
   // For each day in draft, sum expected revenue of assigned (promoter, store) pairs

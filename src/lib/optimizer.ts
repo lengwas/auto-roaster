@@ -188,6 +188,7 @@ export function runOptimizer(
   conflicts: PromoterConflict[],
   perfMatrix: Map<string, number>,   // `${promoterId}_${storeCode}` → avg daily revenue
   extra: InternalConstraints,
+  storeNetRevenue?: Map<string, number>, // storeCode → total net revenue (amount - pmgw, last 3 months)
 ): OptimizerResult {
   const activePromoters = promoters.filter(p => p.active);
   const activeStores = stores.filter(s => s.active);
@@ -227,16 +228,39 @@ export function runOptimizer(
   // Conflict pairs
   const conflictPairs: [string, string][] = conflicts.map(c => [c.promoterAId, c.promoterBId]);
 
-  // Compute store-level average revenue for smarter fallback
+  // Compute store-level average from perf matrix
   const storeScores = new Map<string, number[]>();
   for (const [key, val] of perfMatrix) {
     const sc = key.split('_')[1];
     if (!storeScores.has(sc)) storeScores.set(sc, []);
     storeScores.get(sc)!.push(val);
   }
-  const storeAvgMap = new Map<string, number>();
+  const storePerfAvg = new Map<string, number>();
   for (const [sc, scores] of storeScores) {
-    storeAvgMap.set(sc, scores.reduce((a, b) => a + b, 0) / scores.length);
+    storePerfAvg.set(sc, scores.reduce((a, b) => a + b, 0) / scores.length);
+  }
+
+  // Build storeAvgMap: use actual net revenue (normalized to daily) as primary,
+  // fall back to perf-matrix average if no order data
+  const storeAvgMap = new Map<string, number>();
+  if (storeNetRevenue && storeNetRevenue.size > 0) {
+    // Normalize total 3-month revenue to daily average (~90 days)
+    const maxRev = Math.max(...storeNetRevenue.values());
+    for (const s of activeStores) {
+      const rev = storeNetRevenue.get(s.code);
+      if (rev != null && maxRev > 0) {
+        // Scale to be comparable with perf matrix values (daily revenue range)
+        const perfMax = storePerfAvg.size > 0 ? Math.max(...storePerfAvg.values()) : 1000;
+        storeAvgMap.set(s.code, (rev / maxRev) * perfMax);
+      } else {
+        const pa = storePerfAvg.get(s.code);
+        if (pa != null) storeAvgMap.set(s.code, pa);
+      }
+    }
+  } else {
+    for (const [sc, avg] of storePerfAvg) {
+      storeAvgMap.set(sc, avg);
+    }
   }
 
   const allValues = [...perfMatrix.values()];
