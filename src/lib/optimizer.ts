@@ -395,19 +395,24 @@ export function runOptimizer(
     }
 
     // Reassign remaining Off promoters to best available store by revenue
-    // (working day but no slot in must store → send to highest-revenue alternative)
-    // Build current count map for capacity checking
+    // Sort by overall performance (best first) so top promoters get first pick of stores
     const curCount = new Map<string, number>();
     for (const sc of dayMap.values()) {
       if (sc !== 'Off') curCount.set(sc, (curCount.get(sc) ?? 0) + 1);
     }
-    // Build capacity map
     const capMap = new Map<string, number>();
     for (const s of activeStores) {
       capMap.set(s.code, Math.max(1, s.maxCapacity ?? 1));
     }
-    for (const p of working) {
-      if (dayMap.get(p.id) !== 'Off') continue;
+    // Sort Off promoters by their overall perf score (best first → best stores)
+    const offPromoters = working
+      .filter(p => dayMap.get(p.id) === 'Off')
+      .sort((a, b) => {
+        const scoreA = Math.max(...activeStores.map(s => perfMatrix.get(`${a.id}_${s.code}`) ?? 0));
+        const scoreB = Math.max(...activeStores.map(s => perfMatrix.get(`${b.id}_${s.code}`) ?? 0));
+        return scoreB - scoreA;
+      });
+    for (const p of offPromoters) {
       // Find best store: not banned, not full, check conflicts, pick highest revenue
       let bestStore = '';
       let bestScore = -Infinity;

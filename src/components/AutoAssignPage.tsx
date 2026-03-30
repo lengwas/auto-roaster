@@ -501,6 +501,8 @@ export default function AutoAssignPage({
 
   // ── apply to main ─────────────────────────────────────────────────────
   type ConflictInfo = {
+    key: string; // `${promoterId}_${date}` for toggling
+    promoterId: string;
     promoterName: string;
     date: string;
     existingStore: string;
@@ -511,6 +513,8 @@ export default function AutoAssignPage({
   const [applyConflicts, setApplyConflicts] = useState<ConflictInfo[]>([]);
   const [showApplyConfirm, setShowApplyConfirm] = useState(false);
   const [pendingShifts, setPendingShifts] = useState<Shift[]>([]);
+  // Set of conflict keys where we KEEP existing (skip auto-assign)
+  const [keepExisting, setKeepExisting] = useState<Set<string>>(new Set());
 
   function applyDraft() {
     const newShifts: Shift[] = draft
@@ -531,7 +535,10 @@ export default function AutoAssignPage({
         s => s.promoterId === ns.promoterId && s.date === ns.date
       );
       if (existing && existing.type !== ns.type) {
+        const key = `${ns.promoterId}_${ns.date}`;
         conflicts.push({
+          key,
+          promoterId: ns.promoterId,
           promoterName: promoterMap.get(ns.promoterId) ?? ns.promoterId,
           date: ns.date,
           existingStore: existing.type,
@@ -545,6 +552,7 @@ export default function AutoAssignPage({
     if (conflicts.length > 0) {
       setApplyConflicts(conflicts);
       setPendingShifts(newShifts);
+      setKeepExisting(new Set());
       setShowApplyConfirm(true);
     } else {
       onShiftsApply(newShifts);
@@ -554,11 +562,22 @@ export default function AutoAssignPage({
 
   const [applied, setApplied] = useState(false);
 
+  function toggleKeep(key: string) {
+    setKeepExisting(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
   function confirmApply() {
-    onShiftsApply(pendingShifts);
+    // Filter out shifts that the user chose to keep existing
+    const filtered = pendingShifts.filter(s => !keepExisting.has(`${s.promoterId}_${s.date}`));
+    onShiftsApply(filtered);
     setShowApplyConfirm(false);
     setApplyConflicts([]);
     setPendingShifts([]);
+    setKeepExisting(new Set());
     setApplied(true);
   }
 
@@ -875,53 +894,100 @@ export default function AutoAssignPage({
       {/* Conflict confirmation dialog */}
       {showApplyConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 24, maxWidth: 700, maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 24, maxWidth: 750, maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <h3 style={{ margin: '0 0 8px', fontSize: 18, color: '#dc2626' }}>⚠ พบความขัดแย้งกับ Shift Table ปัจจุบัน ({applyConflicts.length} รายการ)</h3>
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
-              Auto Assign จะเขียนทับ shift เดิม — กรุณาตรวจสอบก่อนยืนยัน
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#6b7280' }}>
+              เลือกทีละรายการ หรือกดปุ่มด้านล่างเพื่อเลือกทั้งหมด
             </p>
+            {/* Bulk buttons */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button
+                className="btn btn-small"
+                style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #86efac' }}
+                onClick={() => setKeepExisting(new Set())}
+              >
+                ใช้ Auto Assign ทั้งหมด
+              </button>
+              <button
+                className="btn btn-small"
+                style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}
+                onClick={() => setKeepExisting(new Set(applyConflicts.map(c => c.key)))}
+              >
+                Keep เดิมทั้งหมด
+              </button>
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
                   <th style={{ padding: '8px 6px' }}>Promoter</th>
                   <th style={{ padding: '8px 6px' }}>Date</th>
-                  <th style={{ padding: '8px 6px', color: '#dc2626' }}>Existing</th>
-                  <th style={{ padding: '8px 6px' }}>→</th>
-                  <th style={{ padding: '8px 6px', color: '#16a34a' }}>Auto Assign</th>
+                  <th style={{ padding: '8px 6px' }}>Existing</th>
+                  <th style={{ padding: '8px 6px' }}></th>
+                  <th style={{ padding: '8px 6px' }}>Auto Assign</th>
+                  <th style={{ padding: '8px 6px', textAlign: 'center' }}>เลือก</th>
                 </tr>
               </thead>
               <tbody>
-                {applyConflicts.slice(0, 50).map((c, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '6px' }}>{c.promoterName}</td>
-                    <td style={{ padding: '6px' }}>{c.date}</td>
-                    <td style={{ padding: '6px', background: '#fef2f2' }}>
-                      <strong>{c.existingStore}</strong>{c.existingTime ? ` ${c.existingTime}` : ''}
-                    </td>
-                    <td style={{ padding: '6px', textAlign: 'center' }}>→</td>
-                    <td style={{ padding: '6px', background: '#f0fdf4' }}>
-                      <strong>{c.newStore}</strong>{c.newTime ? ` ${c.newTime}` : ''}
-                    </td>
-                  </tr>
-                ))}
+                {applyConflicts.map((c) => {
+                  const isKeep = keepExisting.has(c.key);
+                  return (
+                    <tr key={c.key} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '6px', fontWeight: 600 }}>{c.promoterName}</td>
+                      <td style={{ padding: '6px' }}>{c.date}</td>
+                      <td style={{
+                        padding: '6px',
+                        background: isKeep ? '#dcfce7' : '#f9fafb',
+                        fontWeight: isKeep ? 700 : 400,
+                        borderRadius: 4,
+                      }}>
+                        <strong>{c.existingStore}</strong>{c.existingTime ? ` ${c.existingTime}` : ''}
+                      </td>
+                      <td style={{ padding: '6px', textAlign: 'center', color: '#9ca3af' }}>→</td>
+                      <td style={{
+                        padding: '6px',
+                        background: !isKeep ? '#dcfce7' : '#f9fafb',
+                        fontWeight: !isKeep ? 700 : 400,
+                        borderRadius: 4,
+                      }}>
+                        <strong>{c.newStore}</strong>{c.newTime ? ` ${c.newTime}` : ''}
+                      </td>
+                      <td style={{ padding: '6px', textAlign: 'center' }}>
+                        <button
+                          className="btn btn-small"
+                          style={{
+                            fontSize: 11, padding: '3px 8px',
+                            background: isKeep ? '#fef2f2' : '#f0fdf4',
+                            color: isKeep ? '#dc2626' : '#16a34a',
+                            border: `1px solid ${isKeep ? '#fca5a5' : '#86efac'}`,
+                          }}
+                          onClick={() => toggleKeep(c.key)}
+                        >
+                          {isKeep ? 'Keep เดิม' : 'ใช้ใหม่'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-            {applyConflicts.length > 50 && (
-              <p style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>...และอีก {applyConflicts.length - 50} รายการ</p>
-            )}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button
-                className="btn btn-ghost"
-                onClick={() => { setShowApplyConfirm(false); setApplyConflicts([]); setPendingShifts([]); }}
-              >
-                ยกเลิก
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={confirmApply}
-              >
-                ยืนยัน — เขียนทับ {applyConflicts.length} shift
-              </button>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+              <span style={{ fontSize: 12, color: '#6b7280' }}>
+                จะเขียนทับ {applyConflicts.length - keepExisting.size} / {applyConflicts.length} รายการ, keep เดิม {keepExisting.size} รายการ
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => { setShowApplyConfirm(false); setApplyConflicts([]); setPendingShifts([]); setKeepExisting(new Set()); }}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={confirmApply}
+                >
+                  ยืนยัน Apply
+                </button>
+              </div>
             </div>
           </div>
         </div>
