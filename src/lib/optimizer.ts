@@ -215,13 +215,16 @@ export function runOptimizer(
     map.get(pref.promoterId)!.add(pref.storeCode);
   }
 
-  // Admin → AIR only
+  // Admin → AIR only, non-admin → ban AIR
   for (const p of activePromoters) {
     if (p.role === 'admin') {
       mustMap.set(p.id, new Set(['AIR']));
       const banned = new Set(allStoreCodes);
       banned.delete('AIR');
       bannedMap.set(p.id, banned);
+    } else {
+      if (!bannedMap.has(p.id)) bannedMap.set(p.id, new Set());
+      bannedMap.get(p.id)!.add('AIR');
     }
   }
 
