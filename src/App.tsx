@@ -14,7 +14,7 @@ import { useConflicts } from './hooks/useConflicts';
 import { useStorePreferences } from './hooks/useStorePreferences';
 import { useShifts } from './hooks/useShifts';
 import { useOrders } from './hooks/useOrders';
-import type { StoreTierSetting, PromoterGradeOverride } from './types/types';
+import type { StoreTierSetting, PromoterGradeOverride, Country } from './types/types';
 import './App.css';
 
 type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'auto-assign' | 'db-schema';
@@ -28,16 +28,31 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'db-schema', label: 'Database' },
 ];
 
+const COUNTRIES: { code: Country; label: string; flag: string }[] = [
+  { code: 'UAE', label: 'UAE', flag: '🇦🇪' },
+  { code: 'QA', label: 'Qatar', flag: '🇶🇦' },
+];
+
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('shift');
-  const { stores, setStores, saveStore, deleteStore } = useStores();
-  const { promoters, setPromoters, savePromoter, insertPromoter } = usePromoters();
-  const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates();
+  const [country, setCountry] = useState<Country>(() =>
+    (localStorage.getItem('country') as Country) || 'UAE'
+  );
+  const handleCountryChange = (c: Country) => {
+    setCountry(c);
+    localStorage.setItem('country', c);
+    setStoreTiers([]);
+    setGradeOverrides([]);
+  };
+
+  const { stores, setStores, saveStore, deleteStore } = useStores(country);
+  const { promoters, setPromoters, savePromoter, insertPromoter } = usePromoters(country);
+  const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates(country);
   const [showExport, setShowExport] = useState(false);
-  const { shifts, saveShift, error: shiftsError, earliestDate } = useShifts();
+  const { shifts, saveShift, error: shiftsError, earliestDate } = useShifts(country);
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores);
-  const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts();
-  const { orders } = useOrders();
+  const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts(country);
+  const { orders } = useOrders(6, country);
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
   const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
 
@@ -65,7 +80,29 @@ function App() {
     <div className="app-layout">
       <header className="app-header">
         <div className="header-left">
-          <h1 className="app-title">UAE PC Shift Table</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h1 className="app-title">PC Shift Table</h1>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {COUNTRIES.map(c => (
+                <button
+                  key={c.code}
+                  onClick={() => handleCountryChange(c.code)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: 6,
+                    border: country === c.code ? '2px solid #6366f1' : '1px solid #d1d5db',
+                    background: country === c.code ? '#eef2ff' : 'white',
+                    fontWeight: country === c.code ? 700 : 400,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    color: country === c.code ? '#4338ca' : '#6b7280',
+                  }}
+                >
+                  {c.flag} {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <p className="app-subtitle">Shift Assignment & Store Allocation</p>
         </div>
         <div className="header-right">
@@ -168,6 +205,7 @@ function App() {
             storeTiers={storeTiers}
             gradeOverrides={gradeOverrides}
             existingShifts={shifts}
+            country={country}
             onShiftsApply={async (newShifts) => {
               await Promise.all(newShifts.map((s) => saveShift(s.promoterId, s.date, s.type, s.timeRange)));
               setActiveTab('shift');

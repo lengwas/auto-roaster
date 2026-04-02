@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { SpecialDate } from '../types/types';
+import type { SpecialDate, Country } from '../types/types';
 
 function mapRow(row: Record<string, unknown>): SpecialDate {
   return {
@@ -11,25 +11,25 @@ function mapRow(row: Record<string, unknown>): SpecialDate {
   };
 }
 
-export function useSpecialDates() {
+export function useSpecialDates(country: Country = 'UAE') {
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
 
-  const fetch = () => {
+  useEffect(() => {
     supabase
       .from('special_dates')
       .select('*')
+      .eq('country', country)
       .order('date')
       .then(({ data, error }) => {
         if (!error && data) setSpecialDates(data.map(mapRow));
+        else setSpecialDates([]);
       });
-  };
-
-  useEffect(() => { fetch(); }, []);
+  }, [country]);
 
   const upsert = async (date: string, label: string, color: string) => {
     const { data, error } = await supabase
       .from('special_dates')
-      .upsert({ date, label, color }, { onConflict: 'date' })
+      .upsert({ date, label, color, country }, { onConflict: 'date,country' })
       .select()
       .single();
     if (!error && data) {
@@ -45,7 +45,8 @@ export function useSpecialDates() {
     const { error } = await supabase
       .from('special_dates')
       .delete()
-      .eq('date', date);
+      .eq('date', date)
+      .eq('country', country);
     if (!error) {
       setSpecialDates(prev => prev.filter(d => d.date !== date));
     }

@@ -3,6 +3,7 @@ import type {
   Store, Promoter, Shift, Order,
   StorePreference, PromoterConflict,
   StoreTierSetting, PromoterGradeOverride,
+  Country,
 } from '../types/types';
 import ShiftTable from './ShiftTable';
 import { generateStoreCounts } from '../data/mockData';
@@ -150,6 +151,7 @@ interface Props {
   storeTiers: StoreTierSetting[];
   gradeOverrides: PromoterGradeOverride[];
   existingShifts?: Shift[];
+  country?: Country;
   onShiftsApply: (shifts: Shift[]) => void;
 }
 
@@ -263,11 +265,13 @@ function buildContext(
   conflicts: PromoterConflict[],
   storeTiers: StoreTierSetting[],
   gradeOverrides: PromoterGradeOverride[],
+  country: Country = 'UAE',
 ): string {
   const aStores = stores.filter((s) => s.active);
   const aProms = promoters.filter((p) => p.active);
+  const countryLabel = country === 'QA' ? 'Qatar' : 'UAE';
 
-  let ctx = 'You are a retail shift scheduling assistant for UAE stores.\n\n';
+  let ctx = `You are a retail shift scheduling assistant for ${countryLabel} stores.\n\n`;
 
   ctx += '## STORES (code | name | tier | max per day | shift slots)\n';
   for (const s of aStores) {
@@ -321,7 +325,7 @@ function buildContext(
 // ── component ──────────────────────────────────────────────────────────────
 export default function AutoAssignPage({
   stores, promoters, storePreferences, promoterConflicts,
-  storeTiers, gradeOverrides, existingShifts = [], onShiftsApply,
+  storeTiers, gradeOverrides, existingShifts = [], country = 'UAE', onShiftsApply,
 }: Props) {
   const today = todayStr();
   const [startDate, setStartDate] = useState(addDays(today, 1));
@@ -407,7 +411,7 @@ export default function AutoAssignPage({
     setLoading(true);
     setError(null);
 
-    const ctx = buildContext(stores, promoters, storePreferences, promoterConflicts, storeTiers, gradeOverrides);
+    const ctx = buildContext(stores, promoters, storePreferences, promoterConflicts, storeTiers, gradeOverrides, country);
     const activeStoreCodes = stores.filter((s) => s.active).map((s) => s.code).join(', ');
 
     const userText =
@@ -639,7 +643,7 @@ export default function AutoAssignPage({
   const hasKey = !!(import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim();
 
   // ── Revenue forecast from historical performance ───────────────────────
-  const { orders } = useOrders(3);
+  const { orders } = useOrders(3, country);
   const perfMatrix = useMemo(
     () => buildPerfMatrix(orders, promoters, stores),
     [orders, promoters, stores],

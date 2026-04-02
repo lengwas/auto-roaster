@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Order } from '../types/types';
+import type { Order, Country } from '../types/types';
 
 function mapRow(row: Record<string, unknown>): Order {
   return {
     id: String(row.id),
-    date: String(row.date).split('T')[0], // ensure YYYY-MM-DD
+    date: String(row.date).split('T')[0],
     orderId: row.order_id ? String(row.order_id) : undefined,
     salesperson: row.salesperson ? String(row.salesperson) : undefined,
     warehouse: row.warehouse ? String(row.warehouse) : undefined,
@@ -17,7 +17,7 @@ function mapRow(row: Record<string, unknown>): Order {
 }
 
 /** Fetch orders from Supabase going back `monthsBack` months from today. */
-export function useOrders(monthsBack: number = 6) {
+export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +33,7 @@ export function useOrders(monthsBack: number = 6) {
     supabase
       .from('orders')
       .select('id, date, order_id, salesperson, warehouse, platform, amount_aed, paid_amount_aed, status')
+      .eq('country', country)
       .gte('date', fromStr)
       .order('date', { ascending: false })
       .then(({ data, error: err }) => {
@@ -43,7 +44,7 @@ export function useOrders(monthsBack: number = 6) {
         }
         setLoading(false);
       });
-  }, [monthsBack]);
+  }, [monthsBack, country]);
 
   return { orders, loading, error };
 }

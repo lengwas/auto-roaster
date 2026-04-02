@@ -1,3 +1,5 @@
+export type Country = 'UAE' | 'QA';
+
 export interface Store {
   id: string;
   code: string;

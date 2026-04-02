@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { PromoterConflict } from '../types/types';
+import type { PromoterConflict, Country } from '../types/types';
 
 function mapRow(row: Record<string, unknown>): PromoterConflict {
   return {
@@ -11,27 +11,28 @@ function mapRow(row: Record<string, unknown>): PromoterConflict {
   };
 }
 
-export function useConflicts() {
+export function useConflicts(country: Country = 'UAE') {
   const [conflicts, setConflicts] = useState<PromoterConflict[]>([]);
 
   useEffect(() => {
     supabase
       .from('promoter_conflicts')
       .select('*')
+      .eq('country', country)
       .then(({ data, error }) => {
         if (!error && data) setConflicts(data.map(mapRow));
+        else setConflicts([]);
       });
-  }, []);
+  }, [country]);
 
   async function saveConflict(c: PromoterConflict): Promise<string | null> {
-    // Supabase has CHECK (promoter_a_id < promoter_b_id) — ensure order
     const [aId, bId] = c.promoterAId < c.promoterBId
       ? [c.promoterAId, c.promoterBId]
       : [c.promoterBId, c.promoterAId];
 
     const { error } = await supabase
       .from('promoter_conflicts')
-      .insert({ promoter_a_id: aId, promoter_b_id: bId, reason: c.reason ?? null });
+      .insert({ promoter_a_id: aId, promoter_b_id: bId, reason: c.reason ?? null, country });
     if (error) {
       console.error('Failed to save conflict:', error);
       return error.message;
@@ -40,7 +41,6 @@ export function useConflicts() {
   }
 
   async function deleteConflict(id: string): Promise<void> {
-    // Only delete if it's a real Supabase UUID (not a locally generated c_ id)
     if (id.startsWith('c_')) return;
     const { error } = await supabase
       .from('promoter_conflicts')

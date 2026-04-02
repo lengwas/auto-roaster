@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Store } from '../types/types';
+import type { Store, Country } from '../types/types';
 import { mockStores } from '../data/mockData';
 
 // Strip seconds from Supabase TIME columns: "13:00:00" → "13:00"
@@ -25,22 +25,26 @@ function mapRow(row: Record<string, unknown>): Store {
   };
 }
 
-export function useStores() {
+export function useStores(country: Country = 'UAE') {
   const [stores, setStores] = useState<Store[]>(mockStores);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     supabase
       .from('stores')
       .select('*')
+      .eq('country', country)
       .order('code')
       .then(({ data, error }) => {
         if (!error && data && data.length > 0) {
           setStores(data.map(mapRow));
+        } else if (!error) {
+          setStores([]);
         }
         setLoading(false);
       });
-  }, []);
+  }, [country]);
 
   async function saveStore(s: Store) {
     const payload: Record<string, unknown> = {
@@ -51,6 +55,7 @@ export function useStores() {
       shift_slots: s.shiftSlots?.filter(sl => sl.trim()).length ? s.shiftSlots.filter(sl => sl.trim()) : null,
       platform: s.platform ?? null,
       warehouse: s.warehouse ?? null,
+      country,
     };
     // IDs from Supabase are UUIDs; locally-generated IDs start with "store_"
     const isNew = s.id.startsWith('store_');

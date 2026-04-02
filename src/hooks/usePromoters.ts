@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Promoter } from '../types/types';
+import type { Promoter, Country } from '../types/types';
 import { mockPromoters } from '../data/mockData';
 
 function mapRow(row: Record<string, unknown>): Promoter {
@@ -14,22 +14,26 @@ function mapRow(row: Record<string, unknown>): Promoter {
   };
 }
 
-export function usePromoters() {
+export function usePromoters(country: Country = 'UAE') {
   const [promoters, setPromoters] = useState<Promoter[]>(mockPromoters);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     supabase
       .from('promoters')
       .select('*')
+      .eq('country', country)
       .order('name')
       .then(({ data, error }) => {
         if (!error && data && data.length > 0) {
           setPromoters(data.map(mapRow));
+        } else if (!error) {
+          setPromoters([]);
         }
         setLoading(false);
       });
-  }, []);
+  }, [country]);
 
   async function savePromoter(p: Promoter): Promise<string | null> {
     // Try with all columns, then progressively remove optional ones
@@ -46,7 +50,6 @@ export function usePromoters() {
       if (!error) {
         if (count === 0) {
           console.warn(`Save attempt ${i + 1}: 0 rows updated for id=${p.id} (RLS or id mismatch)`);
-          // Try with numeric id in case the column is integer
           const numericId = Number(p.id);
           if (!isNaN(numericId)) {
             const { error: e2 } = await supabase
@@ -73,14 +76,14 @@ export function usePromoters() {
     // Try with all columns first, then fallback without role/stores_label
     let result = await supabase
       .from('promoters')
-      .insert({ name: name.trim(), active: true, day_off: '', role: 'promoter', stores_label: '' })
+      .insert({ name: name.trim(), active: true, day_off: '', role: 'promoter', stores_label: '', country })
       .select('*')
       .single();
     if (result.error) {
       console.warn('Insert with role/stores_label failed, retrying minimal:', result.error.message);
       result = await supabase
         .from('promoters')
-        .insert({ name: name.trim(), active: true, day_off: '' })
+        .insert({ name: name.trim(), active: true, day_off: '', country })
         .select('*')
         .single();
     }
