@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import type {
   Store, Promoter, Shift,
   StoreTierSetting, PromoterGradeOverride,
-  StoreTier, PromoterGrade,
+  StoreTier, PromoterGrade, Country,
 } from '../types/types';
 import { useOrders } from '../hooks/useOrders';
 import './SalesPerformancePage.css';
@@ -14,7 +14,7 @@ const SPECIAL_SHIFTS = new Set(['Off', 'LOP', 'SL']);
 
 // Warehouse code (from real orders) → store code
 // e.g. orders.warehouse = "VIR - DBM" → store.code = "VDM"
-const WAREHOUSE_CODE_MAP: Record<string, string> = {
+const WAREHOUSE_CODE_MAP_UAE: Record<string, string> = {
   'vir - dbm': 'VDM', 'vir - moe': 'VME', 'vir - dbh': 'VDH',
   'vir - mrn': 'VMN', 'vir - mdf': 'VMF', 'vir - nkm': 'VNK',
   'vir - yas': 'VYM', 'vir - amy': 'VAY', 'vir - rem': 'VRM',
@@ -25,6 +25,16 @@ const WAREHOUSE_CODE_MAP: Record<string, string> = {
   'sdg - dbm': 'SDM',
   'air - 48':  'AIR', 'air - dcc': 'ADC',
   'img - wld': 'IMG',
+};
+
+const WAREHOUSE_CODE_MAP_QA: Record<string, string> = {
+  'vir - vlm': 'VLM', 'vir - vmq': 'VMQ', 'vir - vdf': 'VDF',
+  'vir - vvg': 'VVG', 'vir - vvd': 'VVD',
+  'kdz - kvd': 'KVD', 'kdz - klm': 'KLM', 'kdz - moq': 'KMQ',
+  'kdz - dfc': 'VDF', // Kiddyzone DFC → map to VDF store
+  'ron - rkt': 'RKT',
+  'fnc - dfc': 'VDF', // FNAC DFC → map to VDF store
+  'fnc - vvd': 'VVD', // FNAC Vendome → map to VVD store
 };
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -132,12 +142,14 @@ interface Props {
   onStoreTiersChange: (t: StoreTierSetting[]) => void;
   gradeOverrides: PromoterGradeOverride[];
   onGradeOverridesChange: (o: PromoterGradeOverride[]) => void;
+  country?: Country;
 }
 
 const SalesPerformancePage = ({
   stores, promoters, shifts,
   storeTiers, onStoreTiersChange,
   gradeOverrides, onGradeOverridesChange,
+  country = 'UAE',
 }: Props) => {
   const [period, setPeriod] = useState<Period>('3m');
   const [view, setView] = useState<View>('performance');
@@ -151,7 +163,9 @@ const SalesPerformancePage = ({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Fetch all orders going back 6m so period filter is client-side
-  const { orders, loading, error } = useOrders(6);
+  const { orders, loading, error } = useOrders(6, country);
+  const WAREHOUSE_CODE_MAP = country === 'QA' ? WAREHOUSE_CODE_MAP_QA : WAREHOUSE_CODE_MAP_UAE;
+  const currencyLabel = country === 'QA' ? 'QAR' : 'AED';
 
   // ── lookups ──────────────────────────────────────────────────────────────
   // Match orders.warehouse → store using:
@@ -537,7 +551,7 @@ const SalesPerformancePage = ({
           <span className="sp-summary-label">Orders</span>
         </div>
         <div className="sp-summary-item">
-          <span className="sp-summary-value">AED {fmtAed(summary.totalSales)}</span>
+          <span className="sp-summary-value">{currencyLabel} {fmtAed(summary.totalSales)}</span>
           <span className="sp-summary-label">Total Sales</span>
         </div>
         <div className="sp-summary-item">
@@ -567,13 +581,13 @@ const SalesPerformancePage = ({
               key={grade}
               className={`sp-grade-bar-item grade-bg-${grade.toLowerCase()}`}
               style={{ flex: Math.max(count, 0.5) }}
-              title={`Grade ${grade}: ${count} promoter${count !== 1 ? 's' : ''} · AED ${fmtAed(totalSales)} · avg PI ${avgPI.toFixed(2)}`}
+              title={`Grade ${grade}: ${count} promoter${count !== 1 ? 's' : ''} · ${currencyLabel} ${fmtAed(totalSales)} · avg PI ${avgPI.toFixed(2)}`}
             >
               <span className="sp-grade-bar-label">
                 <span className={`sp-grade-badge ${gradeCls(grade as PromoterGrade)}`}>{grade}</span>
                 <span className="sp-grade-bar-count">{count}</span>
               </span>
-              <span className="sp-grade-bar-sales">AED {fmtAed(totalSales)}</span>
+              <span className="sp-grade-bar-sales">{currencyLabel} {fmtAed(totalSales)}</span>
               <span className="sp-grade-bar-pi">PI {avgPI.toFixed(2)}</span>
             </div>
           ))}
@@ -616,7 +630,7 @@ const SalesPerformancePage = ({
                   PI &gt; 1.0 = ขายได้มากกว่า store average · PI &lt; 1.0 = ต่ำกว่า average
                 </div>
                 <div className="sp-info-example">
-                  เช่น Store avg = AED 6,000/วัน, Promoter avg = AED 7,200/วัน → PI = 1.20
+                  เช่น Store avg = {currencyLabel} 6,000/วัน, Promoter avg = {currencyLabel} 7,200/วัน → PI = 1.20
                 </div>
               </div>
             </div>
@@ -754,7 +768,7 @@ const SalesPerformancePage = ({
                     <th className="sp-th-name sp-sortable" onClick={() => handleSort('name')}>Name{sortIcon('name')}</th>
                     <th className="sp-th-grade sp-sortable" onClick={() => handleSort('grade')}>Grade{sortIcon('grade')}</th>
                     <th className="sp-th-override">Override</th>
-                    <th className="sp-sortable" onClick={() => handleSort('totalSales')}>Total AED{sortIcon('totalSales')}</th>
+                    <th className="sp-sortable" onClick={() => handleSort('totalSales')}>Total {currencyLabel}{sortIcon('totalSales')}</th>
                     <th className="sp-sortable" onClick={() => handleSort('dailyAvg')}>Daily Avg{sortIcon('dailyAvg')}</th>
                     <th className="sp-sortable" onClick={() => handleSort('pi')}>Perf. Index{sortIcon('pi')}</th>
                     <th className="sp-sortable" onClick={() => handleSort('orders')}>Orders{sortIcon('orders')}</th>
@@ -816,7 +830,7 @@ const SalesPerformancePage = ({
                                 <span
                                   key={sp.storeCode}
                                   className={`sp-store-chip ${fit ? 'fit-ok' : 'fit-bad'}`}
-                                  title={`${sp.storeName}${sp.tier ? ` (Tier ${sp.tier})` : ''} · AED ${fmtAed(sp.sales)} · PI ${sp.pi.toFixed(2)}`}
+                                  title={`${sp.storeName}${sp.tier ? ` (Tier ${sp.tier})` : ''} · ${currencyLabel} ${fmtAed(sp.sales)} · PI ${sp.pi.toFixed(2)}`}
                                 >
                                   {sp.storeCode}
                                   {sp.tier && <sup>{sp.tier}</sup>}
@@ -843,7 +857,7 @@ const SalesPerformancePage = ({
                                       <tr>
                                         <th>Store</th>
                                         <th>Tier</th>
-                                        <th>Sales (AED)</th>
+                                        <th>Sales ({currencyLabel})</th>
                                         <th>Daily Avg</th>
                                         <th>Orders</th>
                                         <th>Days</th>
@@ -1002,7 +1016,7 @@ const FitMapView = ({ promoterRows, stores, tierMap, shifts, period }: FitMapPro
           <span className="sp-fitmap-legend-item fm-shift-only">Assigned (no sales)</span>
           <span className="sp-fitmap-legend-item fm-empty">Not assigned</span>
         </div>
-        <p className="sp-fitmap-note">Cell = daily avg AED. Intensity = performance vs store avg.</p>
+        <p className="sp-fitmap-note">Cell = daily avg {currencyLabel}. Intensity = performance vs store avg.</p>
       </div>
 
       <div className="sp-fitmap-scroll">
@@ -1057,7 +1071,7 @@ const FitMapView = ({ promoterRows, stores, tierMap, shifts, period }: FitMapPro
                               key={store.code}
                               className={`fm-cell fm-has-sales ${tierFit ? 'fm-fit' : 'fm-misfit'}`}
                               style={{ '--intensity': intensity } as React.CSSProperties}
-                              title={`${row.name} @ ${store.name}\nTier: ${storeTier ?? '—'}  Grade: ${row.effectiveGrade}\nSales: AED ${fmtAed(perf.sales)}  Daily avg: AED ${fmtAed(perf.dailyAvg)}\nPI: ${perf.pi.toFixed(2)}  Days: ${perf.days}\n${tierFit ? '✓ Grade-Tier OK' : `⚠ Mismatch: Grade ${row.effectiveGrade} not allowed in Tier ${storeTier}`}`}
+                              title={`${row.name} @ ${store.name}\nTier: ${storeTier ?? '—'}  Grade: ${row.effectiveGrade}\nSales: ${currencyLabel} ${fmtAed(perf.sales)}  Daily avg: ${currencyLabel} ${fmtAed(perf.dailyAvg)}\nPI: ${perf.pi.toFixed(2)}  Days: ${perf.days}\n${tierFit ? '✓ Grade-Tier OK' : `⚠ Mismatch: Grade ${row.effectiveGrade} not allowed in Tier ${storeTier}`}`}
                             >
                               <span className="fm-cell-val">{fmtAed(perf.dailyAvg)}</span>
                               {!tierFit && <span className="fm-misfit-icon">⚠</span>}

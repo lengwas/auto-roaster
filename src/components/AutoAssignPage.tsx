@@ -12,8 +12,8 @@ import { runOptimizer, loadConstraints } from '../lib/optimizer';
 import type { ParsedConstraints as OptimizerParsedConstraints } from '../lib/optimizer';
 import './AutoAssignPage.css';
 
-// Warehouse text → store code (same as SalesPerformancePage + Python script)
-const WAREHOUSE_CODE_MAP: Record<string, string> = {
+// Warehouse text → store code
+const WAREHOUSE_CODE_MAP_UAE: Record<string, string> = {
   'vir - dbm': 'VDM', 'vir - moe': 'VME', 'vir - dbh': 'VDH',
   'vir - mrn': 'VMN', 'vir - mdf': 'VMF', 'vir - nkm': 'VNK',
   'vir - yas': 'VYM', 'vir - amy': 'VAY', 'vir - rem': 'VRM',
@@ -24,11 +24,20 @@ const WAREHOUSE_CODE_MAP: Record<string, string> = {
   'air - 48': 'AIR', 'air - dcc': 'ADC', 'img - wld': 'IMG',
 };
 
+const WAREHOUSE_CODE_MAP_QA: Record<string, string> = {
+  'vir - vlm': 'VLM', 'vir - vmq': 'VMQ', 'vir - vdf': 'VDF',
+  'vir - vvg': 'VVG', 'vir - vvd': 'VVD',
+  'kdz - kvd': 'KVD', 'kdz - klm': 'KLM', 'kdz - moq': 'KMQ',
+  'kdz - dfc': 'VDF', 'ron - rkt': 'RKT',
+  'fnc - dfc': 'VDF', 'fnc - vvd': 'VVD',
+};
+
 // Build {`${promoterId}_${storeCode}`: avgDailyRevenue} from historical orders
 function buildPerfMatrix(
   orders: Order[],
   promoters: Promoter[],
   stores: Store[],
+  warehouseCodeMap: Record<string, string> = WAREHOUSE_CODE_MAP_UAE,
 ): Map<string, number> {
   const excluded = new Set(['cancelled', 'returned']);
   // name → promoterId
@@ -40,7 +49,7 @@ function buildPerfMatrix(
   }
   // warehouse/platform → storeCode
   const whMap = new Map<string, string>(
-    Object.entries(WAREHOUSE_CODE_MAP)
+    Object.entries(warehouseCodeMap)
   );
   for (const s of stores) {
     if (s.warehouse) whMap.set(s.warehouse.toLowerCase(), s.code);
@@ -82,10 +91,11 @@ function buildPerfMatrix(
 function buildStoreNetRevenue(
   orders: Order[],
   stores: Store[],
+  warehouseCodeMap: Record<string, string> = WAREHOUSE_CODE_MAP_UAE,
 ): Map<string, number> {
   const excluded = new Set(['cancelled', 'returned']);
   const whMap = new Map<string, string>(
-    Object.entries(WAREHOUSE_CODE_MAP)
+    Object.entries(warehouseCodeMap)
   );
   for (const s of stores) {
     if (s.warehouse) whMap.set(s.warehouse.toLowerCase(), s.code);
@@ -644,13 +654,14 @@ export default function AutoAssignPage({
 
   // ── Revenue forecast from historical performance ───────────────────────
   const { orders } = useOrders(3, country);
+  const warehouseMap = country === 'QA' ? WAREHOUSE_CODE_MAP_QA : WAREHOUSE_CODE_MAP_UAE;
   const perfMatrix = useMemo(
-    () => buildPerfMatrix(orders, promoters, stores),
-    [orders, promoters, stores],
+    () => buildPerfMatrix(orders, promoters, stores, warehouseMap),
+    [orders, promoters, stores, warehouseMap],
   );
   const storeNetRev = useMemo(
-    () => buildStoreNetRevenue(orders, stores),
-    [orders, stores],
+    () => buildStoreNetRevenue(orders, stores, warehouseMap),
+    [orders, stores, warehouseMap],
   );
 
   // For each day in draft, sum expected revenue of assigned (promoter, store) pairs

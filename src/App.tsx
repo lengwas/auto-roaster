@@ -194,6 +194,7 @@ function App() {
             onStoreTiersChange={setStoreTiers}
             gradeOverrides={gradeOverrides}
             onGradeOverridesChange={setGradeOverrides}
+            country={country}
           />
         )}
         {activeTab === 'auto-assign' && (

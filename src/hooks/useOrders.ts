@@ -3,7 +3,11 @@ import { supabase } from '../lib/supabase';
 import { t } from '../lib/tables';
 import type { Order, Country } from '../types/types';
 
-function mapRow(row: Record<string, unknown>): Order {
+function mapRow(row: Record<string, unknown>, country: Country): Order {
+  // For Qatar, use amount_qar as the revenue field (mapped to amountAed for calculation compatibility)
+  const amount = country === 'QA'
+    ? (row.amount_qar != null ? Number(row.amount_qar) : undefined)
+    : (row.amount_aed != null ? Number(row.amount_aed) : undefined);
   return {
     id: String(row.id),
     date: String(row.date).split('T')[0],
@@ -11,7 +15,7 @@ function mapRow(row: Record<string, unknown>): Order {
     salesperson: row.salesperson ? String(row.salesperson) : undefined,
     warehouse: row.warehouse ? String(row.warehouse) : undefined,
     platform: row.platform ? String(row.platform) : undefined,
-    amountAed: row.amount_aed != null ? Number(row.amount_aed) : undefined,
+    amountAed: amount,
     paidAmountAed: row.paid_amount_aed != null ? Number(row.paid_amount_aed) : undefined,
     status: String(row.status || 'pending'),
   };
@@ -33,14 +37,14 @@ export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
 
     supabase
       .from(t('orders', country))
-      .select('id, date, order_id, salesperson, warehouse, platform, amount_aed, paid_amount_aed, status')
+      .select('id, date, order_id, salesperson, warehouse, platform, amount_aed, amount_qar, paid_amount_aed, status')
       .gte('date', fromStr)
       .order('date', { ascending: false })
       .then(({ data, error: err }) => {
         if (err) {
           setError(err.message);
         } else if (data) {
-          setOrders(data.map(mapRow));
+          setOrders(data.map(r => mapRow(r, country)));
         }
         setLoading(false);
       });
