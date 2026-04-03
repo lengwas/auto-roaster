@@ -50,7 +50,7 @@ function App() {
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates(country);
   const [showExport, setShowExport] = useState(false);
   const { shifts, saveShift, error: shiftsError, earliestDate } = useShifts(country);
-  const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores);
+  const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores, country);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts(country);
   const { orders } = useOrders(6, country);
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);

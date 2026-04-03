@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { t } from '../lib/tables';
 import type { Order, Country } from '../types/types';
 
 function mapRow(row: Record<string, unknown>): Order {
@@ -31,9 +32,8 @@ export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
     const fromStr = from.toISOString().split('T')[0];
 
     supabase
-      .from('orders')
+      .from(t('orders', country))
       .select('id, date, order_id, salesperson, warehouse, platform, amount_aed, paid_amount_aed, status')
-      .eq('country', country)
       .gte('date', fromStr)
       .order('date', { ascending: false })
       .then(({ data, error: err }) => {

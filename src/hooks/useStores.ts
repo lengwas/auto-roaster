@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { t } from '../lib/tables';
 import type { Store, Country } from '../types/types';
 import { mockStores } from '../data/mockData';
 
@@ -32,11 +33,11 @@ export function useStores(country: Country = 'UAE') {
   useEffect(() => {
     setLoading(true);
     supabase
-      .from('stores')
+      .from(t('stores', country))
       .select('*')
-      .eq('country', country)
       .order('code')
       .then(({ data, error }) => {
+        console.log(`[useStores] table=${t('stores', country)} data=${data?.length ?? 'null'} error=${error?.message ?? 'none'}`);
         if (!error && data && data.length > 0) {
           setStores(data.map(mapRow));
         } else if (!error) {
@@ -55,13 +56,12 @@ export function useStores(country: Country = 'UAE') {
       shift_slots: s.shiftSlots?.filter(sl => sl.trim()).length ? s.shiftSlots.filter(sl => sl.trim()) : null,
       platform: s.platform ?? null,
       warehouse: s.warehouse ?? null,
-      country,
     };
     // IDs from Supabase are UUIDs; locally-generated IDs start with "store_"
     const isNew = s.id.startsWith('store_');
     const op = isNew
-      ? supabase.from('stores').insert(payload)
-      : supabase.from('stores').update(payload).eq('id', s.id);
+      ? supabase.from(t('stores', country)).insert(payload)
+      : supabase.from(t('stores', country)).update(payload).eq('id', s.id);
     const { error } = await op;
     if (error) {
       // Retry without shift_slots/platform/warehouse if column doesn't exist
@@ -71,8 +71,8 @@ export function useStores(country: Country = 'UAE') {
         delete payload.platform;
         delete payload.warehouse;
         const op2 = isNew
-          ? supabase.from('stores').insert(payload)
-          : supabase.from('stores').update(payload).eq('id', s.id);
+          ? supabase.from(t('stores', country)).insert(payload)
+          : supabase.from(t('stores', country)).update(payload).eq('id', s.id);
         const { error: e2 } = await op2;
         if (e2) console.error('Failed to save store:', e2);
       } else {
@@ -83,7 +83,7 @@ export function useStores(country: Country = 'UAE') {
 
   function deleteStore(id: string) {
     if (!id.startsWith('store_')) {
-      supabase.from('stores').delete().eq('id', id)
+      supabase.from(t('stores', country)).delete().eq('id', id)
         .then(({ error }) => { if (error) console.error('Failed to delete store:', error); });
     }
   }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { t } from '../lib/tables';
 import type { Shift, Country } from '../types/types';
 
 function mapRow(row: Record<string, unknown>): Shift {
@@ -25,9 +26,8 @@ export function useShifts(country: Country = 'UAE') {
     setShifts([]);
 
     supabase
-      .from('shifts')
+      .from(t('shifts', country))
       .select('*')
-      .eq('country', country)
       .limit(50000)
       .then(({ data, error }) => {
         if (error) {
@@ -55,20 +55,19 @@ export function useShifts(country: Country = 'UAE') {
   ) {
     if (!shiftType) {
       await supabase
-        .from('shifts')
+        .from(t('shifts', country))
         .delete()
         .eq('promoter_id', promoterId)
-        .eq('date', date)
-        .eq('country', country);
+        .eq('date', date);
       setShifts(prev => prev.filter(s => !(s.promoterId === promoterId && s.date === date)));
       return;
     }
 
     const { data, error } = await supabase
-      .from('shifts')
+      .from(t('shifts', country))
       .upsert(
-        { promoter_id: promoterId, date, shift_type: shiftType, time_range: timeRange ?? null, note: note ?? null, country },
-        { onConflict: 'promoter_id,date,country' },
+        { promoter_id: promoterId, date, shift_type: shiftType, time_range: timeRange ?? null, note: note ?? null },
+        { onConflict: 'promoter_id,date' },
       )
       .select('*')
       .single();

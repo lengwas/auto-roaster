@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Store, StorePreference, PreferenceLevel } from '../types/types';
+import { t } from '../lib/tables';
+import type { Store, StorePreference, PreferenceLevel, Country } from '../types/types';
 
-export function useStorePreferences(stores: Store[]) {
+export function useStorePreferences(stores: Store[], country: Country = 'UAE') {
   const [storePreferences, setStorePreferences] = useState<StorePreference[]>([]);
 
   useEffect(() => {
@@ -10,7 +11,7 @@ export function useStorePreferences(stores: Store[]) {
     // Skip while stores still have mock IDs (real Supabase IDs are UUIDs)
     if (stores.some(s => s.id.length < 10)) return;
     supabase
-      .from('promoter_store_preferences')
+      .from(t('promoter_store_preferences', country))
       .select('*')
       .then(({ data, error }) => {
         if (!error && data) {
@@ -31,7 +32,7 @@ export function useStorePreferences(stores: Store[]) {
     const storeId = stores.find(s => s.code === storeCode)?.id;
     if (!storeId) return;
     const { error } = await supabase
-      .from('promoter_store_preferences')
+      .from(t('promoter_store_preferences', country))
       .upsert(
         { promoter_id: promoterId, store_id: storeId, preference },
         { onConflict: 'promoter_id,store_id' }
@@ -43,7 +44,7 @@ export function useStorePreferences(stores: Store[]) {
     const storeId = stores.find(s => s.code === storeCode)?.id;
     if (!storeId) return;
     const { error } = await supabase
-      .from('promoter_store_preferences')
+      .from(t('promoter_store_preferences', country))
       .delete()
       .eq('promoter_id', promoterId)
       .eq('store_id', storeId);

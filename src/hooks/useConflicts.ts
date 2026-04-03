@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { t } from '../lib/tables';
 import type { PromoterConflict, Country } from '../types/types';
 
 function mapRow(row: Record<string, unknown>): PromoterConflict {
@@ -16,9 +17,8 @@ export function useConflicts(country: Country = 'UAE') {
 
   useEffect(() => {
     supabase
-      .from('promoter_conflicts')
+      .from(t('promoter_conflicts', country))
       .select('*')
-      .eq('country', country)
       .then(({ data, error }) => {
         if (!error && data) setConflicts(data.map(mapRow));
         else setConflicts([]);
@@ -31,8 +31,8 @@ export function useConflicts(country: Country = 'UAE') {
       : [c.promoterBId, c.promoterAId];
 
     const { error } = await supabase
-      .from('promoter_conflicts')
-      .insert({ promoter_a_id: aId, promoter_b_id: bId, reason: c.reason ?? null, country });
+      .from(t('promoter_conflicts', country))
+      .insert({ promoter_a_id: aId, promoter_b_id: bId, reason: c.reason ?? null });
     if (error) {
       console.error('Failed to save conflict:', error);
       return error.message;
@@ -43,7 +43,7 @@ export function useConflicts(country: Country = 'UAE') {
   async function deleteConflict(id: string): Promise<void> {
     if (id.startsWith('c_')) return;
     const { error } = await supabase
-      .from('promoter_conflicts')
+      .from(t('promoter_conflicts', country))
       .delete()
       .eq('id', id);
     if (error) console.error('Failed to delete conflict:', error);
