@@ -35,9 +35,12 @@ export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
     from.setMonth(from.getMonth() - monthsBack);
     const fromStr = from.toISOString().split('T')[0];
 
+    const cols = country === 'QA'
+      ? 'id, date, order_id, salesperson, warehouse, platform, amount_qar, paid_amount_aed, status'
+      : 'id, date, order_id, salesperson, warehouse, platform, amount_aed, paid_amount_aed, status';
     supabase
       .from(t('orders', country))
-      .select('id, date, order_id, salesperson, warehouse, platform, amount_aed, amount_qar, paid_amount_aed, status')
+      .select(cols)
       .gte('date', fromStr)
       .order('date', { ascending: false })
       .then(({ data, error: err }) => {
