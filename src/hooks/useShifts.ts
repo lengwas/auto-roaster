@@ -25,10 +25,17 @@ export function useShifts(country: Country = 'UAE') {
     setError(null);
     setShifts([]);
 
+    // Fetch shifts from 6 months ago onward (Supabase caps at 1000 rows per request)
+    const fromDate = new Date();
+    fromDate.setMonth(fromDate.getMonth() - 6);
+    const fromStr = fromDate.toISOString().split('T')[0];
+
     supabase
       .from(t('shifts', country))
       .select('*')
-      .limit(50000)
+      .gte('date', fromStr)
+      .order('date', { ascending: false })
+      .limit(10000)
       .then(({ data, error }) => {
         if (error) {
           console.error('[useShifts] Failed to load shifts from Supabase:', error.message, error);
