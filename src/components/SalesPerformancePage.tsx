@@ -942,6 +942,7 @@ const SalesPerformancePage = ({
           tierMap={tierMap}
           shifts={shifts}
           period={period}
+          country={country}
         />
       )}
     </div>
@@ -955,9 +956,11 @@ interface FitMapProps {
   tierMap: Map<string, StoreTier>;
   shifts: Shift[];
   period: Period;
+  country: Country;
 }
 
-const FitMapView = ({ promoterRows, stores, tierMap, shifts, period }: FitMapProps) => {
+const FitMapView = ({ promoterRows, stores, tierMap, shifts, period, country }: FitMapProps) => {
+  const currencyLabel = country === 'QA' ? 'QAR' : 'AED';
   // Which stores each promoter has been at (from orders data this period)
   // storePerfs already contains this
 
