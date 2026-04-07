@@ -31,26 +31,50 @@ export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
     setLoading(true);
     setError(null);
 
-    const from = new Date();
-    from.setMonth(from.getMonth() - monthsBack);
-    const fromStr = from.toISOString().split('T')[0];
+    const fromDt = new Date();
+    fromDt.setMonth(fromDt.getMonth() - monthsBack);
+    const fromStr = fromDt.toISOString().split('T')[0];
 
     const cols = country === 'QA'
       ? 'id, date, order_id, salesperson, warehouse, platform, amount_qar, paid_amount_aed, status'
       : 'id, date, order_id, salesperson, warehouse, platform, amount_aed, paid_amount_aed, status';
-    supabase
-      .from(t('orders', country))
-      .select(cols)
-      .gte('date', fromStr)
-      .order('date', { ascending: false })
-      .then(({ data, error: err }) => {
+
+    // Supabase caps at 1000 rows per request – paginate to fetch all
+    const PAGE_SIZE = 1000;
+
+    async function fetchAll() {
+      const allRows: Record<string, unknown>[] = [];
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error: err } = await supabase
+          .from(t('orders', country))
+          .select(cols)
+          .gte('date', fromStr)
+          .order('date', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
         if (err) {
           setError(err.message);
-        } else if (data) {
-          setOrders(data.map(r => mapRow(r, country)));
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-      });
+
+        if (data && data.length > 0) {
+          allRows.push(...(data as Record<string, unknown>[]));
+        }
+
+        hasMore = (data?.length ?? 0) === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
+
+      console.log(`[useOrders] Loaded ${allRows.length} orders for ${country}.`);
+      setOrders(allRows.map(r => mapRow(r as Record<string, unknown>, country)));
+      setLoading(false);
+    }
+
+    fetchAll();
   }, [monthsBack, country]);
 
   return { orders, loading, error };

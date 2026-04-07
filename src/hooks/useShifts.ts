@@ -25,32 +25,47 @@ export function useShifts(country: Country = 'UAE') {
     setError(null);
     setShifts([]);
 
-    // Fetch shifts from 6 months ago onward (Supabase caps at 1000 rows per request)
-    const fromDate = new Date();
-    fromDate.setMonth(fromDate.getMonth() - 6);
-    const fromStr = fromDate.toISOString().split('T')[0];
+    // Supabase caps at 1000 rows per request – paginate to fetch all shifts
+    const PAGE_SIZE = 1000;
 
-    supabase
-      .from(t('shifts', country))
-      .select('*')
-      .gte('date', fromStr)
-      .order('date', { ascending: false })
-      .limit(10000)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('[useShifts] Failed to load shifts from Supabase:', error.message, error);
-          setError(error.message);
-        } else {
-          console.log(`[useShifts] Loaded ${data?.length ?? 0} shifts for ${country}.`);
-          if (data && data.length > 0) {
-            const mapped = data.map(r => mapRow(r as Record<string, unknown>));
-            setShifts(mapped);
-            const minDate = mapped.reduce((min, s) => s.date < min ? s.date : min, mapped[0].date);
-            setEarliestDate(minDate);
-          }
+    async function fetchAll() {
+      const allRows: Record<string, unknown>[] = [];
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error: err } = await supabase
+          .from(t('shifts', country))
+          .select('*')
+          .order('date', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (err) {
+          console.error('[useShifts] Failed to load shifts from Supabase:', err.message, err);
+          setError(err.message);
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-      });
+
+        if (data && data.length > 0) {
+          allRows.push(...(data as Record<string, unknown>[]));
+        }
+
+        hasMore = (data?.length ?? 0) === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
+
+      console.log(`[useShifts] Loaded ${allRows.length} shifts for ${country} (${Math.ceil(from / PAGE_SIZE)} pages).`);
+      if (allRows.length > 0) {
+        const mapped = allRows.map(r => mapRow(r));
+        setShifts(mapped);
+        const minDate = mapped.reduce((min, s) => s.date < min ? s.date : min, mapped[0].date);
+        setEarliestDate(minDate);
+      }
+      setLoading(false);
+    }
+
+    fetchAll();
   }, [country]);
 
   async function saveShift(
