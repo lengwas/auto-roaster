@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order, StoreTierSetting, PromoterGradeOverride, StorePreference, PromoterConflict } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
@@ -247,11 +247,40 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     return a.name.localeCompare(b.name);
   });
 
+  // ── Undo stack (Cmd+Z / Ctrl+Z) ──────────────────────────────────────────
+  interface UndoEntry { promoterId: string; date: string; prevType: string; prevTimeRange?: string; prevNote?: string }
+  const undoStack = useRef<UndoEntry[]>([]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        const entry = undoStack.current.pop();
+        if (entry && onShiftChange) {
+          console.log(`[Undo] Restoring ${entry.prevType || '(empty)'} for ${entry.promoterId} on ${entry.date}`);
+          onShiftChange(entry.promoterId, entry.date, entry.prevType, entry.prevTimeRange, entry.prevNote);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onShiftChange]);
+
   const handleChange = useCallback((promoterId: string, date: string, value: string, timeRange?: string) => {
     console.log(`[ShiftTable] handleChange: ${value} ${timeRange} for ${promoterId} on ${date}`);
     if (!onShiftChange) return;
-    // Preserve existing note when changing shift type
+    // Save previous state for undo
     const existingShift = shifts.find(s => s.promoterId === promoterId && s.date === date);
+    undoStack.current.push({
+      promoterId,
+      date,
+      prevType: existingShift?.type || '',
+      prevTimeRange: existingShift?.timeRange,
+      prevNote: existingShift?.note,
+    });
+    // Keep max 50 entries
+    if (undoStack.current.length > 50) undoStack.current.shift();
+
     const existingNote = existingShift?.note;
     if (value === '-') {
       onShiftChange(promoterId, date, '', undefined, undefined);
