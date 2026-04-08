@@ -247,24 +247,95 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     return a.name.localeCompare(b.name);
   });
 
-  // ── Undo stack (Cmd+Z / Ctrl+Z) ──────────────────────────────────────────
+  // ── Undo / Redo / Copy-Paste ────────────────────────────────────────────
   interface UndoEntry { promoterId: string; date: string; prevType: string; prevTimeRange?: string; prevNote?: string }
   const undoStack = useRef<UndoEntry[]>([]);
+  const redoStack = useRef<UndoEntry[]>([]);
+  const [clipboard, setClipboard] = useState<{ type: string; timeRange?: string; note?: string } | null>(null);
+  const [focusedCell, setFocusedCell] = useState<{ promoterId: string; date: string } | null>(null);
+
+  // Stable ref for onShiftChange to avoid effect re-registration
+  const onShiftChangeRef = useRef(onShiftChange);
+  onShiftChangeRef.current = onShiftChange;
+  const shiftsRef = useRef(shifts);
+  shiftsRef.current = shifts;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta) return;
+
+      // Undo: Cmd+Z
+      if (e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         const entry = undoStack.current.pop();
-        if (entry && onShiftChange) {
-          console.log(`[Undo] Restoring ${entry.prevType || '(empty)'} for ${entry.promoterId} on ${entry.date}`);
-          onShiftChange(entry.promoterId, entry.date, entry.prevType, entry.prevTimeRange, entry.prevNote);
+        if (entry && onShiftChangeRef.current) {
+          // Save current state to redo stack before undoing
+          const cur = shiftsRef.current.find(s => s.promoterId === entry.promoterId && s.date === entry.date);
+          redoStack.current.push({
+            promoterId: entry.promoterId,
+            date: entry.date,
+            prevType: cur?.type || '',
+            prevTimeRange: cur?.timeRange,
+            prevNote: cur?.note,
+          });
+          onShiftChangeRef.current(entry.promoterId, entry.date, entry.prevType, entry.prevTimeRange, entry.prevNote);
         }
+        return;
+      }
+
+      // Redo: Cmd+Shift+Z
+      if (e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        const entry = redoStack.current.pop();
+        if (entry && onShiftChangeRef.current) {
+          // Save current state to undo stack before redoing
+          const cur = shiftsRef.current.find(s => s.promoterId === entry.promoterId && s.date === entry.date);
+          undoStack.current.push({
+            promoterId: entry.promoterId,
+            date: entry.date,
+            prevType: cur?.type || '',
+            prevTimeRange: cur?.timeRange,
+            prevNote: cur?.note,
+          });
+          onShiftChangeRef.current(entry.promoterId, entry.date, entry.prevType, entry.prevTimeRange, entry.prevNote);
+        }
+        return;
+      }
+
+      // Copy: Cmd+C (only when no text selection)
+      if (e.key === 'c' && !e.shiftKey && focusedCell) {
+        const sel = window.getSelection();
+        if (sel && sel.toString().length > 0) return; // let native copy work
+        e.preventDefault();
+        const s = shiftsRef.current.find(s => s.promoterId === focusedCell.promoterId && s.date === focusedCell.date);
+        setClipboard({ type: s?.type || '', timeRange: s?.timeRange, note: s?.note });
+        return;
+      }
+
+      // Paste: Cmd+V
+      if (e.key === 'v' && !e.shiftKey && focusedCell && clipboard) {
+        e.preventDefault();
+        if (onShiftChangeRef.current) {
+          // Save current state for undo
+          const cur = shiftsRef.current.find(s => s.promoterId === focusedCell.promoterId && s.date === focusedCell.date);
+          undoStack.current.push({
+            promoterId: focusedCell.promoterId,
+            date: focusedCell.date,
+            prevType: cur?.type || '',
+            prevTimeRange: cur?.timeRange,
+            prevNote: cur?.note,
+          });
+          redoStack.current.length = 0;
+          if (undoStack.current.length > 50) undoStack.current.shift();
+          onShiftChangeRef.current(focusedCell.promoterId, focusedCell.date, clipboard.type, clipboard.timeRange, clipboard.note);
+        }
+        return;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onShiftChange]);
+  }, [focusedCell, clipboard]);
 
   const handleChange = useCallback((promoterId: string, date: string, value: string, timeRange?: string) => {
     console.log(`[ShiftTable] handleChange: ${value} ${timeRange} for ${promoterId} on ${date}`);
@@ -278,7 +349,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
       prevTimeRange: existingShift?.timeRange,
       prevNote: existingShift?.note,
     });
-    // Keep max 50 entries
+    redoStack.current.length = 0; // Clear redo on new change
     if (undoStack.current.length > 50) undoStack.current.shift();
 
     const existingNote = existingShift?.note;
@@ -406,6 +477,11 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
             <span className="filter-badge">{hiddenStoreIds.size + hiddenPromoterIds.size}</span>
           )}
         </button>
+        {clipboard && (
+          <span style={{ fontSize: 10, color: '#6366f1', marginLeft: 8, fontWeight: 600 }}>
+            Copied: {clipboard.type || '(empty)'} {clipboard.timeRange || ''}
+          </span>
+        )}
         <div className="date-range-filter">
           <button
             className="date-range-reset"
@@ -720,7 +796,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
               return (
                 <div
                   key={dateStr}
-                  className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass} ${shift?.note ? 'has-note' : ''}`}
+                  className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass} ${shift?.note ? 'has-note' : ''} ${focusedCell?.promoterId === promoter.id && focusedCell?.date === dateStr ? 'cell-focused' : ''}`}
+                  onClick={() => setFocusedCell({ promoterId: promoter.id, date: dateStr })}
                   onDoubleClick={() => handleNoteClick(cellKey, shift?.note || '')}
                 >
                   <ShiftPicker

@@ -10,7 +10,7 @@
  */
 
 import type {
-  Store, Promoter, StorePreference, PromoterConflict,
+  Store, Promoter, StorePreference, PromoterConflict, Country,
 } from '../types/types';
 import { matchShiftSlot, matchAllShiftSlots } from './shiftSlotUtils';
 
@@ -189,7 +189,12 @@ export function runOptimizer(
   perfMatrix: Map<string, number>,   // `${promoterId}_${storeCode}` → avg daily revenue
   extra: InternalConstraints,
   storeNetRevenue?: Map<string, number>, // storeCode → total net revenue (amount - pmgw, last 3 months)
+  country: Country = 'UAE',
 ): OptimizerResult {
+  // Qatar uses block assignment + inspection rotation
+  if (country === 'QA') {
+    return runQatarOptimizer(dates, promoters, stores, storePreferences, conflicts, perfMatrix, extra, storeNetRevenue);
+  }
   const activePromoters = promoters.filter(p => p.active);
   const activeStores = stores.filter(s => s.active);
   const allStoreCodes = new Set(activeStores.map(s => s.code));
@@ -531,6 +536,299 @@ export function runOptimizer(
           } else if (storeSlotAssign.has(sc) && storeSlotAssign.get(sc)!.has(p.id)) {
             // Performance-based slot assignment
             entry.timeRange = storeSlotAssign.get(sc)!.get(p.id)!;
+          } else if (store.shiftSlots && store.shiftSlots.length > 0) {
+            entry.timeRange = matchShiftSlot(store.shiftSlots, dateStr);
+          } else {
+            entry.timeRange = `${store.openTime}-${store.closeTime}`;
+          }
+        }
+        const rev = perfMatrix.get(`${p.id}_${sc}`) ?? globalFallback;
+        dayRev += rev;
+        dayCount++;
+      }
+
+      assignments.push(entry);
+    }
+
+    totalExpected += dayRev;
+    dailySummary.push({ date: dateStr, expected: Math.round(dayRev), count: dayCount });
+  }
+
+  return { assignments, dailySummary, totalExpected: Math.round(totalExpected) };
+}
+
+// ── Qatar optimizer: block assignment + inspection rotation ─────────────────
+// Qatar weekend = Friday + Saturday
+const QATAR_WEEKEND = new Set(['Fri', 'Sat']);
+
+function runQatarOptimizer(
+  dates: string[],
+  promoters: Promoter[],
+  stores: Store[],
+  storePreferences: StorePreference[],
+  conflicts: PromoterConflict[],
+  perfMatrix: Map<string, number>,
+  extra: InternalConstraints,
+  storeNetRevenue?: Map<string, number>,
+): OptimizerResult {
+  const activePromoters = promoters.filter(p => p.active);
+  const activeStores = stores.filter(s => s.active);
+  const allStoreCodes = new Set(activeStores.map(s => s.code));
+
+  // Preference lookups
+  const mustMap = new Map<string, Set<string>>();
+  const preferredMap = new Map<string, Set<string>>();
+  const bannedMap = new Map<string, Set<string>>();
+  for (const pref of storePreferences) {
+    const map = pref.preference === 'must' ? mustMap
+              : pref.preference === 'preferred' ? preferredMap
+              : pref.preference === 'banned' ? bannedMap : null;
+    if (!map) continue;
+    if (!map.has(pref.promoterId)) map.set(pref.promoterId, new Set());
+    map.get(pref.promoterId)!.add(pref.storeCode);
+  }
+
+  // Conflict pairs
+  const conflictPairs: [string, string][] = conflicts.map(c => [c.promoterAId, c.promoterBId]);
+
+  // Score params
+  const allValues = [...perfMatrix.values()];
+  const globalMean = allValues.length > 0
+    ? allValues.reduce((a, b) => a + b, 0) / allValues.length : 500;
+  const globalFallback = globalMean * 0.4;
+  const prefBonus = globalMean * 0.25;
+
+  // Store average fallback from net revenue
+  const storeAvgMap = new Map<string, number>();
+  if (storeNetRevenue && storeNetRevenue.size > 0) {
+    const maxRev = Math.max(...storeNetRevenue.values());
+    const storeScores = new Map<string, number[]>();
+    for (const [key, val] of perfMatrix) {
+      const sc = key.split('_')[1];
+      if (!storeScores.has(sc)) storeScores.set(sc, []);
+      storeScores.get(sc)!.push(val);
+    }
+    const perfMax = storeScores.size > 0
+      ? Math.max(...[...storeScores.values()].map(arr => arr.reduce((a, b) => a + b, 0) / arr.length))
+      : globalMean;
+    for (const s of activeStores) {
+      const rev = storeNetRevenue.get(s.code);
+      storeAvgMap.set(s.code, (rev && rev > 0 && maxRev > 0) ? (rev / maxRev) * perfMax : globalMean * 0.01);
+    }
+  }
+
+  // ── Step 1: Block assignment via Hungarian (once for entire period) ────
+  const storeSlots: string[] = [];
+  for (const s of activeStores) {
+    const baseCap = Math.max(1, s.maxCapacity ?? 1);
+    const minPeople = extra.storeMinPeople.get(s.code) ?? baseCap;
+    const cap = Math.max(baseCap, minPeople);
+    for (let k = 0; k < cap; k++) storeSlots.push(s.code);
+  }
+
+  const nProms = activePromoters.length;
+  const nSlots = storeSlots.length;
+  const nCols = nSlots + nProms;
+
+  const profit: number[][] = Array.from({ length: nProms }, () => new Array(nCols).fill(0));
+
+  for (let i = 0; i < nProms; i++) {
+    const pid = activePromoters[i].id;
+    const hasMust = mustMap.has(pid) && mustMap.get(pid)!.size > 0;
+
+    for (let j = 0; j < nSlots; j++) {
+      const sc = storeSlots[j];
+      if (bannedMap.get(pid)?.has(sc)) { profit[i][j] = INFEASIBLE; continue; }
+      if (hasMust && !mustMap.get(pid)!.has(sc)) { profit[i][j] = INFEASIBLE; continue; }
+
+      const base = perfMatrix.get(`${pid}_${sc}`) ?? storeAvgMap.get(sc) ?? globalFallback;
+      let bonus = 0;
+      if (preferredMap.get(pid)?.has(sc)) bonus += prefBonus;
+      profit[i][j] = base + bonus;
+    }
+  }
+
+  const cost = profit.map(row => row.map(v => -v));
+  const rowAssign = hungarianMinimize(cost);
+
+  // Block map: pid → store code (fixed for ~2 weeks)
+  const blockMap = new Map<string, string>();
+  for (let i = 0; i < nProms; i++) {
+    const j = rowAssign[i];
+    const pid = activePromoters[i].id;
+    if (j >= 0 && j < nSlots && profit[i][j] > INFEASIBLE / 2) {
+      blockMap.set(pid, storeSlots[j]);
+    } else {
+      blockMap.set(pid, 'Off');
+    }
+  }
+
+  // Resolve conflicts
+  for (const [pidA, pidB] of conflictPairs) {
+    const scA = blockMap.get(pidA);
+    const scB = blockMap.get(pidB);
+    if (scA && scB && scA !== 'Off' && scA === scB) {
+      const sA = perfMatrix.get(`${pidA}_${scA}`) ?? globalFallback;
+      const sB = perfMatrix.get(`${pidB}_${scB}`) ?? globalFallback;
+      blockMap.set(sA <= sB ? pidA : pidB, 'Off');
+    }
+  }
+
+  // Enforce min staffing
+  const storeCount = new Map<string, number>();
+  for (const sc of blockMap.values()) {
+    if (sc !== 'Off') storeCount.set(sc, (storeCount.get(sc) ?? 0) + 1);
+  }
+  for (const s of activeStores) {
+    const minN = extra.storeMinPeople.get(s.code) ?? Math.max(1, s.maxCapacity ?? 1);
+    const current = storeCount.get(s.code) ?? 0;
+    if (current < minN) {
+      const candidates = activePromoters
+        .filter(p => blockMap.get(p.id) === 'Off' && !bannedMap.get(p.id)?.has(s.code))
+        .sort((a, b) =>
+          (perfMatrix.get(`${b.id}_${s.code}`) ?? globalFallback) -
+          (perfMatrix.get(`${a.id}_${s.code}`) ?? globalFallback)
+        );
+      for (const p of candidates.slice(0, minN - current)) {
+        blockMap.set(p.id, s.code);
+      }
+    }
+  }
+
+  // Reassign remaining Off promoters to best available store
+  for (const p of activePromoters) {
+    if (blockMap.get(p.id) !== 'Off') continue;
+    let bestStore = '';
+    let bestScore = -Infinity;
+    for (const s of activeStores) {
+      if (bannedMap.get(p.id)?.has(s.code)) continue;
+      const score = perfMatrix.get(`${p.id}_${s.code}`) ?? storeAvgMap.get(s.code) ?? globalFallback;
+      if (score > bestScore) { bestScore = score; bestStore = s.code; }
+    }
+    if (bestStore) blockMap.set(p.id, bestStore);
+  }
+
+  console.log('[Qatar Optimizer] Block assignment:', Object.fromEntries(
+    activePromoters.map(p => [p.name, blockMap.get(p.id)])
+  ));
+
+  // ── Step 2: Inspection rotation schedule ──────────────────────────────
+  // Rank stores by net revenue (worst first) for inspection priority
+  const storeRevSorted = [...activeStores]
+    .map(s => ({ code: s.code, rev: storeNetRevenue?.get(s.code) ?? 0 }))
+    .sort((a, b) => a.rev - b.rev);
+
+  // Stores NOT staffed by block assignment get inspection priority
+  const staffedStores = new Set([...blockMap.values()].filter(s => s !== 'Off'));
+  const unstaffedStores = storeRevSorted
+    .filter(s => !staffedStores.has(s.code))
+    .map(s => s.code);
+  // Also include lowest-revenue staffed stores for inspection
+  const inspectionQueue = [
+    ...unstaffedStores,
+    ...storeRevSorted.filter(s => staffedStores.has(s.code)).map(s => s.code),
+  ];
+
+  // Group dates into ISO weeks
+  const weeks = new Map<number, string[]>();
+  for (const dateStr of dates) {
+    const d = new Date(dateStr + 'T00:00:00');
+    // ISO week number
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+    if (!weeks.has(weekNum)) weeks.set(weekNum, []);
+    weeks.get(weekNum)!.push(dateStr);
+  }
+
+  // For each week, schedule 1 inspection on a Qatar weekday
+  const rotationMap = new Map<string, Map<string, string>>(); // dateStr → (pid → inspectStore)
+  let inspectIdx = 0;
+
+  for (const [, weekDates] of [...weeks.entries()].sort((a, b) => a[0] - b[0])) {
+    // Filter to Qatar weekdays (Sun-Thu)
+    const weekdays = weekDates.filter(d => !QATAR_WEEKEND.has(dayName(d)));
+    if (weekdays.length === 0) continue;
+
+    // Pick the next store to inspect
+    if (inspectIdx >= inspectionQueue.length) inspectIdx = 0;
+    const inspectStore = inspectionQueue[inspectIdx];
+    inspectIdx++;
+    if (!inspectStore) continue;
+
+    // Pick a weekday (vary the day across weeks)
+    const inspectDate = weekdays[inspectIdx % weekdays.length];
+
+    // Pick the best overall promoter who can go
+    const rotatable = activePromoters
+      .filter(p => {
+        const assigned = blockMap.get(p.id);
+        if (!assigned || assigned === 'Off' || assigned === inspectStore) return false;
+        if (bannedMap.get(p.id)?.has(inspectStore)) return false;
+        // Must be working that day
+        const dOff = parseDaysOff(p.workingDays);
+        if (dOff.has(dayName(inspectDate))) return false;
+        const fname = firstName(p.name);
+        if (extra.promoterForceOff.has(`${fname}_${dayName(inspectDate)}`)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        // Pick person with highest average across all stores (best inspector)
+        const avgA = [...allStoreCodes].reduce((sum, sc) => sum + (perfMatrix.get(`${a.id}_${sc}`) ?? 0), 0) / allStoreCodes.size;
+        const avgB = [...allStoreCodes].reduce((sum, sc) => sum + (perfMatrix.get(`${b.id}_${sc}`) ?? 0), 0) / allStoreCodes.size;
+        return avgB - avgA;
+      });
+
+    if (rotatable.length === 0) continue;
+
+    const chosen = rotatable[0];
+    if (!rotationMap.has(inspectDate)) rotationMap.set(inspectDate, new Map());
+    rotationMap.get(inspectDate)!.set(chosen.id, inspectStore);
+
+    console.log(`[Qatar Optimizer] Inspection: ${chosen.name} → ${inspectStore} on ${inspectDate} (${dayName(inspectDate)})`);
+  }
+
+  // ── Step 3: Generate daily assignments ────────────────────────────────
+  const assignments: DraftAssignment[] = [];
+  const dailySummary: DaySummary[] = [];
+  let totalExpected = 0;
+
+  for (const dateStr of dates) {
+    const day = dayName(dateStr);
+    const dayRotations = rotationMap.get(dateStr);
+    let dayRev = 0;
+    let dayCount = 0;
+
+    for (const p of activePromoters) {
+      const fname = firstName(p.name);
+      const daysOff = parseDaysOff(p.workingDays);
+
+      // Day off check
+      if (daysOff.has(day) || extra.promoterForceOff.has(`${fname}_${day}`)) {
+        assignments.push({ promoterId: p.id, date: dateStr, store: 'Off' });
+        continue;
+      }
+
+      // Day-specific override from constraints
+      const dayOverride = extra.promoterDayStore.get(`${fname}_${day}`);
+
+      // Determine store: rotation > day override > block assignment
+      let sc: string;
+      if (dayRotations?.has(p.id)) {
+        sc = dayRotations.get(p.id)!;
+      } else if (dayOverride) {
+        sc = dayOverride;
+      } else {
+        sc = blockMap.get(p.id) ?? 'Off';
+      }
+
+      const entry: DraftAssignment = { promoterId: p.id, date: dateStr, store: sc };
+
+      if (sc !== 'Off') {
+        const store = activeStores.find(s => s.code === sc);
+        const endOverride = extra.promoterEndTime.get(fname);
+        if (store) {
+          if (endOverride) {
+            entry.timeRange = `${store.openTime}-${endOverride}`;
           } else if (store.shiftSlots && store.shiftSlots.length > 0) {
             entry.timeRange = matchShiftSlot(store.shiftSlots, dateStr);
           } else {

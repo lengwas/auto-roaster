@@ -392,6 +392,13 @@
   background-color: var(--row-promoter-hover);
 }
 
+/* Focused cell (for copy/paste) */
+.cell-focused {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+  z-index: 1;
+}
+
 /* Note — double-click to add, hover to see tooltip */
 .has-note {
   position: relative;

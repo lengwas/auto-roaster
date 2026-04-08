@@ -478,7 +478,7 @@ export default function AutoAssignPage({
       const extra = loadConstraints(parsedConstraints as OptimizerParsedConstraints | null);
       const result = runOptimizer(
         dates, promoters, stores, storePreferences, promoterConflicts,
-        perfMatrix, extra, storeNetRev,
+        perfMatrix, extra, storeNetRev, country,
       );
       const mapped: DraftAssignment[] = result.assignments.map(a => ({
         promoterId: a.promoterId,
