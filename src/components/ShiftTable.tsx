@@ -58,13 +58,30 @@ function formatDate(dateStr: string): { day: string; date: string; dow: string; 
 }
 
 const SHIFT_COLOR_MAP: Record<string, string> = {
+  // UAE stores
   VDM: 'shift-vdm', VDH: 'shift-vdh', VME: 'shift-vme',
   BDM: 'shift-bdm', JME: 'shift-jme', AIR: 'shift-air',
   VAY: 'shift-vay', VYM: 'shift-vym', VRM: 'shift-vrm',
   VMF: 'shift-vmf', VMN: 'shift-vmn', VNK: 'shift-vnk',
   JDM: 'shift-jdm', JDH: 'shift-jdh', SDM: 'shift-sdm',
-  HDM: 'shift-hdm',
-  LOP: 'shift-lop', Off: 'shift-off', SL: 'shift-sl',
+  HDM: 'shift-hdm', ADC: 'shift-adc', IMG: 'shift-img',
+  // Qatar stores
+  VDF: 'shift-vdf', VLM: 'shift-vlm', VMQ: 'shift-vmq',
+  VVD: 'shift-vvd', VVG: 'shift-vvg',
+  // Special
+  LOP: 'shift-lop', Off: 'shift-off', SL: 'shift-sl', AL: 'shift-sl',
+};
+
+/** Solid color per store code for left-border indicator on store rows */
+const STORE_INDICATOR_COLOR: Record<string, string> = {
+  // UAE
+  VDM: '#ef4444', VDH: '#f87171', VME: '#8b5cf6', BDM: '#22c55e',
+  JME: '#eab308', AIR: '#f97316', VAY: '#7c3aed', VYM: '#10b981',
+  VRM: '#ea580c', VMF: '#ec4899', VMN: '#0ea5e9', VNK: '#a855f7',
+  JDM: '#84cc16', JDH: '#f59e0b', SDM: '#6366f1', HDM: '#14b8a6',
+  ADC: '#d97706', IMG: '#64748b',
+  // Qatar
+  VDF: '#ef4444', VLM: '#8b5cf6', VMQ: '#0ea5e9', VVD: '#22c55e', VVG: '#f59e0b',
 };
 
 function getShiftClass(type: string): string {
@@ -553,9 +570,13 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
               <div
                 key={store.id}
                 className="grid-row"
-                style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)' }}
+                style={{
+                  backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)',
+                  borderLeft: `4px solid ${STORE_INDICATOR_COLOR[store.code] ?? '#94a3b8'}`,
+                }}
               >
                 <div className="cell cell-fixed-left col-name" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)' }}>
+                  <span className={`store-dot ${getShiftClass(store.code)}`} />
                   {store.code}
                   {tierMap.has(store.code) && (
                     <span style={{ fontSize: 9, color: '#6366f1', marginLeft: 3, fontWeight: 600 }}>({tierMap.get(store.code)})</span>
@@ -569,7 +590,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
                 </div>
                 <div className="cell cell-fixed-left-3 col-day" style={{ backgroundColor: hasExtra ? 'var(--row-store-alt)' : 'var(--row-store)', fontSize: '10px', color: 'var(--text-secondary)' }}>
                   {storeRevenueMap.has(store.code)
-                    ? <span style={{ color: '#059669' }}>{Math.round(storeRevenueMap.get(store.code)!).toLocaleString()}</span>
+                    ? <span style={{ color: '#059669', fontWeight: 600 }}>{Math.round(storeRevenueMap.get(store.code)!).toLocaleString()}</span>
                     : ''}
                 </div>
                 {visibleDates.map((dateStr) => {

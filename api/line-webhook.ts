@@ -12,27 +12,30 @@ const GROUP_COUNTRY_MAP: Record<string, 'UAE' | 'QA'> = {
   // 'C...' : 'QA',
 };
 
-/** Read the raw request body as a string. Handles both stream and pre-parsed body. */
+/** Read the raw request body as a Buffer, then return as string. */
 function readBody(req: VercelRequest): Promise<string> {
-  // If Vercel already parsed the body (despite bodyParser: false), stringify it
-  if (req.body) {
-    return Promise.resolve(typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
-  }
   return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-    req.on('end', () => resolve(data));
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => { chunks.push(chunk); });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
     req.on('error', reject);
+    // If stream is already consumed (no data events fire), resolve after short timeout
+    setTimeout(() => {
+      if (chunks.length === 0 && req.body) {
+        // Fallback: Vercel already consumed the stream
+        resolve(typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+      }
+    }, 100);
   });
 }
 
 /** Fuzzy-match a name from OCR against the promoters table. */
 async function matchPromoter(
   ocrName: string | null,
+  employeeCode: string | null,
   country: 'UAE' | 'QA',
 ): Promise<{ id: string; name: string } | null> {
-  if (!ocrName) return null;
-  const needle = ocrName.toLowerCase().trim();
+  if (!ocrName && !employeeCode) return null;
 
   const { data } = await supabaseAdmin
     .from(t('promoters', country))
@@ -41,7 +44,23 @@ async function matchPromoter(
 
   if (!data) return null;
 
-  // Try exact match first, then substring
+  const needle = (ocrName || '').toLowerCase().trim();
+  const code = (employeeCode || '').toLowerCase().trim();
+
+  // Try employee code match first (most reliable)
+  if (code) {
+    for (const row of data) {
+      const name = String(row.name).toLowerCase();
+      const label = String(row.stores_label || '').toLowerCase();
+      if (name.includes(code) || label.includes(code)) {
+        return { id: row.id, name: row.name };
+      }
+    }
+  }
+
+  if (!needle) return null;
+
+  // Try exact name match, then substring
   for (const row of data) {
     const name = String(row.name).toLowerCase();
     const label = String(row.stores_label || '').toLowerCase();
@@ -59,19 +78,30 @@ async function matchPromoter(
   return null;
 }
 
-/** Match OCR store name against stores table. */
+/** Match OCR store name/code against stores table. */
 async function matchStore(
   ocrStore: string | null,
+  ocrStoreCode: string | null,
   country: 'UAE' | 'QA',
 ): Promise<string | null> {
-  if (!ocrStore) return null;
-  const needle = ocrStore.toLowerCase().trim();
+  if (!ocrStore && !ocrStoreCode) return null;
 
   const { data } = await supabaseAdmin
     .from(t('stores', country))
     .select('code, name');
 
   if (!data) return null;
+
+  // Try direct store code match first (most reliable, e.g. "VDM")
+  if (ocrStoreCode) {
+    const codeNeedle = ocrStoreCode.toLowerCase().trim();
+    for (const row of data) {
+      if (String(row.code).toLowerCase() === codeNeedle) return row.code;
+    }
+  }
+
+  if (!ocrStore) return null;
+  const needle = ocrStore.toLowerCase().trim();
 
   for (const row of data) {
     const code = String(row.code).toLowerCase();
@@ -119,9 +149,9 @@ async function processImageEvent(event: Record<string, unknown>) {
   const ocr = await extractAttendance(imageBuffer, mimeType);
   console.log(`[webhook] OCR result:`, JSON.stringify(ocr));
 
-  // Match promoter and store
-  const promoter = await matchPromoter(ocr.promoter_name, country);
-  const storeCode = await matchStore(ocr.store_name, country);
+  // Match promoter and store (use employee_code and store_code from OCR for better matching)
+  const promoter = await matchPromoter(ocr.promoter_name, ocr.employee_code ?? null, country);
+  const storeCode = await matchStore(ocr.store_name, ocr.store_code ?? null, country);
 
   // Determine date: from OCR or today
   const today = new Date().toISOString().split('T')[0];

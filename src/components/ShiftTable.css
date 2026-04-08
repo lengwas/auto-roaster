@@ -497,7 +497,18 @@
 }
 .note-btn-save:hover { background: #1d4ed8; }
 
-/* Shift Colors — store-based */
+/* Store color dot indicator */
+.store-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Shift Colors — UAE stores */
 .shift-vdm { background-color: #fca5a5; }
 .shift-vdh { background-color: #fecdd3; }
 .shift-vme { background-color: #ddd6fe; }
@@ -514,6 +525,16 @@
 .shift-jdh { background-color: #fde68a; }
 .shift-sdm { background-color: #c7d2fe; }
 .shift-hdm { background-color: #ccfbf1; }
+.shift-adc { background-color: #fde68a; }
+.shift-img { background-color: #cbd5e1; }
+
+/* Shift Colors — Qatar stores */
+.shift-vdf { background-color: #fca5a5; }
+.shift-vlm { background-color: #ddd6fe; }
+.shift-vmq { background-color: #bae6fd; }
+.shift-vvd { background-color: #bbf7d0; }
+.shift-vvg { background-color: #fef08a; }
+
 .shift-store-default { background-color: #e2e8f0; }
 
 /* Special shifts */

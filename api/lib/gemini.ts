@@ -1,32 +1,56 @@
 /** OCR result from Gemini vision analysis of an attendance screenshot. */
 export interface AttendanceOCR {
   promoter_name: string | null;
+  employee_code: string | null; // e.g. "db007"
   store_name: string | null;
-  check_in: string | null;   // "HH:MM"
-  check_out: string | null;  // "HH:MM" or null
-  date: string | null;       // "YYYY-MM-DD" or null
+  store_code: string | null;    // e.g. "VDM"
+  check_in: string | null;      // "HH:MM"
+  check_out: string | null;     // "HH:MM" or null
+  date: string | null;          // "YYYY-MM-DD" or null
   confidence: 'high' | 'medium' | 'low';
   raw_text: string;
 }
 
-const OCR_PROMPT = `You are analyzing a screenshot from a time-tracking / attendance app.
+const OCR_PROMPT = `You are analyzing a screenshot from a time-tracking / attendance system.
+There are TWO possible image formats:
+
+**Format 1: CheckIn App Screenshot**
+A structured screen with fields like:
+- "Attendance Date : 2026-04-08 09:51:00"
+- "Employee Name : db007 - Arlene Antonio Shimizu (Len)"
+- "Place : VDM - Virgin Dubai Mall" (or "Place : You are out of work area")
+- "Far from VDH - Virgin Dubai Hills 149.81 m."
+- A selfie photo and a map
+- May show green checkmark (success) or red X (error/out of area)
+
+**Format 2: GPS Map Camera Selfie**
+A selfie photo with a GPS overlay at the bottom showing:
+- City, address
+- Lat/Long coordinates
+- Date and time (e.g. "Saturday, 04/04/2026 12:52 PM GMT+04:00")
+- "Captured by GPS Map Camera"
+
 Extract the following information and return ONLY valid JSON (no markdown, no backticks):
 
 {
-  "promoter_name": "the person's name shown in the screenshot, or null if not visible",
-  "store_name": "the store/branch/location name, or null if not visible",
-  "check_in": "check-in time in HH:MM 24-hour format, or null",
-  "check_out": "check-out time in HH:MM 24-hour format, or null",
-  "date": "date in YYYY-MM-DD format, or null if not visible",
-  "confidence": "high if all fields are clearly readable, medium if some are unclear, low if mostly guessing",
+  "promoter_name": "the person's full name without the employee code (e.g. 'Arlene Antonio Shimizu'), or null",
+  "employee_code": "the employee code like 'db007' before the dash in Employee Name, or null",
+  "store_name": "the full store name (e.g. 'Virgin Dubai Mall'), or null",
+  "store_code": "the store code (e.g. 'VDM'), or null",
+  "check_in": "time in HH:MM 24-hour format if this is a check-in, or null",
+  "check_out": "time in HH:MM 24-hour format if this is a check-out, or null",
+  "date": "date in YYYY-MM-DD format, or null",
+  "confidence": "high/medium/low",
   "raw_text": "all visible text in the image concatenated"
 }
 
-Important:
-- Times must be in 24-hour HH:MM format
-- Date must be YYYY-MM-DD
-- If you see both clock-in and clock-out, include both
-- If you only see one timestamp, determine if it's check-in or check-out based on context
+Important rules:
+- For Format 1: Employee Name format is "CODE - Full Name (nickname)". Extract just the full name for promoter_name.
+- For Format 1: Place format is "CODE - Store Name". If Place says "You are out of work area", get store code/name from the "Far from CODE - Store Name" line instead.
+- For Format 1: Attendance Date has both date and time. Extract date as YYYY-MM-DD and time as HH:MM.
+- For Format 2: Extract date/time from the GPS overlay. Convert date from DD/MM/YYYY or MM/DD/YYYY to YYYY-MM-DD. Convert 12-hour time to 24-hour HH:MM.
+- For Format 2: There is no employee name or store info, so set those to null.
+- To determine check_in vs check_out: if the time is before 15:00, it's check_in. If 15:00 or later, it's check_out.
 - Return ONLY the JSON object, nothing else`;
 
 /** Send an image to Gemini 2.0 Flash for attendance OCR. */
@@ -74,7 +98,9 @@ export async function extractAttendance(imageBuffer: Buffer, mimeType: string): 
     console.error('Failed to parse Gemini response:', text);
     return {
       promoter_name: null,
+      employee_code: null,
       store_name: null,
+      store_code: null,
       check_in: null,
       check_out: null,
       date: null,
