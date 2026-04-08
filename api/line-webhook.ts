@@ -29,6 +29,41 @@ function readBody(req: VercelRequest): Promise<string> {
   });
 }
 
+/** Look up promoter by LINE user ID (for GPS selfies where OCR has no name). */
+async function matchPromoterByLineUserId(
+  lineUserId: string,
+  country: 'UAE' | 'QA',
+): Promise<{ id: string; name: string } | null> {
+  const { data } = await supabaseAdmin
+    .from(t('promoters', country))
+    .select('id, name')
+    .eq('line_user_id', lineUserId)
+    .eq('active', true)
+    .maybeSingle();
+
+  if (data) return { id: data.id, name: data.name };
+  return null;
+}
+
+/** Auto-save LINE user ID to promoter record for future GPS selfie matching. */
+async function learnLineUserId(
+  promoterId: string,
+  lineUserId: string,
+  country: 'UAE' | 'QA',
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from(t('promoters', country))
+    .update({ line_user_id: lineUserId })
+    .eq('id', promoterId)
+    .is('line_user_id', null); // only set if not already set
+
+  if (error) {
+    console.error(`[webhook] Failed to save line_user_id for ${promoterId}:`, error);
+  } else {
+    console.log(`[webhook] Learned line_user_id for promoter ${promoterId}`);
+  }
+}
+
 /** Fuzzy-match a name from OCR against the promoters table. */
 async function matchPromoter(
   ocrName: string | null,
@@ -123,6 +158,7 @@ async function processImageEvent(event: Record<string, unknown>) {
   const messageId = String(message.id);
   const source = event.source as Record<string, unknown>;
   const groupId = source.groupId ? String(source.groupId) : null;
+  const lineUserId = source.userId ? String(source.userId) : null;
 
   // Determine country from group ID mapping, default to UAE
   const country: 'UAE' | 'QA' = (groupId && GROUP_COUNTRY_MAP[groupId]) || 'UAE';
@@ -149,8 +185,23 @@ async function processImageEvent(event: Record<string, unknown>) {
   const ocr = await extractAttendance(imageBuffer, mimeType);
   console.log(`[webhook] OCR result:`, JSON.stringify(ocr));
 
-  // Match promoter and store (use employee_code and store_code from OCR for better matching)
-  const promoter = await matchPromoter(ocr.promoter_name, ocr.employee_code ?? null, country);
+  // Match promoter: try OCR name/code first, fall back to LINE user ID for GPS selfies
+  let promoter = await matchPromoter(ocr.promoter_name, ocr.employee_code ?? null, country);
+
+  if (!promoter && lineUserId) {
+    // GPS Map Camera selfie — no name in image, use LINE sender identity
+    console.log(`[webhook] No name from OCR, trying LINE user ID ${lineUserId}...`);
+    promoter = await matchPromoterByLineUserId(lineUserId, country);
+    if (promoter) {
+      console.log(`[webhook] Matched promoter ${promoter.name} via LINE user ID`);
+    }
+  }
+
+  // Auto-learn: if OCR matched (Format 1) and we have a LINE user ID, save it for future GPS selfies
+  if (promoter && lineUserId && ocr.promoter_name) {
+    await learnLineUserId(promoter.id, lineUserId, country);
+  }
+
   const storeCode = await matchStore(ocr.store_name, ocr.store_code ?? null, country);
 
   // Determine date: from OCR or today
@@ -160,7 +211,7 @@ async function processImageEvent(event: Record<string, unknown>) {
   // Insert into attendance table
   const record = {
     promoter_id: promoter?.id ?? null,
-    promoter_name: ocr.promoter_name,
+    promoter_name: promoter?.name ?? ocr.promoter_name,
     store_code: storeCode,
     store_name: ocr.store_name,
     date,
@@ -169,6 +220,7 @@ async function processImageEvent(event: Record<string, unknown>) {
     source: 'line',
     line_message_id: messageId,
     line_group_id: groupId,
+    line_user_id: lineUserId,
     ocr_confidence: ocr.confidence,
     ocr_raw_text: ocr.raw_text,
     status: promoter ? 'matched' : 'unmatched',
