@@ -75,24 +75,29 @@ export function useShifts(country: Country = 'UAE') {
     timeRange?: string,
     note?: string,
   ) {
+    console.log(`[saveShift] ${shiftType} ${timeRange} for ${promoterId} on ${date} → ${t('shifts', country)}`);
+
     if (!shiftType) {
-      await supabase
+      const { error: delErr } = await supabase
         .from(t('shifts', country))
         .delete()
         .eq('promoter_id', promoterId)
         .eq('date', date);
+      if (delErr) console.error('[saveShift] Delete failed:', delErr);
       setShifts(prev => prev.filter(s => !(s.promoterId === promoterId && s.date === date)));
       return;
     }
 
+    const payload = { promoter_id: promoterId, date, shift_type: shiftType, time_range: timeRange ?? null, note: note ?? null };
+    console.log('[saveShift] Upserting:', payload);
+
     const { data, error } = await supabase
       .from(t('shifts', country))
-      .upsert(
-        { promoter_id: promoterId, date, shift_type: shiftType, time_range: timeRange ?? null, note: note ?? null },
-        { onConflict: 'promoter_id,date' },
-      )
+      .upsert(payload, { onConflict: 'promoter_id,date' })
       .select('*')
       .single();
+
+    console.log('[saveShift] Result:', { data, error: error?.message });
 
     if (!error && data) {
       const updated = mapRow(data as Record<string, unknown>);
@@ -101,7 +106,7 @@ export function useShifts(country: Country = 'UAE') {
         return [...filtered, updated];
       });
     } else if (error) {
-      console.error('Failed to save shift:', error);
+      console.error('[saveShift] Failed:', error);
     }
   }
 
