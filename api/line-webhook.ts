@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { verifySignature, downloadImage } from './lib/line';
-import { extractAttendance } from './lib/gemini';
-import { supabaseAdmin, t } from './lib/supabase-admin';
+import { verifySignature, downloadImage } from './lib/line.js';
+import { extractAttendance } from './lib/gemini.js';
+import { supabaseAdmin, t } from './lib/supabase-admin.js';
 
 // Disable Vercel's automatic body parsing so we can read the raw body for signature verification
 export const config = { api: { bodyParser: false } };
