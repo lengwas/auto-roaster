@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { verifySignature, downloadImage, replyMessage } from './lib/line';
+import { verifySignature, downloadImage } from './lib/line';
 import { extractAttendance } from './lib/gemini';
 import { supabaseAdmin, t } from './lib/supabase-admin';
 
@@ -89,7 +89,6 @@ async function processImageEvent(event: Record<string, unknown>) {
   const messageId = String(message.id);
   const source = event.source as Record<string, unknown>;
   const groupId = source.groupId ? String(source.groupId) : null;
-  const replyToken = String(event.replyToken);
 
   // Determine country from group ID mapping, default to UAE
   const country: 'UAE' | 'QA' = (groupId && GROUP_COUNTRY_MAP[groupId]) || 'UAE';
@@ -150,22 +149,8 @@ async function processImageEvent(event: Record<string, unknown>) {
     return;
   }
 
-  // Build reply message
   const name = promoter?.name ?? ocr.promoter_name ?? 'Unknown';
   const store = storeCode ?? ocr.store_name ?? '-';
-  const timeIn = ocr.check_in ?? '-';
-  const timeOut = ocr.check_out ? ` → ${ocr.check_out}` : '';
-  const statusIcon = promoter ? '✅' : '⚠️';
-
-  const replyText = `${statusIcon} Recorded: ${name}\n📍 ${store}  🕐 ${timeIn}${timeOut}\n📅 ${date}${!promoter ? '\n⚠ Promoter not matched — needs review' : ''}`;
-
-  try {
-    await replyMessage(replyToken, replyText, accessToken);
-  } catch (err) {
-    // Reply tokens expire quickly; log but don't fail
-    console.warn('[webhook] Reply failed (token may have expired):', err);
-  }
-
   console.log(`[webhook] Attendance saved for ${name} at ${store} on ${date}.`);
 }
 
