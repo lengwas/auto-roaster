@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order, StoreTierSetting, PromoterGradeOverride, StorePreference, PromoterConflict } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
-import { matchShiftSlot } from '../lib/shiftSlotUtils';
+
 import './ShiftTable.css';
 
 interface RevenueForecastEntry {
@@ -247,7 +247,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     return a.name.localeCompare(b.name);
   });
 
-  const handleChange = useCallback((promoterId: string, date: string, value: string) => {
+  const handleChange = useCallback((promoterId: string, date: string, value: string, timeRange?: string) => {
     if (!onShiftChange) return;
     // Preserve existing note when changing shift type
     const existingShift = shifts.find(s => s.promoterId === promoterId && s.date === date);
@@ -260,10 +260,10 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
       onShiftChange(promoterId, date, value, undefined, existingNote);
       return;
     }
-    const store = storeByCode.get(value);
-    let timeRange = store ? `${store.openTime}-${store.closeTime}` : undefined;
-    if (store?.shiftSlots && store.shiftSlots.length > 0) {
-      timeRange = matchShiftSlot(store.shiftSlots, date);
+    // Use timeRange from picker if provided, otherwise derive from store
+    if (!timeRange) {
+      const store = storeByCode.get(value);
+      timeRange = store ? `${store.openTime}-${store.closeTime}` : undefined;
     }
     onShiftChange(promoterId, date, value, timeRange, existingNote);
   }, [onShiftChange, storeByCode, shifts]);
@@ -696,7 +696,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
                   <ShiftPicker
                     value={shift?.type || '-'}
                     stores={activeStores}
-                    onChange={(val) => handleChange(promoter.id, dateStr, val)}
+                    date={dateStr}
+                    onChange={(val, timeRange) => handleChange(promoter.id, dateStr, val, timeRange)}
                   />
                   {shift?.type && !['Off', 'LOP', 'SL', '-', ''].includes(shift.type) && (() => {
                     const timeLabel = shift.timeRange || (() => {

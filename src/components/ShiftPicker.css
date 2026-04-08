@@ -28,7 +28,7 @@
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  width: 180px;
+  width: 200px;
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -53,7 +53,7 @@
 }
 
 .shift-picker-options {
-  max-height: 220px;
+  max-height: 260px;
   overflow-y: auto;
 }
 
@@ -91,8 +91,75 @@
 .shift-picker-code {
   font-weight: 700;
 }
+
+.shift-picker-store-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .shift-picker-time {
   font-size: 10px;
   color: var(--text-secondary);
   font-family: ui-monospace, Consolas, monospace;
+}
+
+.shift-picker-slots-badge {
+  font-size: 9px;
+  background: #e0e7ff;
+  color: #4338ca;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Step 2: Back button + slot list ── */
+.shift-picker-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 12px;
+}
+.shift-picker-back:hover {
+  background: #f1f5f9;
+}
+
+.shift-picker-back-arrow {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.shift-picker-back-store {
+  font-weight: 700;
+}
+.shift-picker-back-name {
+  font-size: 10px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shift-picker-slot {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 12px;
+}
+.shift-picker-slot:hover {
+  background: #eff6ff;
+}
+
+.shift-picker-slot-time {
+  font-weight: 700;
+  font-size: 13px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.shift-picker-slot-label {
+  font-size: 10px;
+  color: var(--text-muted);
 }
