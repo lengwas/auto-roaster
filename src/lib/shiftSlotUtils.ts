@@ -50,7 +50,8 @@ function parseDayPrefix(slot: string): { days: number[] | null; time: string } {
     return { days: indices, time: timePart };
   }
 
-  return { days: null, time: slot };
+  // Store code prefix (e.g. "VDM 13:00-22:00") — not a day, just strip the prefix
+  return { days: null, time: timePart };
 }
 
 /**
@@ -74,8 +75,8 @@ export function matchAllShiftSlots(slots: string[], dateStr: string): string[] {
     }
   }
 
-  if (daySpecific.length > 0) return daySpecific;
-  if (plain.length > 0) return plain;
+  if (daySpecific.length > 0) return [...new Set(daySpecific)];
+  if (plain.length > 0) return [...new Set(plain)];
   return [parseDayPrefix(slots[0]).time];
 }
 
