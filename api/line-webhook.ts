@@ -12,8 +12,12 @@ const GROUP_COUNTRY_MAP: Record<string, 'UAE' | 'QA'> = {
   // 'C...' : 'QA',
 };
 
-/** Read the raw request body as a string. */
+/** Read the raw request body as a string. Handles both stream and pre-parsed body. */
 function readBody(req: VercelRequest): Promise<string> {
+  // If Vercel already parsed the body (despite bodyParser: false), stringify it
+  if (req.body) {
+    return Promise.resolve(typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+  }
   return new Promise((resolve, reject) => {
     let data = '';
     req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
@@ -163,6 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Read raw body for signature verification
   const rawBody = await readBody(req);
+  console.log(`[webhook] Received POST, body length=${rawBody.length}, hasBody=${!!req.body}`);
 
   // Verify LINE signature
   const signature = req.headers['x-line-signature'] as string | undefined;
@@ -173,7 +178,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Server misconfigured' });
   }
 
+  console.log(`[webhook] signature=${signature ? 'present' : 'missing'}, secret=${channelSecret ? channelSecret.substring(0, 4) + '...' : 'MISSING'}`);
+
   if (!signature || !verifySignature(rawBody, signature, channelSecret)) {
+    console.error(`[webhook] Signature verification failed`);
     return res.status(401).json({ error: 'Invalid signature' });
   }
 
