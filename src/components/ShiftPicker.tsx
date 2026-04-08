@@ -212,10 +212,9 @@ const ShiftPicker = ({ value, stores, date, onChange }: ShiftPickerProps) => {
 
 /** Format a slot like "10:00-19:00" into a helpful label. */
 function formatSlotLabel(slot: string): string {
-  const [start, end] = slot.split('-');
-  if (!start || !end) return '';
+  const [start] = slot.split('-');
+  if (!start) return '';
   const sh = parseInt(start);
-  const eh = parseInt(end);
   if (sh < 12) return 'Morning';
   if (sh < 15) return 'Midday';
   return 'Evening';
