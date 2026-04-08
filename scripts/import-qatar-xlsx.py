@@ -12,14 +12,23 @@ import urllib.error
 from datetime import datetime
 
 import openpyxl
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f'Loaded env from {env_path}', file=__import__('sys').stderr)
+except ImportError:
+    pass
 
 # Fix macOS Python SSL cert issue
 ssl._create_default_https_context = ssl._create_unverified_context
 
 # --- Config ---
-# Set SUPABASE_SERVICE_ROLE_KEY env var before running
 XLSX_PATH = os.path.join(os.path.dirname(__file__), '..', '🇶🇦Qatar PC Shift Table .xlsx')
-SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://bsbxvntzddqwjhdnjvof.supabase.co')
+SUPABASE_URL = os.environ.get('VITE_SUPABASE_URL') or os.environ.get('SUPABASE_URL', 'https://bsbxvntzddqwjhdnjvof.supabase.co')
 SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
 
 SPECIAL_SHIFTS = {'Off', 'AL', 'SL', 'LOP'}

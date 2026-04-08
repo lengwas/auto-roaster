@@ -248,6 +248,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
   });
 
   const handleChange = useCallback((promoterId: string, date: string, value: string, timeRange?: string) => {
+    console.log(`[ShiftTable] handleChange: ${value} ${timeRange} for ${promoterId} on ${date}`);
     if (!onShiftChange) return;
     // Preserve existing note when changing shift type
     const existingShift = shifts.find(s => s.promoterId === promoterId && s.date === date);

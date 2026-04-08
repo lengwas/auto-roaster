@@ -53,9 +53,13 @@ const ShiftPicker = ({ value, stores, date, onChange }: ShiftPickerProps) => {
       ? matchAllShiftSlots(store.shiftSlots, date)
       : [`${store.openTime}-${store.closeTime}`];
 
+    console.log(`[ShiftPicker] ${store.code}: ${slots.length} slots`, slots);
+
     if (slots.length <= 1) {
       // Single slot — select immediately
-      onChange(store.code, slots[0]);
+      const tr = slots[0] || `${store.openTime}-${store.closeTime}`;
+      console.log(`[ShiftPicker] Auto-select ${store.code} → ${tr}`);
+      onChange(store.code, tr);
       handleClose();
     } else {
       // Multiple slots — show step 2
@@ -65,6 +69,7 @@ const ShiftPicker = ({ value, stores, date, onChange }: ShiftPickerProps) => {
   };
 
   const handleSelectSlot = (storeCode: string, timeRange: string) => {
+    console.log(`[ShiftPicker] Selected slot ${storeCode} → ${timeRange}`);
     onChange(storeCode, timeRange);
     handleClose();
   };
