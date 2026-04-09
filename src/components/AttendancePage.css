@@ -107,9 +107,8 @@
 .att-table-wrap {
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: auto;
   max-height: 540px;
-  overflow-y: auto;
 }
 .att-table {
   width: 100%;
@@ -257,6 +256,52 @@
   background: #dcfce7;
   color: #166534;
 }
+
+/* Edit controls */
+.att-edit-select {
+  padding: 4px 6px;
+  border: 1px solid #c7d2fe;
+  border-radius: 4px;
+  font-size: 11px;
+  background: white;
+  color: var(--text-primary);
+  max-width: 140px;
+}
+.att-edit-time {
+  padding: 4px 6px;
+  border: 1px solid #c7d2fe;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: ui-monospace, Consolas, monospace;
+  background: white;
+  color: var(--text-primary);
+  width: 80px;
+}
+.att-edit-btn {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.att-edit-start {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+.att-edit-start:hover { background: #c7d2fe; }
+.att-edit-save {
+  background: #dcfce7;
+  color: #166534;
+}
+.att-edit-save:hover { background: #bbf7d0; }
+.att-edit-save:disabled { opacity: 0.5; cursor: default; }
+.att-edit-cancel {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.att-edit-cancel:hover { background: #e2e8f0; }
 
 /* Pagination */
 .att-pagination {

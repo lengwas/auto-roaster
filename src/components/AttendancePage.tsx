@@ -9,6 +9,15 @@ interface AttendancePageProps {
   shifts: Shift[];
   attendance: Attendance[];
   loading: boolean;
+  onUpdate: (id: string, updates: {
+    promoter_id?: string | null;
+    promoter_name?: string | null;
+    store_code?: string | null;
+    store_name?: string | null;
+    check_in?: string | null;
+    check_out?: string | null;
+    status?: string;
+  }) => Promise<void>;
 }
 
 const PAGE_SIZE = 50;
@@ -64,12 +73,22 @@ interface AttendanceRow {
 
 const LATE_THRESHOLD = 15; // minutes grace period
 
-const AttendancePage = ({ stores, promoters, shifts, attendance, loading }: AttendancePageProps) => {
+interface EditState {
+  id: string;
+  promoterId: string | null;
+  storeCode: string | null;
+  checkIn: string;
+  checkOut: string;
+}
+
+const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpdate }: AttendancePageProps) => {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const [alertFilter, setAlertFilter] = useState<'all' | 'alerts-only'>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [editing, setEditing] = useState<EditState | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const storeMap = useMemo(() => {
     const m = new Map<string, Store>();
@@ -231,6 +250,36 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading }: Atte
     return { total: rows.length, today: todayRecords.length, totalAlerts, lateCount, earlyOutCount };
   }, [rows]);
 
+  const startEdit = (r: AttendanceRow) => {
+    setEditing({
+      id: r.id,
+      promoterId: r.promoterId,
+      storeCode: r.storeCode,
+      checkIn: r.checkIn ? r.checkIn.substring(0, 5) : '',
+      checkOut: r.checkOut ? r.checkOut.substring(0, 5) : '',
+    });
+  };
+
+  const cancelEdit = () => setEditing(null);
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    const promoter = editing.promoterId ? promoterMap.get(editing.promoterId) : null;
+    const store = editing.storeCode ? storeMap.get(editing.storeCode) : null;
+    await onUpdate(editing.id, {
+      promoter_id: editing.promoterId || null,
+      promoter_name: promoter?.name || null,
+      store_code: editing.storeCode || null,
+      store_name: store?.name || null,
+      check_in: editing.checkIn ? editing.checkIn + ':00' : null,
+      check_out: editing.checkOut ? editing.checkOut + ':00' : null,
+      status: editing.promoterId ? 'matched' : 'unmatched',
+    });
+    setSaving(false);
+    setEditing(null);
+  };
+
   if (loading) {
     return (
       <div className="att-page">
@@ -308,19 +357,49 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading }: Atte
               <th>Check-in</th>
               <th>Check-out</th>
               <th>Status</th>
-              <th>Alerts</th>
+              <th>Alerts / Actions</th>
             </tr>
           </thead>
           <tbody>
-            {paged.map(r => (
+            {paged.map(r => {
+              const isEditing = editing?.id === r.id;
+              return (
               <tr key={r.id} className={r.alerts.length > 0 ? 'att-row-alert' : ''}>
                 <td>{r.date}</td>
-                <td className="att-name">{r.promoterName}</td>
                 <td>
-                  {r.storeCode ? (
-                    <span className="att-store-badge">{r.storeCode}</span>
+                  {isEditing ? (
+                    <select
+                      className="att-edit-select"
+                      value={editing.promoterId || ''}
+                      onChange={e => setEditing({ ...editing, promoterId: e.target.value || null })}
+                    >
+                      <option value="">-- None --</option>
+                      {promoters.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
                   ) : (
-                    <span className="att-muted">-</span>
+                    <span className="att-name">{r.promoterName}</span>
+                  )}
+                </td>
+                <td>
+                  {isEditing ? (
+                    <select
+                      className="att-edit-select"
+                      value={editing.storeCode || ''}
+                      onChange={e => setEditing({ ...editing, storeCode: e.target.value || null })}
+                    >
+                      <option value="">-- None --</option>
+                      {stores.map(s => (
+                        <option key={s.code} value={s.code}>{s.code}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    r.storeCode ? (
+                      <span className="att-store-badge">{r.storeCode}</span>
+                    ) : (
+                      <span className="att-muted">-</span>
+                    )
                   )}
                 </td>
                 <td>
@@ -333,30 +412,69 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading }: Atte
                     <span className="att-muted">-</span>
                   )}
                 </td>
-                <td className={r.alerts.some(a => a.type === 'late-in') ? 'att-time-bad' : 'att-time-ok'}>
-                  {fmtTime(r.checkIn)}
+                <td>
+                  {isEditing ? (
+                    <input
+                      type="time"
+                      className="att-edit-time"
+                      value={editing.checkIn}
+                      onChange={e => setEditing({ ...editing, checkIn: e.target.value })}
+                    />
+                  ) : (
+                    <span className={r.alerts.some(a => a.type === 'late-in') ? 'att-time-bad' : 'att-time-ok'}>
+                      {fmtTime(r.checkIn)}
+                    </span>
+                  )}
                 </td>
-                <td className={r.alerts.some(a => a.type === 'early-out') ? 'att-time-bad' : 'att-time-ok'}>
-                  {fmtTime(r.checkOut)}
+                <td>
+                  {isEditing ? (
+                    <input
+                      type="time"
+                      className="att-edit-time"
+                      value={editing.checkOut}
+                      onChange={e => setEditing({ ...editing, checkOut: e.target.value })}
+                    />
+                  ) : (
+                    <span className={r.alerts.some(a => a.type === 'early-out') ? 'att-time-bad' : 'att-time-ok'}>
+                      {fmtTime(r.checkOut)}
+                    </span>
+                  )}
                 </td>
                 <td>
                   <span className={`att-status att-status-${r.status}`}>{r.status}</span>
                 </td>
                 <td>
-                  {r.alerts.length > 0 ? (
-                    <div className="att-alerts">
-                      {r.alerts.map((a, i) => (
-                        <span key={i} className={`att-alert-tag att-alert-${a.type}`} title={a.detail}>
-                          {a.label}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="att-ok-tag">OK</span>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {r.alerts.length > 0 ? (
+                      <div className="att-alerts">
+                        {r.alerts.map((a, i) => (
+                          <span key={i} className={`att-alert-tag att-alert-${a.type}`} title={a.detail}>
+                            {a.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="att-ok-tag">OK</span>
+                    )}
+                    {isEditing ? (
+                      <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                        <button className="att-edit-btn att-edit-save" onClick={saveEdit} disabled={saving}>
+                          {saving ? '...' : 'Save'}
+                        </button>
+                        <button className="att-edit-btn att-edit-cancel" onClick={cancelEdit} disabled={saving}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="att-edit-btn att-edit-start" style={{ marginLeft: 'auto' }} onClick={() => startEdit(r)}>
+                        Edit
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {paged.length === 0 && (
               <tr>
                 <td colSpan={8} style={{ textAlign: 'center', color: '#94a3b8', padding: '32px' }}>

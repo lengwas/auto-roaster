@@ -82,5 +82,36 @@ export function useAttendance(country: Country = 'UAE') {
     fetchAll();
   }, [country]);
 
-  return { records, loading, error };
+  /** Update an attendance record in Supabase and local state. */
+  async function updateRecord(
+    id: string,
+    updates: {
+      promoter_id?: string | null;
+      promoter_name?: string | null;
+      store_code?: string | null;
+      store_name?: string | null;
+      check_in?: string | null;
+      check_out?: string | null;
+      status?: string;
+    },
+  ) {
+    const { data, error: err } = await supabase
+      .from(t('attendance', country))
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (err) {
+      console.error('[useAttendance] Update failed:', err);
+      return;
+    }
+
+    if (data) {
+      const updated = mapRow(data as Record<string, unknown>);
+      setRecords(prev => prev.map(r => r.id === id ? updated : r));
+    }
+  }
+
+  return { records, loading, error, updateRecord };
 }
