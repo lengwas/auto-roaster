@@ -85,7 +85,7 @@ function App() {
       <header className="app-header">
         <div className="header-left">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h1 className="app-title">PC Shift Table</h1>
+            <h1 className="app-title">ShiftPro</h1>
             <div style={{ display: 'flex', gap: 4 }}>
               {COUNTRIES.map(c => (
                 <button
