@@ -260,14 +260,39 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
   const shiftsRef = useRef(shifts);
   shiftsRef.current = shifts;
 
+  // Refs for arrow-key navigation (avoids effect re-registration)
+  const visiblePromotersRef = useRef(visiblePromoters);
+  visiblePromotersRef.current = visiblePromoters;
+  const visibleDatesRef = useRef(visibleDates);
+  visibleDatesRef.current = visibleDates;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const meta = e.metaKey || e.ctrlKey;
-      if (!meta) return;
-
       // Don't intercept when typing in an input/textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      // Arrow key navigation (no modifier needed)
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && focusedCell) {
+        e.preventDefault();
+        const proms = visiblePromotersRef.current;
+        const dts = visibleDatesRef.current;
+        const pi = proms.findIndex(p => p.id === focusedCell.promoterId);
+        const di = dts.indexOf(focusedCell.date);
+        if (pi === -1 || di === -1) return;
+        let np = pi, nd = di;
+        if (e.key === 'ArrowUp') np = Math.max(0, pi - 1);
+        if (e.key === 'ArrowDown') np = Math.min(proms.length - 1, pi + 1);
+        if (e.key === 'ArrowLeft') nd = Math.max(0, di - 1);
+        if (e.key === 'ArrowRight') nd = Math.min(dts.length - 1, di + 1);
+        if (np !== pi || nd !== di) {
+          setFocusedCell({ promoterId: proms[np].id, date: dts[nd] });
+        }
+        return;
+      }
+
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta) return;
 
       // Undo: Cmd+Z
       if (e.key === 'z' && !e.shiftKey) {
@@ -340,6 +365,13 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [focusedCell, clipboard]);
+
+  // Scroll focused cell into view when navigating with arrow keys
+  useEffect(() => {
+    if (!focusedCell) return;
+    const el = document.querySelector('.cell-focused');
+    if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [focusedCell]);
 
   const handleChange = useCallback((promoterId: string, date: string, value: string, timeRange?: string) => {
     console.log(`[ShiftTable] handleChange: ${value} ${timeRange} for ${promoterId} on ${date}`);

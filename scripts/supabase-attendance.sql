@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS attendance (
   source          TEXT DEFAULT 'line',     -- 'line' or 'manual'
   line_message_id TEXT UNIQUE,             -- LINE message ID (dedup key)
   line_group_id   TEXT,                    -- LINE group source
+  line_user_id    TEXT,                    -- LINE sender user ID
   ocr_confidence  TEXT,                    -- 'high', 'medium', 'low'
   ocr_raw_text    TEXT,                    -- full OCR text for debugging
   status          TEXT DEFAULT 'matched',  -- 'matched', 'unmatched', 'error'

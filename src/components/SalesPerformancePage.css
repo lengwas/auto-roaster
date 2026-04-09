@@ -404,6 +404,9 @@
   transition: background 0.1s;
 }
 .sp-tier-row:hover { background: #f8fafc; }
+.sp-tier-row-inactive { opacity: 0.45; }
+.sp-tier-row-inactive .sp-tier-code,
+.sp-tier-row-inactive .sp-tier-name { color: #9ca3af; }
 .sp-tier-code {
   font-weight: 700;
   font-size: 12px;

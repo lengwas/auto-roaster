@@ -725,7 +725,9 @@ const SalesPerformancePage = ({
                   Auto-calculate from Revenue
                 </button>
                 <div className="sp-tier-list">
-                  {[...stores.filter(s => s.active)].sort((a, b) => {
+                  {[...stores].sort((a, b) => {
+                    // Active stores first, then by revenue
+                    if (a.active !== b.active) return a.active ? -1 : 1;
                     const ra = storePerfs.get(a.code)?.sales ?? 0;
                     const rb = storePerfs.get(b.code)?.sales ?? 0;
                     return rb - ra;
@@ -733,7 +735,7 @@ const SalesPerformancePage = ({
                     const tier = tierMap.get(store.code) ?? null;
                     const rev = storePerfs.get(store.code)?.sales;
                     return (
-                      <div key={store.code} className="sp-tier-row" onClick={() => cycleStoreTier(store.code)}>
+                      <div key={store.code} className={`sp-tier-row ${!store.active ? 'sp-tier-row-inactive' : ''}`} onClick={() => cycleStoreTier(store.code)}>
                         <span className="sp-tier-code">{store.code}</span>
                         <span className="sp-tier-name">{store.name}</span>
                         {rev != null && rev > 0 && (
@@ -967,7 +969,7 @@ const FitMapView = ({ promoterRows, stores, tierMap, shifts, period, country }: 
   // Determine columns: active stores sorted by tier (A→D→unset), then code
   const sortedStores = useMemo(() => {
     const tierOrder = (t: StoreTier | null) => t ? TIERS.indexOf(t) : 99;
-    return stores.filter(s => s.active).sort((a, b) => {
+    return [...stores].sort((a, b) => {
       const td = tierOrder(tierMap.get(a.code) ?? null) - tierOrder(tierMap.get(b.code) ?? null);
       return td !== 0 ? td : a.code.localeCompare(b.code);
     });

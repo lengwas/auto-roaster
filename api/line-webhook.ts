@@ -271,20 +271,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const body = JSON.parse(rawBody) as { events?: Record<string, unknown>[] };
   const events = body.events ?? [];
 
-  // Return 200 immediately — LINE requires fast response
-  res.status(200).json({ status: 'ok' });
-
-  // Process image events (runs after response is sent)
+  // Process image events BEFORE responding — Vercel kills the function after res is sent
+  let processed = 0;
   for (const event of events) {
     try {
       if (event.type === 'message') {
         const message = event.message as Record<string, unknown>;
         if (message.type === 'image') {
           await processImageEvent(event);
+          processed++;
         }
       }
     } catch (err) {
       console.error('[webhook] Error processing event:', err);
     }
   }
+
+  console.log(`[webhook] Done. Processed ${processed} image(s) out of ${events.length} event(s).`);
+  return res.status(200).json({ status: 'ok', processed });
 }
