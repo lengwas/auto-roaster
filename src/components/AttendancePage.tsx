@@ -35,7 +35,7 @@ function fmtDuration(min: number): string {
   return `${sign}${Math.floor(abs / 60)}h${abs % 60 > 0 ? ` ${abs % 60}m` : ''}`;
 }
 
-type AlertType = 'late-in' | 'early-out' | 'no-checkin' | 'no-checkout' | 'unmatched' | 'no-shift';
+type AlertType = 'late-in' | 'early-out' | 'no-checkin' | 'no-checkout' | 'unmatched' | 'no-shift' | 'wrong-store';
 
 interface AlertInfo {
   type: AlertType;
@@ -121,6 +121,16 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading }: Atte
       // No scheduled shift
       if (!shift && a.promoterId) {
         alerts.push({ type: 'no-shift', label: 'No Shift', detail: 'ไม่มีกะที่จัดไว้ในวันนี้' });
+      }
+
+      // Wrong store — check-in at different store than scheduled
+      if (a.storeCode && scheduledStore && a.storeCode !== scheduledStore
+          && !['Off', 'LOP', 'SL', 'AL'].includes(scheduledStore)) {
+        alerts.push({
+          type: 'wrong-store',
+          label: 'Wrong Store',
+          detail: `Check-in ที่ ${a.storeCode} แต่กะจัดไว้ที่ ${scheduledStore}`,
+        });
       }
 
       // Check-in analysis

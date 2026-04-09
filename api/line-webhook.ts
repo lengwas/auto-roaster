@@ -64,6 +64,16 @@ async function learnLineUserId(
   }
 }
 
+/** Split a name into individual word tokens for matching. */
+function nameTokens(s: string): string[] {
+  return s.toLowerCase().trim().split(/[\s\-_]+/).filter(t => t.length >= 2);
+}
+
+/** Count how many tokens from `a` appear as whole words in `b` tokens. */
+function tokenOverlap(a: string[], b: string[]): number {
+  return a.filter(t => b.includes(t)).length;
+}
+
 /** Fuzzy-match a name from OCR against the promoters table. */
 async function matchPromoter(
   ocrName: string | null,
@@ -95,7 +105,7 @@ async function matchPromoter(
 
   if (!needle) return null;
 
-  // Try exact name match, then substring
+  // 1. Exact match
   for (const row of data) {
     const name = String(row.name).toLowerCase();
     const label = String(row.stores_label || '').toLowerCase();
@@ -103,13 +113,27 @@ async function matchPromoter(
       return { id: row.id, name: row.name };
     }
   }
+
+  // 2. Token-based matching — require at least 2 matching words (or 1 if name is a single word)
+  const needleTokens = nameTokens(needle);
+  let bestMatch: { id: string; name: string } | null = null;
+  let bestOverlap = 0;
+
   for (const row of data) {
-    const name = String(row.name).toLowerCase();
-    const label = String(row.stores_label || '').toLowerCase();
-    if (needle.includes(name) || name.includes(needle) || needle.includes(label) || label.includes(needle)) {
-      return { id: row.id, name: row.name };
+    const rowTokens = nameTokens(String(row.name));
+    const overlap = tokenOverlap(needleTokens, rowTokens);
+    const minRequired = Math.min(2, rowTokens.length);
+    if (overlap >= minRequired && overlap > bestOverlap) {
+      bestOverlap = overlap;
+      bestMatch = { id: row.id, name: row.name };
     }
   }
+
+  if (bestMatch) {
+    console.log(`[webhook] Name matched "${needle}" → "${bestMatch.name}" (${bestOverlap} tokens overlap)`);
+    return bestMatch;
+  }
+
   return null;
 }
 

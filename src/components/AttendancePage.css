@@ -242,6 +242,10 @@
   background: #f1f5f9;
   color: #475569;
 }
+.att-alert-wrong-store {
+  background: #fae8ff;
+  color: #86198f;
+}
 
 /* OK tag */
 .att-ok-tag {
