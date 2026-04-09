@@ -265,6 +265,10 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
       const meta = e.metaKey || e.ctrlKey;
       if (!meta) return;
 
+      // Don't intercept when typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
       // Undo: Cmd+Z
       if (e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -797,7 +801,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
                 <div
                   key={dateStr}
                   className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass} ${shift?.note ? 'has-note' : ''} ${focusedCell?.promoterId === promoter.id && focusedCell?.date === dateStr ? 'cell-focused' : ''}`}
-                  onClick={() => setFocusedCell({ promoterId: promoter.id, date: dateStr })}
+                  onMouseEnter={() => setFocusedCell({ promoterId: promoter.id, date: dateStr })}
                   onDoubleClick={() => handleNoteClick(cellKey, shift?.note || '')}
                 >
                   <ShiftPicker
