@@ -6,6 +6,8 @@ import ExportModal from './components/ExportModal';
 import DatabaseSchemaPage from './components/DatabaseSchemaPage';
 import SalesPerformancePage from './components/SalesPerformancePage';
 import AutoAssignPage from './components/AutoAssignPage';
+import AttendancePage from './components/AttendancePage';
+import { useAttendance } from './hooks/useAttendance';
 import { getDates, generateStoreCounts } from './data/mockData';
 import { useStores } from './hooks/useStores';
 import { usePromoters } from './hooks/usePromoters';
@@ -17,7 +19,7 @@ import { useOrders } from './hooks/useOrders';
 import type { StoreTierSetting, PromoterGradeOverride, Country } from './types/types';
 import './App.css';
 
-type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'auto-assign' | 'db-schema';
+type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'auto-assign' | 'attendance' | 'db-schema';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'shift', label: 'Shift Table' },
@@ -25,6 +27,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'store-setting', label: 'Store Setting' },
   { key: 'sales', label: 'Sales Performance' },
   { key: 'auto-assign', label: 'Auto Assign' },
+  { key: 'attendance', label: 'Attendance' },
   { key: 'db-schema', label: 'Database' },
 ];
 
@@ -53,6 +56,7 @@ function App() {
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores, country);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts(country);
   const { orders } = useOrders(6, country);
+  const { records: attendanceRecords, loading: attendanceLoading } = useAttendance(country);
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
   const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
 
@@ -211,6 +215,15 @@ function App() {
               await Promise.all(newShifts.map((s) => saveShift(s.promoterId, s.date, s.type, s.timeRange)));
               setActiveTab('shift');
             }}
+          />
+        )}
+        {activeTab === 'attendance' && (
+          <AttendancePage
+            stores={stores}
+            promoters={promoters}
+            shifts={shifts}
+            attendance={attendanceRecords}
+            loading={attendanceLoading}
           />
         )}
         {activeTab === 'db-schema' && (

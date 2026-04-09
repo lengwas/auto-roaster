@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PC Shift Table — User Guide</title>
+<style>
+  :root {
+    --blue: #3b82f6;
+    --green: #10b981;
+    --orange: #f59e0b;
+    --red: #ef4444;
+    --purple: #8b5cf6;
+    --gray: #6b7280;
+    --bg: #f8fafc;
+    --card: #fff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text2: #475569;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0 0 60px;
+  }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    color: #fff;
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .hero h1 { font-size: 2rem; margin-bottom: 8px; }
+  .hero p { opacity: .85; font-size: 1.05rem; }
+
+  /* Nav */
+  .toc {
+    max-width: 900px;
+    margin: -28px auto 32px;
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    padding: 20px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  .toc a {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #eff6ff;
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: .15s;
+  }
+  .toc a:hover { background: var(--blue); color: #fff; }
+
+  /* Sections */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+  section { margin-bottom: 40px; }
+  section h2 {
+    font-size: 1.35rem;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    scroll-margin-top: 20px;
+  }
+  section h2 .icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  h3 { font-size: 1.05rem; margin: 16px 0 8px; color: var(--text); }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.06);
+    margin-bottom: 16px;
+    border-left: 4px solid var(--blue);
+  }
+  .card.green { border-left-color: var(--green); }
+  .card.orange { border-left-color: var(--orange); }
+  .card.red { border-left-color: var(--red); }
+  .card.purple { border-left-color: var(--purple); }
+  .card p { color: var(--text2); margin-bottom: 8px; }
+  .card p:last-child { margin-bottom: 0; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 10px 0;
+  }
+  th, td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th { background: #f1f5f9; font-weight: 600; font-size: 12px; text-transform: uppercase; color: var(--gray); }
+  tr:last-child td { border-bottom: none; }
+
+  /* Kbd */
+  kbd {
+    display: inline-block;
+    background: #f1f5f9;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12px;
+    font-family: monospace;
+    box-shadow: 0 1px 0 #d1d5db;
+    color: var(--text);
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge-a { background: #dcfce7; color: #166534; }
+  .badge-b { background: #dbeafe; color: #1e40af; }
+  .badge-c { background: #fef3c7; color: #92400e; }
+  .badge-d { background: #fee2e2; color: #991b1b; }
+
+  /* Steps */
+  .steps { counter-reset: step; padding-left: 0; list-style: none; }
+  .steps li {
+    counter-increment: step;
+    padding: 10px 0 10px 48px;
+    position: relative;
+    color: var(--text2);
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 10px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .steps li strong { color: var(--text); }
+
+  /* Tip */
+  .tip {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #92400e;
+    margin: 12px 0;
+  }
+  .tip::before { content: '💡 '; font-size: 16px; }
+
+  /* Country flags */
+  .flag { font-size: 20px; vertical-align: middle; }
+
+  ul { padding-left: 20px; margin: 8px 0; }
+  li { margin: 4px 0; color: var(--text2); }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.5rem; }
+    .toc { gap: 6px; padding: 16px; }
+    .card { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>📋 PC Shift Table — User Guide</h1>
+  <p>คู่มือการใช้งานระบบจัดตารางกะ และติดตาม Performance</p>
+</div>
+
+<div class="toc">
+  <a href="#overview">ภาพรวม</a>
+  <a href="#country">เลือกประเทศ</a>
+  <a href="#shift-table">ตารางกะ</a>
+  <a href="#shortcuts">Keyboard Shortcuts</a>
+  <a href="#pc-setting">ตั้งค่า Promoter</a>
+  <a href="#store-setting">ตั้งค่าร้าน</a>
+  <a href="#sales">Sales Performance</a>
+  <a href="#auto-assign">Auto Assign</a>
+  <a href="#attendance">Attendance</a>
+  <a href="#database">Database</a>
+  <a href="#export">Export ข้อมูล</a>
+  <a href="#line-webhook">LINE Attendance</a>
+</div>
+
+<div class="container">
+
+  <!-- Overview -->
+  <section id="overview">
+    <h2><span class="icon" style="background:#eff6ff;color:var(--blue)">🏠</span> ภาพรวมระบบ</h2>
+    <div class="card">
+      <p><strong>PC Shift Table</strong> เป็นระบบจัดตารางกะสำหรับ Promoter ในร้านค้า รองรับทั้ง UAE 🇦🇪 และ Qatar 🇶🇦</p>
+      <p>ระบบประกอบด้วย 6 หน้าหลัก:</p>
+      <table>
+        <tr><th>Tab</th><th>หน้าที่</th></tr>
+        <tr><td><strong>Shift Table</strong></td><td>จัดตารางกะ — เลือกร้าน, เวลา, ใส่โน้ต</td></tr>
+        <tr><td><strong>PC Setting</strong></td><td>จัดการ Promoter — ชื่อ, วันหยุด, ร้านที่ชอบ/ห้าม</td></tr>
+        <tr><td><strong>Store Setting</strong></td><td>จัดการร้าน — เวลาเปิดปิด, Shift Slot, Platform</td></tr>
+        <tr><td><strong>Sales Performance</strong></td><td>วิเคราะห์ยอดขาย — เกรด, Tier, Performance Index</td></tr>
+        <tr><td><strong>Auto Assign</strong></td><td>จัดกะอัตโนมัติ โดย AI (Gemini) + Optimizer</td></tr>
+        <tr><td><strong>Attendance</strong></td><td>เวลาเข้า-ออก จาก LINE + แจ้งเตือนสาย/ออกก่อน</td></tr>
+        <tr><td><strong>Database</strong></td><td>ดูข้อมูล Shift ดิบ — ค้นหา, แบ่งหน้า</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- Country Selector -->
+  <section id="country">
+    <h2><span class="icon" style="background:#fef3c7;color:#92400e">🌍</span> เลือกประเทศ</h2>
+    <div class="card orange">
+      <p>กดปุ่มธงชาติที่มุมบนซ้าย ข้างชื่อ app เพื่อสลับระหว่าง:</p>
+      <table>
+        <tr><th>ประเทศ</th><th>สกุลเงิน</th><th>วันหยุด</th></tr>
+        <tr><td><span class="flag">🇦🇪</span> UAE</td><td>AED</td><td>ศุกร์-เสาร์</td></tr>
+        <tr><td><span class="flag">🇶🇦</span> Qatar</td><td>QAR</td><td>ศุกร์-เสาร์</td></tr>
+      </table>
+      <p>เมื่อสลับประเทศ ข้อมูลทั้งหมด (ร้าน, Promoter, กะ, ยอดขาย) จะเปลี่ยนตามประเทศที่เลือก</p>
+    </div>
+  </section>
+
+  <!-- Shift Table -->
+  <section id="shift-table">
+    <h2><span class="icon" style="background:#dcfce7;color:#166534">📅</span> ตารางกะ (Shift Table)</h2>
+
+    <div class="card green">
+      <h3>การใส่กะ</h3>
+      <ol class="steps">
+        <li><strong>คลิกที่ช่อง</strong> ในตาราง (แถว = Promoter, คอลัมน์ = วันที่)</li>
+        <li>เลือก <strong>ร้าน</strong> จาก dropdown — พิมพ์ชื่อร้านเพื่อค้นหาได้</li>
+        <li>ถ้าร้านมีหลาย Shift Slot จะขึ้นให้เลือก <strong>ช่วงเวลา</strong> (เช่น 10:00-19:00 หรือ 13:30-22:30)</li>
+        <li>กดเลือก — กะจะถูกบันทึกอัตโนมัติ</li>
+      </ol>
+    </div>
+
+    <div class="card green">
+      <h3>กะพิเศษ</h3>
+      <table>
+        <tr><th>รหัส</th><th>ความหมาย</th></tr>
+        <tr><td><strong>Off</strong></td><td>วันหยุด</td></tr>
+        <tr><td><strong>LOP</strong></td><td>ขาดงาน (Leave of Presence)</td></tr>
+        <tr><td><strong>SL</strong></td><td>ลาป่วย (Sick Leave)</td></tr>
+        <tr><td><strong>AL</strong></td><td>ลาพักร้อน (Annual Leave)</td></tr>
+        <tr><td><strong>—</strong></td><td>ยังไม่จัดกะ (คลิก "-" เพื่อลบกะ)</td></tr>
+      </table>
+    </div>
+
+    <div class="card green">
+      <h3>ใส่โน้ต</h3>
+      <p><strong>ดับเบิลคลิก</strong> ที่ช่องกะ เพื่อเปิดช่องใส่โน้ต</p>
+      <ul>
+        <li>กด <kbd>Enter</kbd> เพื่อบันทึก</li>
+        <li>กด <kbd>Escape</kbd> เพื่อยกเลิก</li>
+        <li>กด <kbd>Shift</kbd>+<kbd>Enter</kbd> เพื่อขึ้นบรรทัดใหม่</li>
+      </ul>
+    </div>
+
+    <div class="card green">
+      <h3>Special Date (มาร์ควันพิเศษ)</h3>
+      <p>คลิกที่ <strong>หัวคอลัมน์วันที่</strong> เพื่อมาร์ควันพิเศษ:</p>
+      <ul>
+        <li>🔴 Holiday — วันหยุดนักขัตฤกษ์</li>
+        <li>🟡 Event — อีเว้นต์พิเศษ</li>
+        <li>🟣 Promo — โปรโมชั่น</li>
+        <li>🔵 Note — โน้ตทั่วไป</li>
+        <li>🟢 Payday — วันเงินเดือนออก</li>
+      </ul>
+    </div>
+
+    <div class="card green">
+      <h3>Filter Panel (แถบกรอง)</h3>
+      <p>กดปุ่ม Filter ที่ด้านบนเพื่อเปิด/ปิด Filter Panel:</p>
+      <ul>
+        <li><strong>ช่วงวันที่</strong> — เลือก Start/End date</li>
+        <li><strong>ซ่อน/แสดงร้าน</strong> — เลือกร้านที่ต้องการแสดง</li>
+        <li><strong>ซ่อน/แสดง Promoter</strong> — เลือก Promoter ที่ต้องการแสดง</li>
+        <li><strong>Active Promoters Only</strong> — แสดงเฉพาะ Promoter ที่ active</li>
+        <li><strong>Hide Empty Stores</strong> — ซ่อนร้านที่ไม่มีคนจัดกะ</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Keyboard Shortcuts -->
+  <section id="shortcuts">
+    <h2><span class="icon" style="background:#f3e8ff;color:#7c3aed">⌨️</span> Keyboard Shortcuts</h2>
+    <div class="card purple">
+      <p>เลื่อนเมาส์ไปที่ช่องกะจะเห็น <strong>กรอบสีฟ้า</strong> — แปลว่า focus อยู่ที่ช่องนั้น</p>
+      <table>
+        <tr><th>ปุ่ม</th><th>การทำงาน</th></tr>
+        <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></td><td>เลื่อน focus ไปช่องข้างเคียง</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>C</kbd></td><td>Copy กะจากช่องที่ focus (รหัสร้าน + เวลา + โน้ต)</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>V</kbd></td><td>Paste กะที่ copy ไว้ลงช่องที่ focus</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>Z</kbd></td><td>Undo (เลิกทำ) — ย้อนได้ถึง 50 ครั้ง</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Z</kbd></td><td>Redo (ทำซ้ำ)</td></tr>
+      </table>
+      <div class="tip">Windows/Linux ใช้ <kbd>Ctrl</kbd> แทน <kbd>⌘</kbd></div>
+    </div>
+  </section>
+
+  <!-- PC Setting -->
+  <section id="pc-setting">
+    <h2><span class="icon" style="background:#fce7f3;color:#be185d">👤</span> ตั้งค่า Promoter (PC Setting)</h2>
+
+    <div class="card red">
+      <h3>จัดการ Promoter</h3>
+      <ul>
+        <li><strong>เพิ่ม Promoter</strong> — พิมพ์ชื่อแล้วกด Add</li>
+        <li><strong>แก้ไขชื่อ / Role / วันหยุด</strong> — คลิกที่ช่องข้อมูลแล้วแก้ไข</li>
+        <li><strong>Active/Inactive</strong> — Toggle สถานะ Promoter</li>
+      </ul>
+    </div>
+
+    <div class="card red">
+      <h3>Store Preferences (ร้านที่ชอบ/ห้าม)</h3>
+      <p>คลิกที่ช่องตัดกันระหว่าง Promoter × Store เพื่อหมุนสถานะ:</p>
+      <table>
+        <tr><th>สถานะ</th><th>ความหมาย</th><th>ผลต่อ Auto Assign</th></tr>
+        <tr><td>— (ว่าง)</td><td>ไม่มี preference</td><td>จัดกะปกติ</td></tr>
+        <tr><td><strong>Must</strong></td><td>ต้องจัดร้านนี้</td><td>บังคับจัดร้านนี้</td></tr>
+        <tr><td><strong>Preferred</strong></td><td>ชอบร้านนี้</td><td>ให้น้ำหนักมากขึ้น</td></tr>
+        <tr><td><strong>Banned</strong></td><td>ห้ามจัดร้านนี้</td><td>ไม่จัดร้านนี้เด็ดขาด</td></tr>
+      </table>
+    </div>
+
+    <div class="card red">
+      <h3>Conflicts (คู่ที่ห้ามทำด้วยกัน)</h3>
+      <p>กำหนด Promoter 2 คนที่ไม่ควรอยู่ร้านเดียวกันในวันเดียวกัน พร้อมเหตุผล</p>
+    </div>
+  </section>
+
+  <!-- Store Setting -->
+  <section id="store-setting">
+    <h2><span class="icon" style="background:#ecfdf5;color:#047857">🏪</span> ตั้งค่าร้าน (Store Setting)</h2>
+    <div class="card green">
+      <h3>ข้อมูลร้าน</h3>
+      <table>
+        <tr><th>ฟิลด์</th><th>รายละเอียด</th></tr>
+        <tr><td><strong>Code</strong></td><td>รหัสร้าน เช่น VDM, VME, JME</td></tr>
+        <tr><td><strong>Name</strong></td><td>ชื่อเต็ม เช่น Virgin Dubai Mall</td></tr>
+        <tr><td><strong>Active</strong></td><td>เปิด/ปิดร้าน</td></tr>
+        <tr><td><strong>Open / Close Time</strong></td><td>เวลาเปิด-ปิด เช่น 10:00 - 22:00</td></tr>
+        <tr><td><strong>Shift Slots</strong></td><td>ช่วงเวลากะ เช่น 10:00-19:00 และ 13:30-22:30</td></tr>
+        <tr><td><strong>Max Capacity</strong></td><td>จำนวน Promoter สูงสุดต่อวัน</td></tr>
+        <tr><td><strong>Platform / Warehouse</strong></td><td>ใช้จับคู่กับ Order data</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- Sales Performance -->
+  <section id="sales">
+    <h2><span class="icon" style="background:#fef3c7;color:#92400e">📊</span> Sales Performance</h2>
+
+    <div class="card orange">
+      <h3>Performance Index (PI)</h3>
+      <p>คำนวณจากยอดขายเฉลี่ยต่อวันของ Promoter เทียบกับค่าเฉลี่ยของร้าน:</p>
+      <p><strong>PI = ยอดขาย Promoter ÷ ค่าเฉลี่ยร้าน</strong> (ถ่วงน้ำหนักตามจำนวนวันที่ทำ)</p>
+      <table>
+        <tr><th>เกรด</th><th>PI</th><th>ความหมาย</th></tr>
+        <tr><td><span class="badge badge-a">A</span></td><td>≥ 1.15</td><td>สูงกว่าค่าเฉลี่ย 15%+</td></tr>
+        <tr><td><span class="badge badge-b">B</span></td><td>≥ 0.95</td><td>ใกล้เคียงค่าเฉลี่ย</td></tr>
+        <tr><td><span class="badge badge-c">C</span></td><td>≥ 0.75</td><td>ต่ำกว่าค่าเฉลี่ย</td></tr>
+        <tr><td><span class="badge badge-d">D</span></td><td>< 0.75</td><td>ต่ำกว่าค่าเฉลี่ยมาก</td></tr>
+      </table>
+    </div>
+
+    <div class="card orange">
+      <h3>Store Tier</h3>
+      <p>คลิกที่ร้านในรายการ Store Tiers เพื่อกำหนด Tier (A → B → C → D → ลบ)</p>
+      <p>หรือกด <strong>Auto-calculate from Revenue</strong> เพื่อคำนวณจากยอดขายอัตโนมัติ</p>
+      <div class="tip">ร้านที่ inactive จะแสดงเป็นสีเทาจาง แต่ยังกำหนด Tier ได้หากมี Order data</div>
+    </div>
+
+    <div class="card orange">
+      <h3>Grade-to-Tier Matching (FitMap)</h3>
+      <p>กำหนดว่า Promoter เกรดไหนเหมาะกับร้าน Tier ไหน:</p>
+      <table>
+        <tr><th>เกรด Promoter</th><th>Tier ร้านที่เหมาะ</th></tr>
+        <tr><td><span class="badge badge-a">A</span></td><td>Tier A, B</td></tr>
+        <tr><td><span class="badge badge-b">B</span></td><td>Tier A, B, C</td></tr>
+        <tr><td><span class="badge badge-c">C</span></td><td>Tier B, C, D</td></tr>
+        <tr><td><span class="badge badge-d">D</span></td><td>Tier C, D</td></tr>
+      </table>
+    </div>
+
+    <div class="card orange">
+      <h3>ตัวกรอง</h3>
+      <ul>
+        <li><strong>ช่วงเวลา</strong> — 1 เดือน / 3 เดือน / 6 เดือน</li>
+        <li><strong>Status Filter</strong> — Completed only หรือทั้งหมด</li>
+        <li><strong>Active Promoters Only</strong> — แสดงเฉพาะคน active</li>
+        <li><strong>Sort by</strong> — ชื่อ, ยอดขาย, เฉลี่ย/วัน, PI, เกรด</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Auto Assign -->
+  <section id="auto-assign">
+    <h2><span class="icon" style="background:#ede9fe;color:#6d28d9">🤖</span> Auto Assign</h2>
+
+    <div class="card purple">
+      <h3>วิธีใช้</h3>
+      <ol class="steps">
+        <li>เลือก <strong>ช่วงวันที่</strong> ที่ต้องการจัดกะ</li>
+        <li>พิมพ์ <strong>เงื่อนไขพิเศษ</strong> (ถ้ามี) เช่น "Ali ต้องอยู่ VDM ทุกวันจันทร์" หรือ "ร้าน JME ต้องมีคนอย่างน้อย 2 คน"</li>
+        <li>กด <strong>Generate</strong> — AI จะวิเคราะห์เงื่อนไขและ Optimizer จะจัดกะ</li>
+        <li>ดู <strong>Preview</strong> ตารางกะที่จัดให้</li>
+        <li>ปรับแก้ได้ก่อน แล้วกด <strong>Apply Shifts</strong> เพื่อบันทึก</li>
+      </ol>
+    </div>
+
+    <div class="card purple">
+      <h3>Optimizer ทำอะไร</h3>
+      <p><strong>UAE:</strong> จัดกะรายวัน — หมุนเวียนร้านทุกวัน โดยอิง Performance + Tier + Preferences</p>
+      <p><strong>Qatar:</strong> จัดกะแบบ Block (~2 สัปดาห์อยู่ร้านเดียว) + เวียนคนไปตรวจร้านที่ performance ต่ำ สัปดาห์ละ 1 ครั้ง (วัน weekday เท่านั้น)</p>
+    </div>
+
+    <div class="card purple">
+      <h3>ข้อมูลที่ใช้คำนวณ</h3>
+      <ul>
+        <li>Store Tier (A/B/C/D) จากหน้า Sales Performance</li>
+        <li>Promoter Grade จากหน้า Sales Performance</li>
+        <li>Store Preferences จากหน้า PC Setting</li>
+        <li>Promoter Conflicts จากหน้า PC Setting</li>
+        <li>ยอดขายย้อนหลัง (Performance Matrix)</li>
+        <li>วันหยุดของแต่ละ Promoter</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Attendance -->
+  <section id="attendance">
+    <h2><span class="icon" style="background:#fef3c7;color:#92400e">⏰</span> Attendance</h2>
+
+    <div class="card orange">
+      <h3>ภาพรวม</h3>
+      <p>หน้านี้แสดงข้อมูล check-in/check-out จาก LINE พร้อมเทียบกับกะที่จัดไว้</p>
+      <p>ด้านบนมี <strong>Summary Cards</strong> 5 ช่อง:</p>
+      <ul>
+        <li><strong>Total Records</strong> — จำนวนรายการทั้งหมด</li>
+        <li><strong>Today</strong> — จำนวนรายการวันนี้</li>
+        <li><strong>Alerts</strong> — จำนวนรายการที่มีปัญหา</li>
+        <li><strong>Late In</strong> — จำนวนคนเข้างานสาย</li>
+        <li><strong>Early Out</strong> — จำนวนคนออกก่อนเวลา</li>
+      </ul>
+    </div>
+
+    <div class="card red">
+      <h3>ประเภทการแจ้งเตือน</h3>
+      <table>
+        <tr><th>Alert</th><th>เงื่อนไข</th></tr>
+        <tr><td><strong>Late In</strong></td><td>Check-in ช้ากว่าเวลาเริ่มกะมากกว่า 15 นาที</td></tr>
+        <tr><td><strong>Early Out</strong></td><td>Check-out ก่อนเวลาจบกะมากกว่า 15 นาที</td></tr>
+        <tr><td><strong>No Check-in</strong></td><td>มีแต่ check-out ไม่มี check-in</td></tr>
+        <tr><td><strong>No Check-out</strong></td><td>มี check-in แต่ไม่มี check-out (วันผ่านไปแล้ว)</td></tr>
+        <tr><td><strong>No Shift</strong></td><td>ไม่มีกะที่จัดไว้ในวันนั้น</td></tr>
+        <tr><td><strong>Unmatched</strong></td><td>ไม่สามารถจับคู่ชื่อกับ Promoter ในระบบได้</td></tr>
+      </table>
+      <div class="tip">ระบบเปรียบเทียบเวลาจริงกับ Shift Time Range ที่จัดไว้ หรือเวลาเปิด-ปิดร้าน</div>
+    </div>
+
+    <div class="card orange">
+      <h3>ตัวกรอง</h3>
+      <ul>
+        <li><strong>Search</strong> — ค้นหาชื่อ, ร้าน, วันที่</li>
+        <li><strong>Date Range</strong> — กรองช่วงวันที่</li>
+        <li><strong>Alerts Only</strong> — แสดงเฉพาะรายการที่มีปัญหา</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Database -->
+  <section id="database">
+    <h2><span class="icon" style="background:#f1f5f9;color:var(--gray)">🗄️</span> Database</h2>
+    <div class="card">
+      <p>แสดงข้อมูล Shift ทั้งหมดในรูปแบบตาราง 1 แถว = 1 คน × 1 วัน</p>
+      <ul>
+        <li><strong>ค้นหา</strong> — พิมพ์ชื่อ Promoter, วันที่, รหัสร้าน</li>
+        <li><strong>แบ่งหน้า</strong> — 50 แถวต่อหน้า</li>
+        <li>แสดง: วันที่, ชื่อ Promoter, ประเภทกะ, ชื่อร้าน, ช่วงเวลา, โน้ต</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Export -->
+  <section id="export">
+    <h2><span class="icon" style="background:#ecfdf5;color:#047857">📤</span> Export ข้อมูล</h2>
+    <div class="card green">
+      <p>กดปุ่ม <strong>Export</strong> ที่มุมบนขวาของหน้า Shift Table:</p>
+      <ol class="steps">
+        <li>เลือก <strong>ช่วงวันที่</strong> ที่ต้องการ export</li>
+        <li>เลือก <strong>Promoter</strong> ที่ต้องการ (เลือกทั้งหมดหรือบางคน)</li>
+        <li>เลือก <strong>รูปแบบ</strong>:
+          <ul>
+            <li><strong>Image (PNG)</strong> — ภาพ screenshot ของตาราง</li>
+            <li><strong>Text</strong> — ข้อความ plain text</li>
+            <li><strong>CSV</strong> — ไฟล์ .csv สำหรับเปิดใน Excel</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- LINE Attendance -->
+  <section id="line-webhook">
+    <h2><span class="icon" style="background:#dcfce7;color:#166534">💬</span> LINE Attendance (บันทึกเวลาอัตโนมัติ)</h2>
+
+    <div class="card green">
+      <h3>วิธีทำงาน</h3>
+      <p>เมื่อ Promoter ส่ง <strong>รูป screenshot check-in/check-out</strong> ใน LINE Group ระบบจะ:</p>
+      <ol class="steps">
+        <li>รับรูปจาก LINE Group ผ่าน Webhook</li>
+        <li>ส่งรูปให้ <strong>Gemini AI</strong> อ่าน (OCR) ข้อมูลจากภาพ</li>
+        <li><strong>จับคู่ Promoter</strong> จากชื่อ/รหัสพนักงาน กับฐานข้อมูล</li>
+        <li><strong>จับคู่ร้าน</strong> จากรหัส/ชื่อร้านในภาพ</li>
+        <li><strong>บันทึก</strong> ลง Supabase ตาราง attendance อัตโนมัติ</li>
+      </ol>
+    </div>
+
+    <div class="card green">
+      <h3>รูปแบบที่รองรับ</h3>
+      <table>
+        <tr><th>Format</th><th>ตัวอย่าง</th><th>ข้อมูลที่ได้</th></tr>
+        <tr>
+          <td><strong>CheckIn App Screenshot</strong></td>
+          <td>หน้าจอ app ที่มีชื่อ, รหัส, ร้าน, เวลา</td>
+          <td>ชื่อ, รหัสพนักงาน, ร้าน, เวลา, วันที่</td>
+        </tr>
+        <tr>
+          <td><strong>GPS Map Camera Selfie</strong></td>
+          <td>รูป selfie ที่มี GPS overlay</td>
+          <td>เวลา, วันที่, พิกัด (จับคู่ Promoter จาก LINE user ID)</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card green">
+      <h3>เช็คข้อมูลที่บันทึก</h3>
+      <p>ดูใน Supabase SQL Editor:</p>
+      <pre style="background:#f1f5f9;padding:12px;border-radius:6px;font-size:13px;overflow-x:auto;margin-top:8px">SELECT promoter_name, store_code, date, check_in, check_out, status
+FROM attendance ORDER BY created_at DESC LIMIT 20;</pre>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
