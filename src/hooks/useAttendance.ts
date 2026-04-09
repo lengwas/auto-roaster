@@ -82,7 +82,8 @@ export function useAttendance(country: Country = 'UAE') {
     fetchAll();
   }, [country]);
 
-  /** Update an attendance record in Supabase and local state. */
+  /** Update an attendance record in Supabase and local state.
+   *  If promoter was changed AND there's an original OCR name, save the alias for future auto-matching. */
   async function updateRecord(
     id: string,
     updates: {
@@ -94,6 +95,7 @@ export function useAttendance(country: Country = 'UAE') {
       check_out?: string | null;
       status?: string;
     },
+    originalOcrName?: string | null,
   ) {
     const { data, error: err } = await supabase
       .from(t('attendance', country))
@@ -110,6 +112,17 @@ export function useAttendance(country: Country = 'UAE') {
     if (data) {
       const updated = mapRow(data as Record<string, unknown>);
       setRecords(prev => prev.map(r => r.id === id ? updated : r));
+    }
+
+    // Save alias: OCR name → promoter_id so future records auto-match
+    if (updates.promoter_id && originalOcrName) {
+      const ocrKey = originalOcrName.toLowerCase().trim();
+      if (ocrKey && ocrKey !== (updates.promoter_name || '').toLowerCase().trim()) {
+        await supabase
+          .from(t('promoter_name_map', country))
+          .upsert({ ocr_name: ocrKey, promoter_id: updates.promoter_id }, { onConflict: 'ocr_name' });
+        console.log(`[useAttendance] Saved alias: "${ocrKey}" → ${updates.promoter_id}`);
+      }
     }
   }
 

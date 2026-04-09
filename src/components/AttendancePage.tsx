@@ -17,7 +17,7 @@ interface AttendancePageProps {
     check_in?: string | null;
     check_out?: string | null;
     status?: string;
-  }) => Promise<void>;
+  }, originalOcrName?: string | null) => Promise<void>;
 }
 
 const PAGE_SIZE = 50;
@@ -79,6 +79,7 @@ interface EditState {
   storeCode: string | null;
   checkIn: string;
   checkOut: string;
+  originalOcrName: string | null; // raw name from attendance for alias saving
 }
 
 const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpdate }: AttendancePageProps) => {
@@ -251,12 +252,15 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
   }, [rows]);
 
   const startEdit = (r: AttendanceRow) => {
+    // Find the original attendance record to get the raw OCR name
+    const orig = attendance.find(a => a.id === r.id);
     setEditing({
       id: r.id,
       promoterId: r.promoterId,
       storeCode: r.storeCode,
       checkIn: r.checkIn ? r.checkIn.substring(0, 5) : '',
       checkOut: r.checkOut ? r.checkOut.substring(0, 5) : '',
+      originalOcrName: orig?.promoterName || null,
     });
   };
 
@@ -275,7 +279,7 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
       check_in: editing.checkIn ? editing.checkIn + ':00' : null,
       check_out: editing.checkOut ? editing.checkOut + ':00' : null,
       status: editing.promoterId ? 'matched' : 'unmatched',
-    });
+    }, editing.originalOcrName);
     setSaving(false);
     setEditing(null);
   };
