@@ -113,21 +113,34 @@ async function matchPromoter(
   return null;
 }
 
-/** Match OCR store name/code against stores table. */
+/** Haversine distance in meters between two GPS points. */
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Max distance (meters) to consider a GPS match valid */
+const GPS_MATCH_RADIUS = 500;
+
+/** Match OCR store name/code against stores table, with GPS fallback. */
 async function matchStore(
   ocrStore: string | null,
   ocrStoreCode: string | null,
+  lat: number | null,
+  lng: number | null,
   country: 'UAE' | 'QA',
 ): Promise<string | null> {
-  if (!ocrStore && !ocrStoreCode) return null;
-
   const { data } = await supabaseAdmin
     .from(t('stores', country))
-    .select('code, name');
+    .select('code, name, latitude, longitude');
 
   if (!data) return null;
 
-  // Try direct store code match first (most reliable, e.g. "VDM")
+  // 1. Try direct store code match (most reliable, e.g. "VDM")
   if (ocrStoreCode) {
     const codeNeedle = ocrStoreCode.toLowerCase().trim();
     for (const row of data) {
@@ -135,19 +148,46 @@ async function matchStore(
     }
   }
 
-  if (!ocrStore) return null;
-  const needle = ocrStore.toLowerCase().trim();
+  // 2. Try name match
+  if (ocrStore) {
+    const needle = ocrStore.toLowerCase().trim();
+    for (const row of data) {
+      const code = String(row.code).toLowerCase();
+      const name = String(row.name).toLowerCase();
+      if (code === needle || name === needle) return row.code;
+    }
+    for (const row of data) {
+      const code = String(row.code).toLowerCase();
+      const name = String(row.name).toLowerCase();
+      if (needle.includes(code) || needle.includes(name) || name.includes(needle)) return row.code;
+    }
+  }
 
-  for (const row of data) {
-    const code = String(row.code).toLowerCase();
-    const name = String(row.name).toLowerCase();
-    if (code === needle || name === needle) return row.code;
+  // 3. GPS fallback — find nearest store within radius
+  if (lat != null && lng != null) {
+    let bestCode: string | null = null;
+    let bestDist = Infinity;
+
+    for (const row of data) {
+      const sLat = row.latitude != null ? Number(row.latitude) : null;
+      const sLng = row.longitude != null ? Number(row.longitude) : null;
+      if (sLat == null || sLng == null) continue;
+
+      const dist = haversineMeters(lat, lng, sLat, sLng);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestCode = row.code;
+      }
+    }
+
+    if (bestCode && bestDist <= GPS_MATCH_RADIUS) {
+      console.log(`[webhook] GPS matched store ${bestCode} (${Math.round(bestDist)}m away)`);
+      return bestCode;
+    } else if (bestCode) {
+      console.log(`[webhook] Nearest store ${bestCode} is ${Math.round(bestDist)}m away (> ${GPS_MATCH_RADIUS}m limit)`);
+    }
   }
-  for (const row of data) {
-    const code = String(row.code).toLowerCase();
-    const name = String(row.name).toLowerCase();
-    if (needle.includes(code) || needle.includes(name) || name.includes(needle)) return row.code;
-  }
+
   return null;
 }
 
@@ -202,7 +242,7 @@ async function processImageEvent(event: Record<string, unknown>) {
     await learnLineUserId(promoter.id, lineUserId, country);
   }
 
-  const storeCode = await matchStore(ocr.store_name, ocr.store_code ?? null, country);
+  const storeCode = await matchStore(ocr.store_name, ocr.store_code ?? null, ocr.latitude ?? null, ocr.longitude ?? null, country);
 
   // Determine date: from OCR or today
   const today = new Date().toISOString().split('T')[0];

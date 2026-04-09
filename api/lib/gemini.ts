@@ -7,6 +7,8 @@ export interface AttendanceOCR {
   check_in: string | null;      // "HH:MM"
   check_out: string | null;     // "HH:MM" or null
   date: string | null;          // "YYYY-MM-DD" or null
+  latitude: number | null;      // GPS lat from Format 2
+  longitude: number | null;     // GPS lng from Format 2
   confidence: 'high' | 'medium' | 'low';
   raw_text: string;
 }
@@ -40,6 +42,8 @@ Extract the following information and return ONLY valid JSON (no markdown, no ba
   "check_in": "time in HH:MM 24-hour format if this is a check-in, or null",
   "check_out": "time in HH:MM 24-hour format if this is a check-out, or null",
   "date": "date in YYYY-MM-DD format, or null",
+  "latitude": "decimal latitude from GPS overlay or Coordinates field (e.g. 25.1965489), or null",
+  "longitude": "decimal longitude from GPS overlay or Coordinates field (e.g. 55.2787634), or null",
   "confidence": "high/medium/low",
   "raw_text": "all visible text in the image concatenated"
 }
@@ -48,8 +52,9 @@ Important rules:
 - For Format 1: Employee Name format is "CODE - Full Name (nickname)". Extract just the full name for promoter_name.
 - For Format 1: Place format is "CODE - Store Name". If Place says "You are out of work area", get store code/name from the "Far from CODE - Store Name" line instead.
 - For Format 1: Attendance Date has both date and time. Extract date as YYYY-MM-DD and time as HH:MM.
+- For Format 1: If there is a "Coordinates" field like "(25.1965489, 55.2787634)", extract latitude and longitude as numbers.
 - For Format 2: Extract date/time from the GPS overlay. Convert date from DD/MM/YYYY or MM/DD/YYYY to YYYY-MM-DD. Convert 12-hour time to 24-hour HH:MM.
-- For Format 2: There is no employee name or store info, so set those to null.
+- For Format 2: There is no employee name or store info, so set those to null. Extract lat/long from the GPS overlay.
 - To determine check_in vs check_out: if the time is before 15:00, it's check_in. If 15:00 or later, it's check_out.
 - Return ONLY the JSON object, nothing else`;
 
@@ -104,6 +109,8 @@ export async function extractAttendance(imageBuffer: Buffer, mimeType: string): 
       check_in: null,
       check_out: null,
       date: null,
+      latitude: null,
+      longitude: null,
       confidence: 'low',
       raw_text: text,
     };
