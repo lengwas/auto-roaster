@@ -148,6 +148,86 @@ function hungarianMinimize(cost: number[][]): number[] {
   return rowAssign;
 }
 
+// ── DSL parser ───────────────────────────────────────────────────────────────
+// Parses short Python-like DSL snippets into ParsedConstraints.
+// Supported syntax:
+//   store_min_people["CODE"] = N
+//   assign("name", "Day", "STORE")
+//   day_off("name", "Day")
+//   end_time("name", "HH:MM")
+//   # comment lines are ignored
+
+export function parseDSLConstraints(code: string): ParsedConstraints {
+  const result: ParsedConstraints = {};
+
+  for (const rawLine of code.split('\n')) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+
+    // store_min_people["CODE"] = N
+    const minPeople = line.match(/^store_min_people\[["']([^"']+)["']\]\s*=\s*(\d+)/);
+    if (minPeople) {
+      if (!result.store_min_people) result.store_min_people = {};
+      result.store_min_people[minPeople[1].toUpperCase()] = parseInt(minPeople[2], 10);
+      continue;
+    }
+
+    // assign("name", "Day", "STORE")
+    const assignMatch = line.match(/^assign\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/);
+    if (assignMatch) {
+      if (!result.promoter_day_store) result.promoter_day_store = [];
+      result.promoter_day_store.push({
+        promoter: assignMatch[1].toLowerCase(),
+        day: assignMatch[2],
+        store: assignMatch[3].toUpperCase(),
+      });
+      continue;
+    }
+
+    // day_off("name", "Day")
+    const dayOff = line.match(/^day_off\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/);
+    if (dayOff) {
+      if (!result.promoter_force_off) result.promoter_force_off = [];
+      result.promoter_force_off.push({ promoter: dayOff[1].toLowerCase(), day: dayOff[2] });
+      continue;
+    }
+
+    // end_time("name", "HH:MM")
+    const endTime = line.match(/^end_time\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/);
+    if (endTime) {
+      if (!result.promoter_end_time) result.promoter_end_time = [];
+      result.promoter_end_time.push({ promoter: endTime[1].toLowerCase(), end_time: endTime[2] });
+    }
+  }
+
+  return result;
+}
+
+// ── Merge multiple ParsedConstraints ─────────────────────────────────────────
+
+export function mergeConstraints(list: ParsedConstraints[]): ParsedConstraints {
+  const merged: ParsedConstraints = {};
+  for (const pc of list) {
+    if (pc.store_min_people) {
+      if (!merged.store_min_people) merged.store_min_people = {};
+      Object.assign(merged.store_min_people, pc.store_min_people);
+    }
+    if (pc.promoter_day_store?.length) {
+      if (!merged.promoter_day_store) merged.promoter_day_store = [];
+      merged.promoter_day_store.push(...pc.promoter_day_store);
+    }
+    if (pc.promoter_force_off?.length) {
+      if (!merged.promoter_force_off) merged.promoter_force_off = [];
+      merged.promoter_force_off.push(...pc.promoter_force_off);
+    }
+    if (pc.promoter_end_time?.length) {
+      if (!merged.promoter_end_time) merged.promoter_end_time = [];
+      merged.promoter_end_time.push(...pc.promoter_end_time);
+    }
+  }
+  return merged;
+}
+
 // ── Load constraints ─────────────────────────────────────────────────────────
 
 export function loadConstraints(parsed: ParsedConstraints | null): InternalConstraints {
