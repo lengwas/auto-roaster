@@ -287,7 +287,49 @@ async function processImageEvent(event: Record<string, unknown>) {
   const today = new Date().toISOString().split('T')[0];
   const date = ocr.date || today;
 
-  // Insert into attendance table
+  // Try to merge with existing record for same promoter + date
+  // (check-in and check-out often come as separate images)
+  if (promoter) {
+    const { data: existingRow } = await supabaseAdmin
+      .from(t('attendance', country))
+      .select('id, check_in, check_out')
+      .eq('promoter_id', promoter.id)
+      .eq('date', date)
+      .maybeSingle();
+
+    if (existingRow) {
+      // Merge: fill in missing check_in or check_out
+      const updates: Record<string, unknown> = {
+        line_message_id: messageId, // update to latest message
+      };
+
+      if (!existingRow.check_in && ocr.check_in) {
+        updates.check_in = ocr.check_in;
+      }
+      if (!existingRow.check_out && ocr.check_out) {
+        updates.check_out = ocr.check_out;
+      }
+      // If existing has no store but new one does, update store too
+      if (storeCode) {
+        updates.store_code = storeCode;
+        updates.store_name = ocr.store_name;
+      }
+
+      const { error: updateErr } = await supabaseAdmin
+        .from(t('attendance', country))
+        .update(updates)
+        .eq('id', existingRow.id);
+
+      if (updateErr) {
+        console.error(`[webhook] Merge update failed:`, updateErr);
+      } else {
+        console.log(`[webhook] Merged attendance for ${promoter.name} on ${date} (filled ${Object.keys(updates).join(', ')})`);
+      }
+      return;
+    }
+  }
+
+  // No existing record — insert new
   const record = {
     promoter_id: promoter?.id ?? null,
     promoter_name: promoter?.name ?? ocr.promoter_name,

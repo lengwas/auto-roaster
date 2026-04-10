@@ -126,5 +126,84 @@ export function useAttendance(country: Country = 'UAE') {
     }
   }
 
-  return { records, loading, error, updateRecord };
+  /** Merge duplicate records: combine check-in and check-out for same promoter+date.
+   *  Keeps the earliest record and merges check_in/check_out from duplicates, then deletes extras. */
+  async function mergeDuplicates() {
+    // Group by promoter_id + date
+    const groups = new Map<string, Attendance[]>();
+    for (const r of records) {
+      if (!r.promoterId) continue;
+      const key = `${r.promoterId}_${r.date}`;
+      const arr = groups.get(key) || [];
+      arr.push(r);
+      groups.set(key, arr);
+    }
+
+    let mergedCount = 0;
+    for (const [, group] of groups) {
+      if (group.length < 2) continue;
+
+      // Sort by createdAt ascending — keep the first one
+      group.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      const keep = group[0];
+      const rest = group.slice(1);
+
+      // Collect best check_in and check_out from all records
+      let bestCheckIn = keep.checkIn;
+      let bestCheckOut = keep.checkOut;
+      let bestStoreCode = keep.storeCode;
+      let bestStoreName = keep.storeName;
+
+      for (const dup of rest) {
+        if (!bestCheckIn && dup.checkIn) bestCheckIn = dup.checkIn;
+        if (!bestCheckOut && dup.checkOut) bestCheckOut = dup.checkOut;
+        if (!bestStoreCode && dup.storeCode) {
+          bestStoreCode = dup.storeCode;
+          bestStoreName = dup.storeName;
+        }
+      }
+
+      // Update the kept record with merged data
+      const updates: Record<string, unknown> = {};
+      if (bestCheckIn !== keep.checkIn) updates.check_in = bestCheckIn;
+      if (bestCheckOut !== keep.checkOut) updates.check_out = bestCheckOut;
+      if (bestStoreCode !== keep.storeCode) {
+        updates.store_code = bestStoreCode;
+        updates.store_name = bestStoreName;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await supabase
+          .from(t('attendance', country))
+          .update(updates)
+          .eq('id', keep.id);
+      }
+
+      // Delete duplicate records
+      const deleteIds = rest.map(r => r.id);
+      await supabase
+        .from(t('attendance', country))
+        .delete()
+        .in('id', deleteIds);
+
+      mergedCount += rest.length;
+    }
+
+    if (mergedCount > 0) {
+      // Refresh data
+      setLoading(true);
+      const { data } = await supabase
+        .from(t('attendance', country))
+        .select('*')
+        .order('date', { ascending: false });
+      if (data) {
+        setRecords((data as Record<string, unknown>[]).map(r => mapRow(r)));
+      }
+      setLoading(false);
+    }
+
+    return mergedCount;
+  }
+
+  return { records, loading, error, updateRecord, mergeDuplicates };
 }

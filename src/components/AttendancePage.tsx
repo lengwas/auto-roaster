@@ -18,6 +18,7 @@ interface AttendancePageProps {
     check_out?: string | null;
     status?: string;
   }, originalOcrName?: string | null) => Promise<void>;
+  onMergeDuplicates: () => Promise<number>;
 }
 
 const PAGE_SIZE = 50;
@@ -82,7 +83,7 @@ interface EditState {
   originalOcrName: string | null; // raw name from attendance for alias saving
 }
 
-const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpdate }: AttendancePageProps) => {
+const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpdate, onMergeDuplicates }: AttendancePageProps) => {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const [alertFilter, setAlertFilter] = useState<'all' | 'alerts-only'>('all');
@@ -90,6 +91,7 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
   const [dateTo, setDateTo] = useState('');
   const [editing, setEditing] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [merging, setMerging] = useState(false);
 
   const storeMap = useMemo(() => {
     const m = new Map<string, Store>();
@@ -266,6 +268,17 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
 
   const cancelEdit = () => setEditing(null);
 
+  const handleMerge = async () => {
+    setMerging(true);
+    const count = await onMergeDuplicates();
+    setMerging(false);
+    if (count > 0) {
+      alert(`รวมสำเร็จ: ลบ ${count} รายการซ้ำ`);
+    } else {
+      alert('ไม่มีรายการซ้ำ');
+    }
+  };
+
   const saveEdit = async () => {
     if (!editing) return;
     setSaving(true);
@@ -346,6 +359,14 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
           <option value="all">All Records</option>
           <option value="alerts-only">Alerts Only</option>
         </select>
+        <button
+          className="btn btn-small"
+          style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}
+          onClick={handleMerge}
+          disabled={merging}
+        >
+          {merging ? 'Merging...' : 'Merge Duplicates'}
+        </button>
         <span className="att-count">{filtered.length} records</span>
       </div>
 

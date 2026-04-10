@@ -56,7 +56,7 @@ function App() {
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores, country);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts(country);
   const { orders } = useOrders(6, country);
-  const { records: attendanceRecords, loading: attendanceLoading, updateRecord: updateAttendance } = useAttendance(country);
+  const { records: attendanceRecords, loading: attendanceLoading, updateRecord: updateAttendance, mergeDuplicates: mergeAttendanceDuplicates } = useAttendance(country);
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
   const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
 
@@ -225,6 +225,7 @@ function App() {
             attendance={attendanceRecords}
             loading={attendanceLoading}
             onUpdate={updateAttendance}
+            onMergeDuplicates={mergeAttendanceDuplicates}
           />
         )}
         {activeTab === 'db-schema' && (
