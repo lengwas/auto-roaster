@@ -45,7 +45,7 @@ function fmtDuration(min: number): string {
   return `${sign}${Math.floor(abs / 60)}h${abs % 60 > 0 ? ` ${abs % 60}m` : ''}`;
 }
 
-type AlertType = 'late-in' | 'early-out' | 'no-checkin' | 'no-checkout' | 'unmatched' | 'no-shift' | 'wrong-store';
+type AlertType = 'late-in' | 'early-out' | 'no-checkin' | 'no-checkout' | 'unmatched' | 'no-shift' | 'wrong-store' | 'wrong-spot';
 
 interface AlertInfo {
   type: AlertType;
@@ -145,14 +145,27 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
         alerts.push({ type: 'no-shift', label: 'No Shift', detail: 'ไม่มีกะที่จัดไว้ในวันนี้' });
       }
 
-      // Wrong store — check-in at different store than scheduled
+      // Wrong store — check-in at different store than scheduled.
+      // If the last 2 chars match (e.g. VDM vs JDM, both = Dubai Mall), it's the same mall —
+      // downgrade to a soft "wrong-spot" note instead of a hard "wrong-store" alert.
       if (a.storeCode && scheduledStore && a.storeCode !== scheduledStore
           && !['Off', 'LOP', 'SL', 'AL'].includes(scheduledStore)) {
-        alerts.push({
-          type: 'wrong-store',
-          label: 'Wrong Store',
-          detail: `Check-in ที่ ${a.storeCode} แต่กะจัดไว้ที่ ${scheduledStore}`,
-        });
+        const sameMall = a.storeCode.length >= 2 && scheduledStore.length >= 2
+          && a.storeCode.slice(-2).toUpperCase() === scheduledStore.slice(-2).toUpperCase();
+
+        if (sameMall) {
+          alerts.push({
+            type: 'wrong-spot',
+            label: 'Wrong Spot',
+            detail: `Check-in ที่ ${a.storeCode} (ห้างเดียวกับ ${scheduledStore} แต่คนละจุด)`,
+          });
+        } else {
+          alerts.push({
+            type: 'wrong-store',
+            label: 'Wrong Store',
+            detail: `Check-in ที่ ${a.storeCode} แต่กะจัดไว้ที่ ${scheduledStore}`,
+          });
+        }
       }
 
       // Check-in analysis

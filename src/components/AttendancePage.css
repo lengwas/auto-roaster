@@ -245,6 +245,10 @@
   background: #fae8ff;
   color: #86198f;
 }
+.att-alert-wrong-spot {
+  background: #e0f2fe;
+  color: #075985;
+}
 
 /* OK tag */
 .att-ok-tag {
