@@ -169,14 +169,6 @@ interface DraftAssignment {
   timeRange?: string;
 }
 
-// Structured constraints (mirrors Python ExtraConstraints dataclass)
-interface ParsedConstraints {
-  store_min_people?: Record<string, number>;
-  promoter_day_store?: { promoter: string; day: string; store: string }[];
-  promoter_force_off?: { promoter: string; day: string }[];
-  promoter_end_time?: { promoter: string; end_time: string }[];
-}
-
 interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
@@ -313,70 +305,6 @@ async function callGemini(turns: GeminiTurn[], model: string): Promise<GeminiRes
     total: data.usageMetadata?.totalTokenCount ?? 0,
   };
   return { text, usage };
-}
-
-function buildContext(
-  stores: Store[],
-  promoters: Promoter[],
-  storePreferences: StorePreference[],
-  conflicts: PromoterConflict[],
-  storeTiers: StoreTierSetting[],
-  gradeOverrides: PromoterGradeOverride[],
-  country: Country = 'UAE',
-): string {
-  const aStores = stores.filter((s) => s.active);
-  const aProms = promoters.filter((p) => p.active);
-  const countryLabel = country === 'QA' ? 'Qatar' : 'UAE';
-
-  let ctx = `You are a retail shift scheduling assistant for ${countryLabel} stores.\n\n`;
-
-  ctx += '## STORES (code | name | tier | max per day | shift slots)\n';
-  for (const s of aStores) {
-    const tier = storeTiers.find((t) => t.storeCode === s.code)?.tier ?? 'C';
-    const slots = s.shiftSlots && s.shiftSlots.length > 0
-      ? s.shiftSlots.join(', ')
-      : `${s.openTime}-${s.closeTime}`;
-    ctx += `- ${s.code} | ${s.name} | Tier ${tier} | max ${s.maxCapacity ?? 2}/day | slots: ${slots}\n`;
-  }
-
-  ctx += '\n## PROMOTERS (id | name | role | grade | days-off | constraints)\n';
-  for (const p of aProms) {
-    const grade = gradeOverrides.find((g) => g.promoterId === p.id)?.grade ?? 'C';
-    const daysOff = p.workingDays ? p.workingDays : 'none';
-    const prefs = storePreferences.filter((pf) => pf.promoterId === p.id);
-    // Admin role: must go to AIR only
-    const mustStores = p.role === 'admin'
-      ? 'AIR'
-      : prefs.filter((pf) => pf.preference === 'must').map((pf) => pf.storeCode).join(',');
-    const preferred = p.role === 'admin'
-      ? ''
-      : prefs.filter((pf) => pf.preference === 'preferred').map((pf) => pf.storeCode).join(',');
-    const banned = p.role === 'admin'
-      ? ''
-      : prefs.filter((pf) => pf.preference === 'banned').map((pf) => pf.storeCode).join(',');
-    ctx += `- [${p.id}] ${p.name} | Role:${p.role} | Grade:${grade} | DaysOff:${daysOff}`;
-    if (mustStores) ctx += ` | Must:${mustStores}`;
-    if (preferred) ctx += ` | Preferred:${preferred}`;
-    if (banned) ctx += ` | Banned:${banned}`;
-    ctx += '\n';
-  }
-
-  if (conflicts.length > 0) {
-    ctx += '\n## CONFLICTS (avoid same store + date)\n';
-    for (const c of conflicts) {
-      const a = promoters.find((p) => p.id === c.promoterAId)?.name;
-      const b = promoters.find((p) => p.id === c.promoterBId)?.name;
-      if (a && b) ctx += `- ${a} ↔ ${b}${c.reason ? ` (${c.reason})` : ''}\n`;
-    }
-  }
-
-  ctx += '\n## GRADE-TIER FIT\n';
-  ctx += '- Grade A → Tier A or B stores\n';
-  ctx += '- Grade B → Tier A, B, or C stores\n';
-  ctx += '- Grade C → Tier B, C, or D stores\n';
-  ctx += '- Grade D → Tier C or D stores\n';
-
-  return ctx;
 }
 
 // ── component ──────────────────────────────────────────────────────────────

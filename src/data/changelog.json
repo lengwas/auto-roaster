@@ -1,0 +1,705 @@
+{
+  "generatedAt": "2026-04-10T16:49:44.821Z",
+  "entries": [
+    {
+      "hash": "2936d4fccf60f4f1382821688ae327c1a02f7ae3",
+      "short": "2936d4f",
+      "author": "lengwas",
+      "date": "2026-04-10T23:42:36+07:00",
+      "subject": "Add shift alerts, quick-edit, save draft, note sync, hours alert, guide & changelog"
+    },
+    {
+      "hash": "50981574deee5566ac0509cb45d8ac7ef4775d6e",
+      "short": "5098157",
+      "author": "lengwas",
+      "date": "2026-04-10T22:40:34+07:00",
+      "subject": "Add Qatar sales performance import order CSV"
+    },
+    {
+      "hash": "834c911a8157dde94d7a5a45549ab451b7480a67",
+      "short": "834c911",
+      "author": "lengwas",
+      "date": "2026-04-10T22:39:28+07:00",
+      "subject": "Replace AI draft + constraint parser with Python DSL snippets"
+    },
+    {
+      "hash": "fb551931f4802635023eba8a4065d38f3badb212",
+      "short": "fb55193",
+      "author": "lengwas",
+      "date": "2026-04-10T19:02:57+07:00",
+      "subject": "Downgrade same-mall check-in mismatch from Wrong Store to Wrong Spot"
+    },
+    {
+      "hash": "ab179ca3bc0bba8460a841a3108974c66d926791",
+      "short": "ab179ca",
+      "author": "lengwas",
+      "date": "2026-04-10T09:46:06+07:00",
+      "subject": "Merge check-in/check-out into single record per promoter per day"
+    },
+    {
+      "hash": "ee64503cb21878dba55134ae58b698ae40e8d576",
+      "short": "ee64503",
+      "author": "lengwas",
+      "date": "2026-04-09T15:55:01+07:00",
+      "subject": "Add promoter name alias mapping for auto-matching attendance"
+    },
+    {
+      "hash": "7879f9b41d52272d4995f8308ab3007cbd7abcb5",
+      "short": "7879f9b",
+      "author": "lengwas",
+      "date": "2026-04-09T15:48:44+07:00",
+      "subject": "Add inline edit/override for attendance records (save to Supabase)"
+    },
+    {
+      "hash": "d32c663ce3011f6d4c260fa7a86030454cf054a1",
+      "short": "d32c663",
+      "author": "lengwas",
+      "date": "2026-04-09T13:11:41+07:00",
+      "subject": "Fix promoter name matching + add wrong-store alert"
+    },
+    {
+      "hash": "278e58c18dccf5c293c4a3591085348240380369",
+      "short": "278e58c",
+      "author": "lengwas",
+      "date": "2026-04-09T12:02:31+07:00",
+      "subject": "Rebrand to ShiftPro + new favicon + GPS store matching scripts"
+    },
+    {
+      "hash": "93ee4d81da13c8077595696bee81fcf3799d5584",
+      "short": "93ee4d8",
+      "author": "lengwas",
+      "date": "2026-04-09T11:35:43+07:00",
+      "subject": "Add GPS-to-store matching for attendance webhook"
+    },
+    {
+      "hash": "cc7d5521aaf14858b74b84553a8c107d4cdf8282",
+      "short": "cc7d552",
+      "author": "lengwas",
+      "date": "2026-04-09T08:43:52+07:00",
+      "subject": "Add Attendance page with check-in/out tracking and late alerts"
+    },
+    {
+      "hash": "26a4b879cb160c5882ee551b0c199f59aaf93a9d",
+      "short": "26a4b87",
+      "author": "lengwas",
+      "date": "2026-04-09T08:02:18+07:00",
+      "subject": "Fix LINE webhook processing + show inactive stores + arrow key nav"
+    },
+    {
+      "hash": "ed035ebb77ef8c9bb5700b3b5f116e9b8e6e327f",
+      "short": "ed035eb",
+      "author": "lengwas",
+      "date": "2026-04-09T07:38:45+07:00",
+      "subject": "Fix Cmd+C/V: use hover to focus cells, skip when input is focused"
+    },
+    {
+      "hash": "89585d83a4769539155740ee8254513d48a35ff0",
+      "short": "89585d8",
+      "author": "lengwas",
+      "date": "2026-04-08T22:11:55+07:00",
+      "subject": "Qatar block optimizer + undo/redo/copy-paste for shift table"
+    },
+    {
+      "hash": "9bc834ac6b216f6d0e7e675419ebc35b67e4474c",
+      "short": "9bc834a",
+      "author": "lengwas",
+      "date": "2026-04-08T21:29:28+07:00",
+      "subject": "Add Cmd+Z / Ctrl+Z undo for shift changes"
+    },
+    {
+      "hash": "d81420e234c376b4f9604e37c76c3c2dcf003bd2",
+      "short": "d81420e",
+      "author": "lengwas",
+      "date": "2026-04-08T21:24:18+07:00",
+      "subject": "Fix TS6133: remove unused variable 'eh' in formatSlotLabel"
+    },
+    {
+      "hash": "d853b217e4e725d3cfc2e056c73d9c6b913b416c",
+      "short": "d853b21",
+      "author": "lengwas",
+      "date": "2026-04-08T21:15:53+07:00",
+      "subject": "Add detailed logging to saveShift for debugging"
+    },
+    {
+      "hash": "9516d54fe211cb75c2a4f7877f05481371549227",
+      "short": "9516d54",
+      "author": "lengwas",
+      "date": "2026-04-08T21:07:38+07:00",
+      "subject": "Add debug logging for shift selection + fix Qatar import script"
+    },
+    {
+      "hash": "b0eb8d44ea212df8bf10490bedf3563fc7c6e31c",
+      "short": "b0eb8d4",
+      "author": "lengwas",
+      "date": "2026-04-08T20:51:46+07:00",
+      "subject": "Fix shift slot parsing: strip store code prefix from slot strings"
+    },
+    {
+      "hash": "6565f247dd6421a437c52fb081c6639c1bbe79f1",
+      "short": "6565f24",
+      "author": "lengwas",
+      "date": "2026-04-08T20:36:03+07:00",
+      "subject": "Redesign ShiftPicker: two-step store → time slot selection"
+    },
+    {
+      "hash": "824a2c6a66b6772b4a2efb94a04d50b818d05faf",
+      "short": "824a2c6",
+      "author": "lengwas",
+      "date": "2026-04-08T20:26:54+07:00",
+      "subject": "Add LINE user ID matching for GPS Map Camera selfies"
+    },
+    {
+      "hash": "e80435d7f228d27eb15c29625947139244cb02c7",
+      "short": "e80435d",
+      "author": "lengwas",
+      "date": "2026-04-08T16:15:12+07:00",
+      "subject": "Improve OCR for two image formats + store color coding in shift table"
+    },
+    {
+      "hash": "b5f5d6adb914db2df3e2671e6f1199318491c38b",
+      "short": "b5f5d6a",
+      "author": "lengwas",
+      "date": "2026-04-08T12:00:51+07:00",
+      "subject": "Fix: add .js extensions to relative imports for Vercel TS2835"
+    },
+    {
+      "hash": "aaa4bc5a812c2c245d028d162f9dc9a3630a89b0",
+      "short": "aaa4bc5",
+      "author": "lengwas",
+      "date": "2026-04-08T11:52:39+07:00",
+      "subject": "Fix webhook body parsing and add debug logging"
+    },
+    {
+      "hash": "3afd2c4820e0007718ec3a226190ba9f732615f9",
+      "short": "3afd2c4",
+      "author": "lengwas",
+      "date": "2026-04-08T11:43:48+07:00",
+      "subject": "Remove LINE reply message — only log and store attendance silently"
+    },
+    {
+      "hash": "624c127052895f2c168781c794fedc681ac37133",
+      "short": "624c127",
+      "author": "lengwas",
+      "date": "2026-04-08T10:58:16+07:00",
+      "subject": "Add LINE webhook + OCR attendance tracking via Vercel API route"
+    },
+    {
+      "hash": "aca7b547bbe36d4a2024f28c83c58b455158c46a",
+      "short": "aca7b54",
+      "author": "lengwas",
+      "date": "2026-04-07T19:30:26+07:00",
+      "subject": "Fix TypeScript errors breaking Vercel build: pass currencyLabel to FitMapView"
+    },
+    {
+      "hash": "13c9812e91d83255a8b444cf24f6490decc70158",
+      "short": "13c9812",
+      "author": "lengwas",
+      "date": "2026-04-07T18:32:54+07:00",
+      "subject": "Fix Supabase 1000-row cap: paginate shifts and orders fetches"
+    },
+    {
+      "hash": "f476e587db28e7db54f48e02b468aa62089d02ff",
+      "short": "f476e58",
+      "author": "lengwas",
+      "date": "2026-04-06T11:40:04+07:00",
+      "subject": "Fix shifts not loading: add date filter to avoid Supabase 1000-row cap"
+    },
+    {
+      "hash": "f137c96de7586d73cbf03d6a48b707de9b52c51e",
+      "short": "f137c96",
+      "author": "lengwas",
+      "date": "2026-04-03T15:01:01+07:00",
+      "subject": "Fix: select amount_qar only for Qatar, amount_aed only for UAE"
+    },
+    {
+      "hash": "a1efb69af02e66bd0e0a2ac95536959c71c44b6d",
+      "short": "a1efb69",
+      "author": "lengwas",
+      "date": "2026-04-03T14:55:47+07:00",
+      "subject": "Sales Performance + Auto Assign: support Qatar country"
+    },
+    {
+      "hash": "885c47c692522ef481d9965f8d2bfc454492868e",
+      "short": "885c47c",
+      "author": "lengwas",
+      "date": "2026-04-03T14:44:35+07:00",
+      "subject": "Qatar support: separate tables, data import, and sync scripts"
+    },
+    {
+      "hash": "0ae6c82016d12b26d4bc1c50c464b189abeeb03f",
+      "short": "0ae6c82",
+      "author": "lengwas",
+      "date": "2026-04-02T21:08:12+07:00",
+      "subject": "Multi-country support: UAE + Qatar with country selector"
+    },
+    {
+      "hash": "8b3944504a2d0760208c580defed984fcf3c784d",
+      "short": "8b39445",
+      "author": "lengwas",
+      "date": "2026-03-30T11:25:34+07:00",
+      "subject": "Optimizer: ban AIR for non-admin promoters"
+    },
+    {
+      "hash": "d12f819a83d5f3f1673c30d297dd3968f4299e42",
+      "short": "d12f819",
+      "author": "lengwas",
+      "date": "2026-03-30T11:22:01+07:00",
+      "subject": "Optimizer: stores with zero/no revenue get near-zero fallback score"
+    },
+    {
+      "hash": "316a26c9f2dc724b2ff9e81ef3b2583a2b5c1cfb",
+      "short": "316a26c",
+      "author": "lengwas",
+      "date": "2026-03-30T10:34:12+07:00",
+      "subject": "Optimizer: use actual store net revenue for scoring, not just perf average"
+    },
+    {
+      "hash": "f415c158a13b6601bde5e522d92dcb9008c1d817",
+      "short": "f415c15",
+      "author": "lengwas",
+      "date": "2026-03-30T09:49:23+07:00",
+      "subject": "Conflict dialog: per-row keep/overwrite + fix optimizer Off reassignment order"
+    },
+    {
+      "hash": "43623bec96adcaeb57d9007c2feece615e89f815",
+      "short": "43623be",
+      "author": "lengwas",
+      "date": "2026-03-29T13:21:26+07:00",
+      "subject": "Switch to Shift Table tab after applying auto-assign draft"
+    },
+    {
+      "hash": "605d3f856ba83c398b78aca2f6a6684da0a71a94",
+      "short": "605d3f8",
+      "author": "lengwas",
+      "date": "2026-03-29T13:18:44+07:00",
+      "subject": "Fix Apply to Shift Table: add conflict detection, pass orders for store sorting"
+    },
+    {
+      "hash": "f02067c44f60a6cd0f10719c21a57f716965c6ca",
+      "short": "f02067c",
+      "author": "lengwas",
+      "date": "2026-03-29T13:09:29+07:00",
+      "subject": "Sort stores by net revenue (amount - pmgw) from last 3 months"
+    },
+    {
+      "hash": "74426a77cf0f039c6562ccd047a65015971a35d4",
+      "short": "74426a7",
+      "author": "lengwas",
+      "date": "2026-03-29T13:01:36+07:00",
+      "subject": "Add SQL migration to fix day_off column type from varchar(3) to TEXT"
+    },
+    {
+      "hash": "314f6d50a753d8587991699404d59e6ede559c77",
+      "short": "314f6d5",
+      "author": "lengwas",
+      "date": "2026-03-29T12:59:30+07:00",
+      "subject": "Show detailed save error for promoters, handle RLS/id-type edge cases"
+    },
+    {
+      "hash": "10a4d91d6d07d83390e99d493a30b5bf4deca987",
+      "short": "10a4d91",
+      "author": "lengwas",
+      "date": "2026-03-29T12:55:14+07:00",
+      "subject": "Fix shift slot editor: make slotEdits sole source of truth"
+    },
+    {
+      "hash": "3534cd3948ae5cff3be29a1283dacc0c82e608b7",
+      "short": "3534cd3",
+      "author": "lengwas",
+      "date": "2026-03-29T12:51:00+07:00",
+      "subject": "Fix promoter save: progressive fallback for missing DB columns"
+    },
+    {
+      "hash": "a6900bcb4970dcdd2f081246d7ad343d6bc6968c",
+      "short": "a6900bc",
+      "author": "lengwas",
+      "date": "2026-03-29T12:47:13+07:00",
+      "subject": "Fix shift slot editor: use structured SlotEdit state instead of serialize/parse roundtrip"
+    },
+    {
+      "hash": "353a8ca3902625f5d88e3ccbe20823d83438d579",
+      "short": "353a8ca",
+      "author": "lengwas",
+      "date": "2026-03-29T12:40:25+07:00",
+      "subject": "Fix: remove overflow on table wrapper that blocks click events"
+    },
+    {
+      "hash": "497c5842c9032c7a3dc61bb280fd2d37a2a9bb42",
+      "short": "497c584",
+      "author": "lengwas",
+      "date": "2026-03-28T22:28:03+07:00",
+      "subject": "Fix shift slot time inputs: use text input with auto-colon formatting"
+    },
+    {
+      "hash": "b6f76894897b509e716cded5de547a2e2e939a3d",
+      "short": "b6f7689",
+      "author": "lengwas",
+      "date": "2026-03-28T21:40:24+07:00",
+      "subject": "Revert: use maxCapacity only for store slot expansion"
+    },
+    {
+      "hash": "9dd7998ea821c52be47eca250c78bab152df9078",
+      "short": "9dd7998",
+      "author": "lengwas",
+      "date": "2026-03-28T21:37:32+07:00",
+      "subject": "Auto-expand store capacity from shift slot count for multi-slot stores"
+    },
+    {
+      "hash": "18310a9e4c25a6dfb6cd13c062d01aa99b641b24",
+      "short": "18310a9",
+      "author": "lengwas",
+      "date": "2026-03-28T21:25:35+07:00",
+      "subject": "Fix TypeScript build errors causing Vercel deploy failures"
+    },
+    {
+      "hash": "9d2aef9ebd8822fb921c107088134c6ff34df26e",
+      "short": "9d2aef9",
+      "author": "lengwas",
+      "date": "2026-03-27T17:22:43+07:00",
+      "subject": "Persist shift_slots to Supabase so store settings survive refresh"
+    },
+    {
+      "hash": "c1a16aecec97296a6d41580d0be98138399da561",
+      "short": "c1a16ae",
+      "author": "lengwas",
+      "date": "2026-03-27T16:38:02+07:00",
+      "subject": "Pass storePreferences and promoterConflicts to AutoAssign ShiftTable"
+    },
+    {
+      "hash": "2ee1154aedc73d020c00b9c102f4b16347c99d1b",
+      "short": "2ee1154",
+      "author": "lengwas",
+      "date": "2026-03-27T16:34:02+07:00",
+      "subject": "Assign best performers to afternoon/peak shift slots based on revenue"
+    },
+    {
+      "hash": "9547ada1f52b9886d6af7509074abce8e7271279",
+      "short": "9547ada",
+      "author": "lengwas",
+      "date": "2026-03-27T16:28:25+07:00",
+      "subject": "Distribute multiple shift slots round-robin, show day-off in promoter conditions"
+    },
+    {
+      "hash": "3dc500bc0997823f47db59044a85c568222124ad",
+      "short": "3dc500b",
+      "author": "lengwas",
+      "date": "2026-03-27T16:19:56+07:00",
+      "subject": "Redesign shift slot editor with day buttons + time pickers"
+    },
+    {
+      "hash": "1db2308cbad01f5ae107b5e18a6017fd6b06a6a8",
+      "short": "1db2308",
+      "author": "lengwas",
+      "date": "2026-03-27T16:14:24+07:00",
+      "subject": "Show promoter conditions (must/ban/conflict) in shift table, add active filter to PC Setting"
+    },
+    {
+      "hash": "70ae3814d493f6fca0a946004b21094b7190e500",
+      "short": "70ae381",
+      "author": "lengwas",
+      "date": "2026-03-27T14:58:40+07:00",
+      "subject": "Fix: increase Supabase query limit for fetching all shifts"
+    },
+    {
+      "hash": "dc36898193e57902f9130360df62c22906be4a15",
+      "short": "dc36898",
+      "author": "lengwas",
+      "date": "2026-03-27T14:05:33+07:00",
+      "subject": "Dynamic date range: start from earliest shift in DB"
+    },
+    {
+      "hash": "fab7e06e25047015faef4fd5a37c1bf960fa612a",
+      "short": "fab7e06",
+      "author": "lengwas",
+      "date": "2026-03-27T13:11:45+07:00",
+      "subject": "Keep store colors on today column, highlight header and borders only"
+    },
+    {
+      "hash": "dc220ad28aaac41e871e00fc0dfb8edd89242b3a",
+      "short": "dc220ad",
+      "author": "lengwas",
+      "date": "2026-03-27T13:07:42+07:00",
+      "subject": "Redesign recommended stores as colored chips grouped by tier"
+    },
+    {
+      "hash": "90cab1a2512aae7f04611b7d06468d2a81a6fceb",
+      "short": "90cab1a",
+      "author": "lengwas",
+      "date": "2026-03-27T12:01:25+07:00",
+      "subject": "Respect maxCapacity when reassigning Off promoters to stores"
+    },
+    {
+      "hash": "583a56e07fb7b3d17ccff0bb59924d530e376964",
+      "short": "583a56e",
+      "author": "lengwas",
+      "date": "2026-03-27T11:47:42+07:00",
+      "subject": "Fix conflict check in min-staffing enforcement phase"
+    },
+    {
+      "hash": "492f01c35299d00dd3416e737faba390092b421f",
+      "short": "492f01c",
+      "author": "lengwas",
+      "date": "2026-03-27T11:32:28+07:00",
+      "subject": "Prefer higher-revenue stores in optimizer fallback, improve today column highlight"
+    },
+    {
+      "hash": "4a0d8e450eca9b632cee59cbccb4dd1231af9f72",
+      "short": "4a0d8e4",
+      "author": "lengwas",
+      "date": "2026-03-27T11:13:34+07:00",
+      "subject": "Optimizer: reassign Off promoters to best revenue store instead of idle"
+    },
+    {
+      "hash": "775fb6e58e076311238659c809a39293653d5a99",
+      "short": "775fb6e",
+      "author": "lengwas",
+      "date": "2026-03-27T10:36:23+07:00",
+      "subject": "Fix ShiftTable date filter: auto-detect dates range for AutoAssign"
+    },
+    {
+      "hash": "c3372b8f0b8473466191fe3a78a44b6e615cbe41",
+      "short": "c3372b8",
+      "author": "lengwas",
+      "date": "2026-03-27T09:38:18+07:00",
+      "subject": "Support flexible day-specific shift slots (Mon-Thu, Fri,Sat,Sun format)"
+    },
+    {
+      "hash": "52ca243dea2d0ae7a1b5d80776d86a96c516f0df",
+      "short": "52ca243",
+      "author": "lengwas",
+      "date": "2026-03-27T09:30:46+07:00",
+      "subject": "Fix store revenue sorting, date navigation, notes, shift slots, clean up UI"
+    },
+    {
+      "hash": "7e830452ea45f92126020c35a3da0c17a9e0dbaa",
+      "short": "7e83045",
+      "author": "lengwas",
+      "date": "2026-03-27T08:55:53+07:00",
+      "subject": "Fix optimizer staffing, show grade/tier in shift table, sort stores by tier+revenue"
+    },
+    {
+      "hash": "3eb535a10b4c4a8c2534792c8f51635a33134728",
+      "short": "3eb535a",
+      "author": "lengwas",
+      "date": "2026-03-26T19:31:33+07:00",
+      "subject": "Add revenue-maximizing optimizer, fix tier panel toggle, preference save feedback"
+    },
+    {
+      "hash": "88c3e9e566da5e9418bc0e5de796912326dd19ca",
+      "short": "88c3e9e",
+      "author": "lengwas",
+      "date": "2026-03-26T19:05:23+07:00",
+      "subject": "Fix store sorting by revenue, remove time display, show revenue amount"
+    },
+    {
+      "hash": "33f1b763e1e0fd1dd9ffddd2f30d6c0aecd2d214",
+      "short": "33f1b76",
+      "author": "lengwas",
+      "date": "2026-03-26T19:00:51+07:00",
+      "subject": "Sort stores by net revenue, promoters alphabetically with admins last"
+    },
+    {
+      "hash": "65b54ae79bba9b7b4604c1a29b4691e3d0292417",
+      "short": "65b54ae",
+      "author": "lengwas",
+      "date": "2026-03-26T18:57:06+07:00",
+      "subject": "Auto-calculate store tiers from revenue data"
+    },
+    {
+      "hash": "ebe79416e11f890ff0897ea5b9722a05abf4bff0",
+      "short": "ebe7941",
+      "author": "lengwas",
+      "date": "2026-03-26T18:52:34+07:00",
+      "subject": "Sort shift table by net revenue, fix add promoter, add paid_amount_aed"
+    },
+    {
+      "hash": "a170391f34cd8986e17954c96c30946f8b60f5a3",
+      "short": "a170391",
+      "author": "lengwas",
+      "date": "2026-03-24T21:06:12+08:00",
+      "subject": "Fix Gemini model IDs: use correct names from Google API docs"
+    },
+    {
+      "hash": "15ce203706a53e906d097dd482da44bf0d6cc226",
+      "short": "15ce203",
+      "author": "lengwas",
+      "date": "2026-03-24T20:47:20+08:00",
+      "subject": "Add multi-slot shifts, inline edit form, update Gemini prompt logic"
+    },
+    {
+      "hash": "b190720ac5f0baf1926dad430acda00eeb5e2186",
+      "short": "b190720",
+      "author": "lengwas",
+      "date": "2026-03-24T00:47:33+08:00",
+      "subject": "Add newbie factor (Bayesian shrinkage) and auto store tiers to sales performance"
+    },
+    {
+      "hash": "78248612cccc5693aa4f6a9c65cb65da7c0fef54",
+      "short": "7824861",
+      "author": "lengwas",
+      "date": "2026-03-24T00:37:32+08:00",
+      "subject": "Add sales performance analyzer with day-of-week normalization"
+    },
+    {
+      "hash": "088c794e3c517326714f827783d037b2e49b8942",
+      "short": "088c794",
+      "author": "lengwas",
+      "date": "2026-03-24T00:26:39+08:00",
+      "subject": "Fix TS build errors: remove unused setShifts and getCurrentMonthRange"
+    },
+    {
+      "hash": "faa885bc394b25c443305c5d585a1a318a9b4980",
+      "short": "faa885b",
+      "author": "lengwas",
+      "date": "2026-03-24T00:22:16+08:00",
+      "subject": "Fix shifts not showing: add Supabase anon RLS policies, improve error handling, remove month filter default"
+    },
+    {
+      "hash": "64cde4267b2ec2549b0238b90706912c1a9b6369",
+      "short": "64cde42",
+      "author": "lengwas",
+      "date": "2026-03-23T08:33:08+07:00",
+      "subject": "Load shifts from Supabase and persist edits back to DB"
+    },
+    {
+      "hash": "52c006e4a114fde8fc65bb5c1aabaa6ba69bd54c",
+      "short": "52c006e",
+      "author": "lengwas",
+      "date": "2026-03-23T08:15:19+07:00",
+      "subject": "Fix preference persistence, add promoter form, improve performance scoring"
+    },
+    {
+      "hash": "8881592ccfea07a634365759941546fe3f7add15",
+      "short": "8881592",
+      "author": "lengwas",
+      "date": "2026-03-23T07:50:43+07:00",
+      "subject": "Fix PC Setting preference save + add Store Setting promoter assignment"
+    },
+    {
+      "hash": "eab0f79db69becbcfb2f5835ccae4ea6b9d606ea",
+      "short": "eab0f79",
+      "author": "lengwas",
+      "date": "2026-03-23T07:47:47+07:00",
+      "subject": "Fix: remove invalid gemini-2.5-flash-lite model, use stable model for constraint parsing"
+    },
+    {
+      "hash": "e11dd9b1510e5ac5a7bfa5884da9c17c74fa0b21",
+      "short": "e11dd9b",
+      "author": "lengwas",
+      "date": "2026-03-23T07:41:47+07:00",
+      "subject": "Parse natural language constraints via Gemini into structured equations for Python optimizer"
+    },
+    {
+      "hash": "ea26eb03973d1feb99fefaf8e36e8c2434929c74",
+      "short": "ea26eb0",
+      "author": "lengwas",
+      "date": "2026-03-23T07:27:01+07:00",
+      "subject": "Add date range filter to ShiftTable, defaulting to current month"
+    },
+    {
+      "hash": "aec479d0b7a2ac68137dd2ddfa7bb4e864aedc3c",
+      "short": "aec479d",
+      "author": "lengwas",
+      "date": "2026-03-23T00:37:31+07:00",
+      "subject": "Move revenue forecast from left panel to header row below DOW in ShiftTable"
+    },
+    {
+      "hash": "7bed26d0573e4e947bd6bfa15a64dda649161136",
+      "short": "7bed26d",
+      "author": "lengwas",
+      "date": "2026-03-23T00:25:55+07:00",
+      "subject": "Persist promoter conflicts to Supabase + add Gemini 2.5 models"
+    },
+    {
+      "hash": "c9dd62e5d3bfa4b8f88043862066bb12c7c950eb",
+      "short": "c9dd62e",
+      "author": "lengwas",
+      "date": "2026-03-23T00:21:27+07:00",
+      "subject": "Fix store time format and add revenue forecast to Auto Assign"
+    },
+    {
+      "hash": "01a452a1529a7d01c73eb96a5e511743183f0e13",
+      "short": "01a452a",
+      "author": "lengwas",
+      "date": "2026-03-23T00:10:19+07:00",
+      "subject": "Show shift time range in table cells"
+    },
+    {
+      "hash": "e63d3cffee63fb7374273c5192c6e4e53c391f3e",
+      "short": "e63d3cf",
+      "author": "lengwas",
+      "date": "2026-03-23T00:08:42+07:00",
+      "subject": "Add Python revenue optimizer and hide empty stores in ShiftTable"
+    },
+    {
+      "hash": "1a769771f40f4e775c446ed9586a1009ff6d746a",
+      "short": "1a76977",
+      "author": "lengwas",
+      "date": "2026-03-21T17:45:08+07:00",
+      "subject": "Fix promoter save: async error handling, fallback without role column"
+    },
+    {
+      "hash": "8b59248cbfff087defd82ad0ee89f73ced8ebef0",
+      "short": "8b59248",
+      "author": "lengwas",
+      "date": "2026-03-21T17:31:47+07:00",
+      "subject": "Add role/multi-dayoff, Auto Assign as ShiftTable, explicit Save buttons"
+    },
+    {
+      "hash": "0809fdd7ec84ffa831710e2ec627447fa2ae0d19",
+      "short": "0809fdd",
+      "author": "lengwas",
+      "date": "2026-03-21T17:04:16+07:00",
+      "subject": "Fix Auto Assign JSON errors and add additional constraints textarea"
+    },
+    {
+      "hash": "b2cfb2a4867fb9087982b7341332dbb4383fd273",
+      "short": "b2cfb2a",
+      "author": "lengwas",
+      "date": "2026-03-21T11:49:44+07:00",
+      "subject": "Add Gemini model selector and token usage tracking to Auto Assign"
+    },
+    {
+      "hash": "f1a3ea0ae967cb3d4cc4e2a874e445b8cbcae003",
+      "short": "f1a3ea0",
+      "author": "lengwas",
+      "date": "2026-03-21T11:21:04+07:00",
+      "subject": "Add Auto Assign tab with Gemini AI draft scheduling and feedback chat"
+    },
+    {
+      "hash": "726f2c261fbf4b39ce8ccac4cc7db5f981437b42",
+      "short": "726f2c2",
+      "author": "lengwas",
+      "date": "2026-03-21T11:05:59+07:00",
+      "subject": "Add grade distribution bar and methodology panel to Sales Performance tab"
+    },
+    {
+      "hash": "8f28a8e0346fe58e7797500c21d230f67b6dadb9",
+      "short": "8f28a8e",
+      "author": "lengwas",
+      "date": "2026-03-21T10:55:12+07:00",
+      "subject": "Fix warehouse matching for real orders data + add performance Python script"
+    },
+    {
+      "hash": "2692f5abc23e14b8c16adadbed97bab58dd8deb9",
+      "short": "2692f5a",
+      "author": "lengwas",
+      "date": "2026-03-20T19:33:44+07:00",
+      "subject": "Fix store lookup + add test orders SQL script"
+    },
+    {
+      "hash": "a71c6a46d593606b2ba3b849ffce323481c60eea",
+      "short": "a71c6a4",
+      "author": "lengwas",
+      "date": "2026-03-20T19:23:19+07:00",
+      "subject": "Add Sales Performance tab with grade-tier analysis"
+    },
+    {
+      "hash": "c27e252cc85263ef304acb07711543118808f00c",
+      "short": "c27e252",
+      "author": "lengwas",
+      "date": "2026-03-20T18:48:54+07:00",
+      "subject": "Database tab: show only Shift Data flat table"
+    }
+  ]
+}
