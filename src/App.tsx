@@ -7,6 +7,8 @@ import DatabaseSchemaPage from './components/DatabaseSchemaPage';
 import SalesPerformancePage from './components/SalesPerformancePage';
 import AutoAssignPage from './components/AutoAssignPage';
 import AttendancePage from './components/AttendancePage';
+import UserGuidePage from './components/UserGuidePage';
+import ChangelogPage from './components/ChangelogPage';
 import { useAttendance } from './hooks/useAttendance';
 import { getDates, generateStoreCounts } from './data/mockData';
 import { useStores } from './hooks/useStores';
@@ -16,10 +18,11 @@ import { useConflicts } from './hooks/useConflicts';
 import { useStorePreferences } from './hooks/useStorePreferences';
 import { useShifts } from './hooks/useShifts';
 import { useOrders } from './hooks/useOrders';
+import { validateShifts } from './lib/shiftValidator';
 import type { StoreTierSetting, PromoterGradeOverride, Country } from './types/types';
 import './App.css';
 
-type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'auto-assign' | 'attendance' | 'db-schema';
+type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'auto-assign' | 'attendance' | 'db-schema' | 'guide' | 'changelog';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'shift', label: 'Shift Table' },
@@ -29,6 +32,8 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'auto-assign', label: 'Auto Assign' },
   { key: 'attendance', label: 'Attendance' },
   { key: 'db-schema', label: 'Database' },
+  { key: 'guide', label: 'Guide' },
+  { key: 'changelog', label: 'Changelog' },
 ];
 
 const COUNTRIES: { code: Country; label: string; flag: string }[] = [
@@ -56,7 +61,7 @@ function App() {
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores, country);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts(country);
   const { orders } = useOrders(6, country);
-  const { records: attendanceRecords, loading: attendanceLoading, updateRecord: updateAttendance, mergeDuplicates: mergeAttendanceDuplicates } = useAttendance(country);
+  const { records: attendanceRecords, loading: attendanceLoading, updateRecord: updateAttendance, mergeDuplicates: mergeAttendanceDuplicates, syncNoteByPromoterDate: syncAttendanceNote } = useAttendance(country);
   const [storeTiers, setStoreTiers] = useState<StoreTierSetting[]>([]);
   const [gradeOverrides, setGradeOverrides] = useState<PromoterGradeOverride[]>([]);
 
@@ -71,6 +76,19 @@ function App() {
     return getDates(startDate, endDate);
   }, [earliestDate]);
 
+  const shiftAlerts = useMemo(
+    () => validateShifts(shifts, promoters, stores, storePreferences, promoterConflicts),
+    [shifts, promoters, stores, storePreferences, promoterConflicts],
+  );
+
+  const attendanceNotesMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of attendanceRecords) {
+      if (a.promoterId && a.note) m.set(`${a.promoterId}_${a.date}`, a.note);
+    }
+    return m;
+  }, [attendanceRecords]);
+
   const storeCounts = useMemo(
     () => generateStoreCounts(stores, shiftDates, shifts),
     [stores, shifts, shiftDates]
@@ -79,6 +97,14 @@ function App() {
   const handleShiftChange = useCallback((promoterId: string, date: string, newType: string, timeRange?: string, note?: string) => {
     saveShift(promoterId, date, newType, timeRange, note);
   }, [saveShift]);
+
+  /** Sync an attendance note edit back to the matching shift's note (same promoter+date). */
+  const handleSyncAttendanceToShift = useCallback((promoterId: string, date: string, note: string) => {
+    const cur = shifts.find(s => s.promoterId === promoterId && s.date === date);
+    if (!cur) return;
+    if ((cur.note ?? '') === (note ?? '')) return;
+    saveShift(promoterId, date, cur.type, cur.timeRange, note || undefined);
+  }, [shifts, saveShift]);
 
   return (
     <div className="app-layout">
@@ -154,6 +180,9 @@ function App() {
             gradeOverrides={gradeOverrides}
             storePreferences={storePreferences}
             promoterConflicts={promoterConflicts}
+            alerts={shiftAlerts}
+            attendanceNotes={attendanceNotesMap}
+            onSyncNoteToAttendance={syncAttendanceNote}
           />
         )}
         {activeTab === 'pc-setting' && (
@@ -211,6 +240,7 @@ function App() {
             gradeOverrides={gradeOverrides}
             existingShifts={shifts}
             country={country}
+            attendanceNotes={attendanceNotesMap}
             onShiftsApply={async (newShifts) => {
               await Promise.all(newShifts.map((s) => saveShift(s.promoterId, s.date, s.type, s.timeRange)));
               setActiveTab('shift');
@@ -223,9 +253,11 @@ function App() {
             promoters={promoters}
             shifts={shifts}
             attendance={attendanceRecords}
+            specialDates={specialDates}
             loading={attendanceLoading}
             onUpdate={updateAttendance}
             onMergeDuplicates={mergeAttendanceDuplicates}
+            onSyncNoteToShift={handleSyncAttendanceToShift}
           />
         )}
         {activeTab === 'db-schema' && (
@@ -235,6 +267,8 @@ function App() {
             shifts={shifts}
           />
         )}
+        {activeTab === 'guide' && <UserGuidePage />}
+        {activeTab === 'changelog' && <ChangelogPage />}
       </main>
 
       {showExport && (

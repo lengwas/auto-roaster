@@ -1,0 +1,87 @@
+.cl-page {
+  padding: 24px 28px;
+  height: 100%;
+  overflow-y: auto;
+  max-width: 920px;
+}
+
+.cl-header h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: #111827;
+}
+.cl-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+.cl-meta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.cl-search {
+  margin: 16px 0 12px;
+  padding: 8px 12px;
+  width: 100%;
+  max-width: 360px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #111827;
+  box-sizing: border-box;
+}
+.cl-search:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #fff;
+}
+
+.cl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cl-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cl-item:hover {
+  background: #fff;
+  border-color: #c7d2fe;
+}
+
+.cl-item-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: #6b7280;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.cl-item-date { color: #475569; font-weight: 600; }
+.cl-item-hash { color: #6366f1; font-weight: 700; }
+.cl-item-author { color: #94a3b8; }
+
+.cl-item-subject {
+  font-size: 13.5px;
+  color: #111827;
+  line-height: 1.45;
+}
+
+.cl-empty {
+  padding: 32px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}

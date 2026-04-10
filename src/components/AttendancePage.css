@@ -319,3 +319,31 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* Note column */
+.att-note-cell { max-width: 220px; }
+.att-note-text {
+  display: inline-block;
+  font-size: 12px;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.att-edit-note {
+  width: 100%;
+  min-width: 140px;
+  padding: 5px 7px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.att-edit-note:focus {
+  outline: none;
+  border-color: #6366f1;
+}

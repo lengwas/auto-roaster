@@ -242,6 +242,109 @@
 }
 .aa-snippet-delete:hover { color: #ef4444; background: #fee2e2; }
 
+/* ── Save draft ────────────────────────────────────────────────────────── */
+.aa-draft-save-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  margin-bottom: 6px;
+}
+.aa-draft-name-input {
+  flex: 1;
+  padding: 6px 9px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #111827;
+  min-width: 0;
+}
+.aa-draft-name-input:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  background: #fff;
+}
+.aa-btn-save-draft {
+  padding: 6px 14px;
+  font-size: 11px;
+  font-family: inherit;
+  border: 1px solid #0ea5e9;
+  border-radius: 6px;
+  background: #f0f9ff;
+  color: #0369a1;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.aa-btn-save-draft:hover:not(:disabled) { background: #e0f2fe; }
+.aa-btn-save-draft:disabled { opacity: 0.4; cursor: default; }
+
+.aa-draft-list {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+.aa-draft-list-label {
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.aa-draft-item {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.aa-draft-load {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 5px 9px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
+  min-width: 0;
+}
+.aa-draft-load:hover {
+  background: #f0f9ff;
+  border-color: #7dd3fc;
+}
+.aa-draft-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0c4a6e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.aa-draft-meta {
+  font-size: 9.5px;
+  color: #94a3b8;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.aa-draft-delete {
+  padding: 0 8px;
+  font-size: 11px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.aa-draft-delete:hover { color: #ef4444; background: #fee2e2; border-color: #fecaca; }
+
 .aa-range-info {
   font-size: 0.78rem;
   color: #9ca3af;

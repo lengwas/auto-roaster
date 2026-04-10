@@ -16,6 +16,7 @@ export interface Attendance {
   status: string;
   ocrConfidence: string | null;
   lineUserId: string | null;
+  note: string | null;
   createdAt: string;
 }
 
@@ -33,6 +34,7 @@ function mapRow(row: Record<string, unknown>): Attendance {
     status: String(row.status || 'matched'),
     ocrConfidence: row.ocr_confidence ? String(row.ocr_confidence) : null,
     lineUserId: row.line_user_id ? String(row.line_user_id) : null,
+    note: row.note ? String(row.note) : null,
     createdAt: String(row.created_at),
   };
 }
@@ -94,6 +96,7 @@ export function useAttendance(country: Country = 'UAE') {
       check_in?: string | null;
       check_out?: string | null;
       status?: string;
+      note?: string | null;
     },
     originalOcrName?: string | null,
   ) {
@@ -124,6 +127,15 @@ export function useAttendance(country: Country = 'UAE') {
         console.log(`[useAttendance] Saved alias: "${ocrKey}" → ${updates.promoter_id}`);
       }
     }
+  }
+
+  /** Sync a note to the attendance row matching (promoterId, date), if one exists.
+   *  Used for bi-directional note sync from the shift table. */
+  async function syncNoteByPromoterDate(promoterId: string, date: string, note: string) {
+    const existing = records.find(r => r.promoterId === promoterId && r.date === date);
+    if (!existing) return;
+    if ((existing.note ?? '') === (note ?? '')) return;
+    await updateRecord(existing.id, { note: note || null });
   }
 
   /** Merge duplicate records: combine check-in and check-out for same promoter+date.
@@ -205,5 +217,5 @@ export function useAttendance(country: Country = 'UAE') {
     return mergedCount;
   }
 
-  return { records, loading, error, updateRecord, mergeDuplicates };
+  return { records, loading, error, updateRecord, mergeDuplicates, syncNoteByPromoterDate };
 }

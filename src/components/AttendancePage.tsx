@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { Store, Promoter, Shift } from '../types/types';
+import type { Store, Promoter, Shift, SpecialDate } from '../types/types';
 import type { Attendance } from '../hooks/useAttendance';
 import './AttendancePage.css';
 
@@ -8,6 +8,7 @@ interface AttendancePageProps {
   promoters: Promoter[];
   shifts: Shift[];
   attendance: Attendance[];
+  specialDates?: SpecialDate[];
   loading: boolean;
   onUpdate: (id: string, updates: {
     promoter_id?: string | null;
@@ -17,8 +18,11 @@ interface AttendancePageProps {
     check_in?: string | null;
     check_out?: string | null;
     status?: string;
+    note?: string | null;
   }, originalOcrName?: string | null) => Promise<void>;
   onMergeDuplicates: () => Promise<number>;
+  /** Sync the attendance note back to the matching shift's note (same promoter+date). */
+  onSyncNoteToShift?: (promoterId: string, date: string, note: string) => void;
 }
 
 const PAGE_SIZE = 50;
@@ -45,7 +49,10 @@ function fmtDuration(min: number): string {
   return `${sign}${Math.floor(abs / 60)}h${abs % 60 > 0 ? ` ${abs % 60}m` : ''}`;
 }
 
-type AlertType = 'late-in' | 'early-out' | 'no-checkin' | 'no-checkout' | 'unmatched' | 'no-shift' | 'wrong-store' | 'wrong-spot';
+type AlertType = 'late-in' | 'early-out' | 'no-checkin' | 'no-checkout' | 'unmatched' | 'no-shift' | 'wrong-store' | 'wrong-spot' | 'short-hours' | 'long-hours';
+
+const MIN_HOURS = 9;       // alert if worked < 9h
+const MAX_HOURS = 9.5;     // alert if worked > 9.5h
 
 interface AlertInfo {
   type: AlertType;
@@ -70,6 +77,10 @@ interface AttendanceRow {
   alerts: AlertInfo[];
   status: string;
   confidence: string | null;
+  note: string | null;
+  shiftNote: string | null;
+  workedMin: number | null;
+  isRamadan: boolean;
 }
 
 const LATE_THRESHOLD = 15; // minutes grace period
@@ -80,10 +91,11 @@ interface EditState {
   storeCode: string | null;
   checkIn: string;
   checkOut: string;
+  note: string;
   originalOcrName: string | null; // raw name from attendance for alias saving
 }
 
-const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpdate, onMergeDuplicates }: AttendancePageProps) => {
+const AttendancePage = ({ stores, promoters, shifts, attendance, specialDates = [], loading, onUpdate, onMergeDuplicates, onSyncNoteToShift }: AttendancePageProps) => {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const [alertFilter, setAlertFilter] = useState<'all' | 'alerts-only'>('all');
@@ -111,6 +123,15 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
     shifts.forEach(s => m.set(`${s.promoterId}_${s.date}`, s));
     return m;
   }, [shifts]);
+
+  // Set of YYYY-MM-DD dates marked as Ramadan via specialDates (label contains 'ramadan')
+  const ramadanDays = useMemo(() => {
+    const set = new Set<string>();
+    for (const sd of specialDates) {
+      if (sd.label.toLowerCase().includes('ramadan')) set.add(sd.date);
+    }
+    return set;
+  }, [specialDates]);
 
   const rows: AttendanceRow[] = useMemo(() => {
     return attendance.map(a => {
@@ -206,6 +227,33 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
         }
       }
 
+      // Worked hours analysis (check_out - check_in)
+      let workedMin: number | null = null;
+      if (a.checkIn && a.checkOut) {
+        const inMin = toMinutes(a.checkIn);
+        const outMin = toMinutes(a.checkOut);
+        if (inMin !== null && outMin !== null) {
+          workedMin = outMin - inMin;
+          if (workedMin < 0) workedMin += 24 * 60; // overnight wraps
+          const hours = workedMin / 60;
+          const isRamadan = ramadanDays.has(a.date);
+          if (hours < MIN_HOURS && !isRamadan) {
+            alerts.push({
+              type: 'short-hours',
+              label: 'Short Hours',
+              detail: `ทำงาน ${hours.toFixed(1)}h (ต่ำกว่า ${MIN_HOURS}h)`,
+            });
+          }
+          if (hours > MAX_HOURS) {
+            alerts.push({
+              type: 'long-hours',
+              label: 'Long Hours',
+              detail: `ทำงาน ${hours.toFixed(1)}h (เกิน ${MAX_HOURS}h)`,
+            });
+          }
+        }
+      }
+
       const promoter = a.promoterId ? promoterMap.get(a.promoterId) : null;
 
       return {
@@ -222,9 +270,13 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
         alerts,
         status: a.status,
         confidence: a.ocrConfidence,
+        note: a.note,
+        shiftNote: shift?.note ?? null,
+        workedMin,
+        isRamadan: ramadanDays.has(a.date),
       };
     });
-  }, [attendance, shiftLookup, storeMap, promoterMap]);
+  }, [attendance, shiftLookup, storeMap, promoterMap, ramadanDays]);
 
   const filtered = useMemo(() => {
     let result = rows;
@@ -275,6 +327,7 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
       storeCode: r.storeCode,
       checkIn: r.checkIn ? r.checkIn.substring(0, 5) : '',
       checkOut: r.checkOut ? r.checkOut.substring(0, 5) : '',
+      note: r.note ?? '',
       originalOcrName: orig?.promoterName || null,
     });
   };
@@ -305,7 +358,13 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
       check_in: editing.checkIn ? editing.checkIn + ':00' : null,
       check_out: editing.checkOut ? editing.checkOut + ':00' : null,
       status: editing.promoterId ? 'matched' : 'unmatched',
+      note: editing.note || null,
     }, editing.originalOcrName);
+    // Sync note to the matching shift (if any)
+    if (onSyncNoteToShift && editing.promoterId) {
+      const orig = attendance.find(a => a.id === editing.id);
+      if (orig) onSyncNoteToShift(editing.promoterId, orig.date, editing.note);
+    }
     setSaving(false);
     setEditing(null);
   };
@@ -394,7 +453,9 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
               <th>Scheduled</th>
               <th>Check-in</th>
               <th>Check-out</th>
+              <th>Hours</th>
               <th>Status</th>
+              <th>Note</th>
               <th>Alerts / Actions</th>
             </tr>
           </thead>
@@ -479,7 +540,38 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
                   )}
                 </td>
                 <td>
+                  {r.workedMin !== null ? (() => {
+                    const hours = r.workedMin / 60;
+                    const isShort = hours < MIN_HOURS && !r.isRamadan;
+                    const isLong = hours > MAX_HOURS;
+                    const cls = isShort ? 'att-time-bad' : isLong ? 'att-time-bad' : 'att-time-ok';
+                    const label = `${hours.toFixed(1)}h${r.isRamadan ? ' 🌙' : ''}`;
+                    return <span className={cls} title={r.isRamadan ? 'Ramadan — short hours allowed' : undefined}>{label}</span>;
+                  })() : (
+                    <span className="att-muted">-</span>
+                  )}
+                </td>
+                <td>
                   <span className={`att-status att-status-${r.status}`}>{r.status}</span>
+                </td>
+                <td className="att-note-cell">
+                  {isEditing ? (
+                    <textarea
+                      className="att-edit-note"
+                      placeholder="Note…"
+                      value={editing.note}
+                      rows={2}
+                      onChange={e => setEditing({ ...editing, note: e.target.value })}
+                    />
+                  ) : (
+                    (() => {
+                      const parts: string[] = [];
+                      if (r.shiftNote) parts.push(r.shiftNote);
+                      if (r.note) parts.push(r.note);
+                      const combined = parts.join(' · ');
+                      return combined ? <span className="att-note-text" title={combined}>{combined}</span> : <span className="att-muted">-</span>;
+                    })()
+                  )}
                 </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -515,7 +607,7 @@ const AttendancePage = ({ stores, promoters, shifts, attendance, loading, onUpda
             })}
             {paged.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', color: '#94a3b8', padding: '32px' }}>
+                <td colSpan={10} style={{ textAlign: 'center', color: '#94a3b8', padding: '32px' }}>
                   {attendance.length === 0 ? 'No attendance data yet' : 'No matching records'}
                 </td>
               </tr>

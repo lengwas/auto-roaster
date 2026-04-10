@@ -2,6 +2,82 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Store, Promoter, Shift, StoreCount, SpecialDate, Order, StoreTierSetting, PromoterGradeOverride, StorePreference, PromoterConflict } from '../types/types';
 import { SPECIAL_SHIFTS } from '../types/types';
 import ShiftPicker from './ShiftPicker';
+import type { AlertMap } from '../lib/shiftValidator';
+import { alertSeverity } from '../lib/shiftValidator';
+import { matchAllShiftSlots, matchShiftSlot } from '../lib/shiftSlotUtils';
+
+// ── Quick-edit helpers ───────────────────────────────────────────────────────
+const SPECIAL_CODES = ['Off', 'LOP', 'SL'] as const;
+
+interface QuickEditMatch {
+  code: string;
+  label: string;
+}
+
+function getQuickEditMatches(value: string, stores: Store[]): QuickEditMatch[] {
+  const v = value.trim().toLowerCase();
+  if (!v) return [];
+  const codePart = v.match(/^[a-z]+/)?.[0] ?? '';
+  if (!codePart) return [];
+
+  const matches: QuickEditMatch[] = [];
+  for (const sp of SPECIAL_CODES) {
+    if (sp.toLowerCase().startsWith(codePart)) {
+      matches.push({ code: sp, label: sp });
+    }
+  }
+  for (const s of stores) {
+    if (!s.active) continue;
+    if (s.code.toLowerCase().startsWith(codePart)) {
+      matches.push({ code: s.code, label: `${s.code} — ${s.name}` });
+    }
+  }
+  return matches.slice(0, 6);
+}
+
+function parseQuickEdit(
+  value: string,
+  stores: Store[],
+  dateStr: string,
+): { type: string; timeRange?: string } | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (v === '-') return { type: '' };
+
+  // Pattern: <letters> [optional space] [optional digits[:digits]]
+  const m = v.toLowerCase().match(/^([a-z]+)\s*(\d{1,2})?:?(\d{2})?$/);
+  if (!m) return null;
+  const codePart = m[1];
+  const hourPart = m[2];
+  const minPart = m[3];
+
+  const matches = getQuickEditMatches(codePart, stores);
+  if (matches.length === 0) return null;
+  const top = matches[0];
+
+  if (SPECIAL_CODES.includes(top.code as typeof SPECIAL_CODES[number])) {
+    return { type: top.code };
+  }
+
+  const store = stores.find(s => s.code === top.code);
+  if (!store) return null;
+
+  const slots = store.shiftSlots && store.shiftSlots.length > 0
+    ? matchAllShiftSlots(store.shiftSlots, dateStr)
+    : [`${store.openTime}-${store.closeTime}`];
+
+  let timeRange: string | undefined;
+  if (hourPart) {
+    const hh = hourPart.padStart(2, '0');
+    const prefix = minPart ? `${hh}:${minPart}` : hh;
+    timeRange = slots.find(s => s.startsWith(prefix)) ?? slots[0];
+  } else if (store.shiftSlots && store.shiftSlots.length > 0) {
+    timeRange = matchShiftSlot(store.shiftSlots, dateStr);
+  } else {
+    timeRange = slots[0];
+  }
+  return { type: top.code, timeRange };
+}
 
 import './ShiftTable.css';
 
@@ -27,6 +103,11 @@ interface ShiftTableProps {
   gradeOverrides?: PromoterGradeOverride[];
   storePreferences?: StorePreference[];
   promoterConflicts?: PromoterConflict[];
+  alerts?: AlertMap;
+  /** Map of `${promoterId}_${date}` → attendance note (for combined display + sync). */
+  attendanceNotes?: Map<string, string>;
+  /** Sync the shift note back to the matching attendance row (same promoter+date). */
+  onSyncNoteToAttendance?: (promoterId: string, date: string, note: string) => void;
 }
 
 const PRESET_COLORS = [
@@ -95,7 +176,7 @@ function getTodayStr(): string {
 
 
 
-const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = [], onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast, storeTiers = [], gradeOverrides = [], storePreferences = [], promoterConflicts = [] }: ShiftTableProps) => {
+const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = [], onShiftChange, specialDates = [], onMarkDate, onUnmarkDate, revenueForecast, storeTiers = [], gradeOverrides = [], storePreferences = [], promoterConflicts = [], alerts, attendanceNotes, onSyncNoteToAttendance }: ShiftTableProps) => {
   const [editingNote, setEditingNote] = useState<string | null>(null); // key: promoterId_date
   const [noteText, setNoteText] = useState('');
   const [popup, setPopup] = useState<DateMarkPopup | null>(null);
@@ -253,6 +334,8 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
   const redoStack = useRef<UndoEntry[]>([]);
   const [clipboard, setClipboard] = useState<{ type: string; timeRange?: string; note?: string } | null>(null);
   const [focusedCell, setFocusedCell] = useState<{ promoterId: string; date: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ promoterId: string; date: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   // Stable ref for onShiftChange to avoid effect re-registration
   const onShiftChangeRef = useRef(onShiftChange);
@@ -271,6 +354,14 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
       // Don't intercept when typing in an input/textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      // Enter on focused cell → open quick-edit
+      if (e.key === 'Enter' && focusedCell && !editingCell) {
+        e.preventDefault();
+        setEditingCell(focusedCell);
+        setEditValue('');
+        return;
+      }
 
       // Arrow key navigation (no modifier needed)
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && focusedCell) {
@@ -364,7 +455,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [focusedCell, clipboard]);
+  }, [focusedCell, clipboard, editingCell]);
 
   // Scroll focused cell into view when navigating with arrow keys
   useEffect(() => {
@@ -372,6 +463,39 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     const el = document.querySelector('.cell-focused');
     if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [focusedCell]);
+
+  // Quick-edit: commit current edit value, optionally move focus
+  const commitQuickEdit = useCallback((moveDir: 'down' | 'right' | 'none') => {
+    if (!editingCell) return;
+    const parsed = parseQuickEdit(editValue, stores, editingCell.date);
+    if (parsed && onShiftChangeRef.current) {
+      const cur = shiftsRef.current.find(s => s.promoterId === editingCell.promoterId && s.date === editingCell.date);
+      undoStack.current.push({
+        promoterId: editingCell.promoterId,
+        date: editingCell.date,
+        prevType: cur?.type || '',
+        prevTimeRange: cur?.timeRange,
+        prevNote: cur?.note,
+      });
+      redoStack.current.length = 0;
+      if (undoStack.current.length > 50) undoStack.current.shift();
+      onShiftChangeRef.current(editingCell.promoterId, editingCell.date, parsed.type, parsed.timeRange, cur?.note);
+    }
+
+    if (moveDir !== 'none') {
+      const proms = visiblePromotersRef.current;
+      const dts = visibleDatesRef.current;
+      const pi = proms.findIndex(p => p.id === editingCell.promoterId);
+      const di = dts.indexOf(editingCell.date);
+      if (pi !== -1 && di !== -1) {
+        const np = moveDir === 'down' ? Math.min(proms.length - 1, pi + 1) : pi;
+        const nd = moveDir === 'right' ? Math.min(dts.length - 1, di + 1) : di;
+        setFocusedCell({ promoterId: proms[np].id, date: dts[nd] });
+      }
+    }
+    setEditingCell(null);
+    setEditValue('');
+  }, [editingCell, editValue, stores]);
 
   const handleChange = useCallback((promoterId: string, date: string, value: string, timeRange?: string) => {
     console.log(`[ShiftTable] handleChange: ${value} ${timeRange} for ${promoterId} on ${date}`);
@@ -414,6 +538,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
     if (!onShiftChange) return;
     const shift = shiftMap.get(`${promoterId}_${date}`);
     onShiftChange(promoterId, date, shift?.type || '', shift?.timeRange, noteText);
+    if (onSyncNoteToAttendance) onSyncNoteToAttendance(promoterId, date, noteText);
     setEditingNote(null);
     setNoteText('');
   };
@@ -829,10 +954,17 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
               const shiftClass = shift ? getShiftClass(shift.type) : '';
               const cellKey = `${promoter.id}_${dateStr}`;
               const isEditingNote = editingNote === cellKey;
+              const cellAlerts = alerts?.get(cellKey);
+              const sev = alertSeverity(cellAlerts);
+              const alertClass = sev === 'error' ? 'cell-alert-error' : sev === 'warning' ? 'cell-alert-warn' : '';
+              const isEditingCell = editingCell?.promoterId === promoter.id && editingCell?.date === dateStr;
+              const editMatches = isEditingCell ? getQuickEditMatches(editValue, stores) : [];
+              const attNote = attendanceNotes?.get(cellKey);
+              const combinedNote = [shift?.note, attNote].filter(Boolean).join(' · ');
               return (
                 <div
                   key={dateStr}
-                  className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass} ${shift?.note ? 'has-note' : ''} ${focusedCell?.promoterId === promoter.id && focusedCell?.date === dateStr ? 'cell-focused' : ''}`}
+                  className={`cell col-date ${dateStr === todayStr ? 'col-today' : ''} ${shiftClass} ${combinedNote ? 'has-note' : ''} ${alertClass} ${focusedCell?.promoterId === promoter.id && focusedCell?.date === dateStr ? 'cell-focused' : ''}`}
                   onMouseEnter={() => setFocusedCell({ promoterId: promoter.id, date: dateStr })}
                   onDoubleClick={() => handleNoteClick(cellKey, shift?.note || '')}
                 >
@@ -849,8 +981,53 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
                     })();
                     return timeLabel ? <span className="shift-time">{timeLabel}</span> : null;
                   })()}
-                  {shift?.note && (
-                    <span className="note-tooltip">{shift.note}</span>
+                  {sev && (
+                    <span className={`alert-badge ${sev === 'error' ? 'alert-error' : 'alert-warn'}`}>
+                      {sev === 'error' ? '!' : '⚠'}
+                      <span className="alert-tooltip">
+                        {cellAlerts!.map((a, i) => (
+                          <div key={i}>{a.severity === 'error' ? '🔴' : '🟡'} {a.message}</div>
+                        ))}
+                      </span>
+                    </span>
+                  )}
+                  {combinedNote && (
+                    <span className="note-tooltip">{combinedNote}</span>
+                  )}
+                  {isEditingCell && (
+                    <div className="quick-edit-overlay" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        className="quick-edit-input"
+                        type="text"
+                        value={editValue}
+                        autoFocus
+                        placeholder="vdm 10"
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            commitQuickEdit('down');
+                          } else if (e.key === 'Tab') {
+                            e.preventDefault();
+                            commitQuickEdit('right');
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setEditingCell(null);
+                            setEditValue('');
+                          }
+                        }}
+                        onBlur={() => { setEditingCell(null); setEditValue(''); }}
+                      />
+                      {editMatches.length > 0 && (
+                        <div className="quick-edit-suggestions">
+                          {editMatches.map((m, i) => (
+                            <div key={m.code} className={`quick-edit-suggestion${i === 0 ? ' top' : ''}`}>
+                              {m.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                   {shift && shift.type && shift.type !== '-' && isEditingNote && (
                     <div className="note-overlay" onClick={(e) => e.stopPropagation()}>

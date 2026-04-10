@@ -10,6 +10,7 @@ import { generateStoreCounts } from '../data/mockData';
 import { useOrders } from '../hooks/useOrders';
 import { runOptimizer, loadConstraints, parseDSLConstraints, mergeConstraints } from '../lib/optimizer';
 import type { ParsedConstraints as OptimizerParsedConstraints } from '../lib/optimizer';
+import { validateShifts } from '../lib/shiftValidator';
 
 // ── Constraint snippet types ─────────────────────────────────────────────────
 interface ConstraintSnippet {
@@ -32,6 +33,30 @@ function loadSnippets(): ConstraintSnippet[] {
 
 function saveSnippets(snippets: ConstraintSnippet[]) {
   localStorage.setItem(SNIPPETS_KEY, JSON.stringify(snippets));
+}
+
+// ── Saved drafts ─────────────────────────────────────────────────────────────
+interface SavedDraft {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  assignments: { promoterId: string; date: string; store: string; timeRange?: string }[];
+  savedAt: string;
+}
+
+const DRAFTS_KEY = 'auto_roaster_drafts';
+
+function loadDrafts(): SavedDraft[] {
+  try {
+    return JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? '[]');
+  } catch {
+    return [];
+  }
+}
+
+function persistDrafts(drafts: SavedDraft[]) {
+  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
 }
 import './AutoAssignPage.css';
 
@@ -185,6 +210,7 @@ interface Props {
   gradeOverrides: PromoterGradeOverride[];
   existingShifts?: Shift[];
   country?: Country;
+  attendanceNotes?: Map<string, string>;
   onShiftsApply: (shifts: Shift[]) => void;
 }
 
@@ -356,7 +382,7 @@ function buildContext(
 // ── component ──────────────────────────────────────────────────────────────
 export default function AutoAssignPage({
   stores, promoters, storePreferences, promoterConflicts,
-  storeTiers, gradeOverrides, existingShifts = [], country = 'UAE', onShiftsApply,
+  storeTiers, gradeOverrides, existingShifts = [], country = 'UAE', attendanceNotes, onShiftsApply,
 }: Props) {
   const today = todayStr();
   const [startDate, setStartDate] = useState(addDays(today, 1));
@@ -368,6 +394,8 @@ export default function AutoAssignPage({
   const [draftCode, setDraftCode] = useState('');
   const [snippetName, setSnippetName] = useState('');
   const [savedSnippets, setSavedSnippets] = useState<ConstraintSnippet[]>(() => loadSnippets());
+  const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>(() => loadDrafts());
+  const [draftSaveName, setDraftSaveName] = useState('');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -430,6 +458,55 @@ export default function AutoAssignPage({
     const updated = savedSnippets.filter(s => s.id !== id);
     setSavedSnippets(updated);
     saveSnippets(updated);
+  }
+
+  // ── draft save / load ────────────────────────────────────────────────────
+  function saveDraftLocal() {
+    if (draft.length === 0 || !draftSaveName.trim()) return;
+    const entry: SavedDraft = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      name: draftSaveName.trim(),
+      startDate,
+      endDate,
+      assignments: draft.map(a => ({
+        promoterId: a.promoterId,
+        date: a.date,
+        store: a.store,
+        timeRange: a.timeRange,
+      })),
+      savedAt: new Date().toISOString(),
+    };
+    const updated = [entry, ...savedDrafts];
+    setSavedDrafts(updated);
+    persistDrafts(updated);
+    setDraftSaveName('');
+  }
+
+  function loadDraftLocal(id: string) {
+    const entry = savedDrafts.find(d => d.id === id);
+    if (!entry) return;
+    setStartDate(entry.startDate);
+    setEndDate(entry.endDate);
+    setDraft(entry.assignments.map(a => ({
+      promoterId: a.promoterId,
+      date: a.date,
+      store: a.store,
+      timeRange: a.timeRange,
+    })));
+    setApplied(false);
+    setError(null);
+    setChat([{
+      role: 'assistant',
+      isDraft: true,
+      count: entry.assignments.length,
+      text: `Loaded draft "${entry.name}" (${entry.assignments.filter(a => a.store !== 'Off').length} assignments)`,
+    }]);
+  }
+
+  function deleteDraftLocal(id: string) {
+    const updated = savedDrafts.filter(d => d.id !== id);
+    setSavedDrafts(updated);
+    persistDrafts(updated);
   }
 
   // ── optimize (Hungarian algorithm) ──────────────────────────────────
@@ -629,6 +706,11 @@ export default function AutoAssignPage({
     [orders, stores, warehouseMap],
   );
 
+  const draftAlerts = useMemo(
+    () => validateShifts(draftShifts, promoters, stores, storePreferences, promoterConflicts, perfMatrix),
+    [draftShifts, promoters, stores, storePreferences, promoterConflicts, perfMatrix],
+  );
+
   // For each day in draft, sum expected revenue of assigned (promoter, store) pairs
   const revenueForecast = useMemo(() => {
     if (draft.length === 0 || perfMatrix.size === 0) return [];
@@ -774,13 +856,56 @@ export default function AutoAssignPage({
           </div>
 
           {draft.length > 0 && (
-            applied ? (
-              <div className="save-status-ok" style={{ padding: '10px 18px', fontSize: 14 }}>✓ Applied to Shift Table</div>
-            ) : (
-              <button className="aa-btn-apply" onClick={applyDraft}>
-                Apply to Shift Table →
-              </button>
-            )
+            <>
+              <div className="aa-draft-save-row">
+                <input
+                  className="aa-draft-name-input"
+                  type="text"
+                  placeholder="Draft name…"
+                  value={draftSaveName}
+                  onChange={(e) => setDraftSaveName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveDraftLocal(); }}
+                />
+                <button
+                  className="aa-btn-save-draft"
+                  onClick={saveDraftLocal}
+                  disabled={!draftSaveName.trim()}
+                  title="Save current draft to localStorage"
+                >
+                  Save Draft
+                </button>
+              </div>
+              {applied ? (
+                <div className="save-status-ok" style={{ padding: '10px 18px', fontSize: 14 }}>✓ Applied to Shift Table</div>
+              ) : (
+                <button className="aa-btn-apply" onClick={applyDraft}>
+                  Apply to Shift Table →
+                </button>
+              )}
+            </>
+          )}
+
+          {savedDrafts.length > 0 && (
+            <div className="aa-draft-list">
+              <div className="aa-draft-list-label">Saved Drafts</div>
+              {savedDrafts.map((d) => (
+                <div key={d.id} className="aa-draft-item">
+                  <button
+                    className="aa-draft-load"
+                    onClick={() => loadDraftLocal(d.id)}
+                    title={`Load draft (${d.startDate} → ${d.endDate}, ${d.assignments.length} items)`}
+                  >
+                    <span className="aa-draft-name">{d.name}</span>
+                    <span className="aa-draft-meta">{d.startDate}→{d.endDate} · {d.assignments.length}</span>
+                  </button>
+                  <button
+                    className="aa-draft-delete"
+                    onClick={() => deleteDraftLocal(d.id)}
+                    title="Delete draft"
+                  >✕</button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -877,6 +1002,8 @@ export default function AutoAssignPage({
             gradeOverrides={gradeOverrides}
             storePreferences={storePreferences}
             promoterConflicts={promoterConflicts}
+            alerts={draftAlerts}
+            attendanceNotes={attendanceNotes}
           />
         )}
       </div>
