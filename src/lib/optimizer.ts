@@ -28,6 +28,9 @@ export interface ParsedConstraints {
   promoter_day_store?: { promoter: string; day: string; store: string }[];
   promoter_force_off?: { promoter: string; day: string }[];
   promoter_end_time?: { promoter: string; end_time: string }[];
+  /** Pin an exact time range for a promoter on a specific day (any store
+   *  whose shift slots include this range). */
+  promoter_day_time?: { promoter: string; day: string; time_range: string }[];
 }
 
 export interface DaySummary {
@@ -47,6 +50,7 @@ interface InternalConstraints {
   promoterDayStore: Map<string, string>;   // `${fname}_${day}` → storeCode
   promoterForceOff: Set<string>;           // `${fname}_${day}`
   promoterEndTime: Map<string, string>;    // fname → "HH:MM"
+  promoterDayTime: Map<string, string>;    // `${fname}_${day}` → "HH:MM-HH:MM"
 }
 
 // ── Day helpers ──────────────────────────────────────────────────────────────
@@ -197,6 +201,18 @@ export function parseDSLConstraints(code: string): ParsedConstraints {
     if (endTime) {
       if (!result.promoter_end_time) result.promoter_end_time = [];
       result.promoter_end_time.push({ promoter: endTime[1].toLowerCase(), end_time: endTime[2] });
+      continue;
+    }
+
+    // shift_time("name", "Day", "HH:MM-HH:MM") — pin time range on a day, any store
+    const shiftTime = line.match(/^shift_time\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/);
+    if (shiftTime) {
+      if (!result.promoter_day_time) result.promoter_day_time = [];
+      result.promoter_day_time.push({
+        promoter: shiftTime[1].toLowerCase(),
+        day: shiftTime[2],
+        time_range: shiftTime[3],
+      });
     }
   }
 
@@ -224,6 +240,10 @@ export function mergeConstraints(list: ParsedConstraints[]): ParsedConstraints {
       if (!merged.promoter_end_time) merged.promoter_end_time = [];
       merged.promoter_end_time.push(...pc.promoter_end_time);
     }
+    if (pc.promoter_day_time?.length) {
+      if (!merged.promoter_day_time) merged.promoter_day_time = [];
+      merged.promoter_day_time.push(...pc.promoter_day_time);
+    }
   }
   return merged;
 }
@@ -236,6 +256,7 @@ export function loadConstraints(parsed: ParsedConstraints | null): InternalConst
     promoterDayStore: new Map(),
     promoterForceOff: new Set(),
     promoterEndTime: new Map(),
+    promoterDayTime: new Map(),
   };
   if (!parsed) return ic;
 
@@ -252,6 +273,9 @@ export function loadConstraints(parsed: ParsedConstraints | null): InternalConst
   }
   for (const item of parsed.promoter_end_time ?? []) {
     ic.promoterEndTime.set(item.promoter.toLowerCase(), item.end_time);
+  }
+  for (const item of parsed.promoter_day_time ?? []) {
+    ic.promoterDayTime.set(`${item.promoter.toLowerCase()}_${item.day}`, item.time_range);
   }
   return ic;
 }
@@ -424,6 +448,7 @@ export function runOptimizer(
       const fname = firstName(p.name);
       const hasMust = mustMap.has(pid) && mustMap.get(pid)!.size > 0;
       const forcedStore = extra.promoterDayStore.get(`${fname}_${day}`);
+      const forcedTimeRange = extra.promoterDayTime.get(`${fname}_${day}`);
 
       for (let j = 0; j < nSlots; j++) {
         const sc = storeSlots[j];
@@ -445,6 +470,17 @@ export function runOptimizer(
         if (!hasAccess(pid, sc)) {
           profit[i][j] = INFEASIBLE;
           continue;
+        }
+        // shift_time: store must have this time range in its slots for this date
+        if (forcedTimeRange) {
+          const store = activeStores.find(s => s.code === sc);
+          const slots = store?.shiftSlots && store.shiftSlots.length > 0
+            ? matchAllShiftSlots(store.shiftSlots, dateStr)
+            : store ? [`${store.openTime}-${store.closeTime}`] : [];
+          if (!slots.includes(forcedTimeRange)) {
+            profit[i][j] = INFEASIBLE;
+            continue;
+          }
         }
 
         // Score = historical avg daily revenue + bonuses
@@ -632,8 +668,11 @@ export function runOptimizer(
         const store = activeStores.find(s => s.code === sc);
         const fname = firstName(p.name);
         const endOverride = extra.promoterEndTime.get(fname);
+        const dayTimeOverride = extra.promoterDayTime.get(`${fname}_${day}`);
         if (store) {
-          if (endOverride) {
+          if (dayTimeOverride) {
+            entry.timeRange = dayTimeOverride;
+          } else if (endOverride) {
             entry.timeRange = `${store.openTime}-${endOverride}`;
           } else if (storeSlotAssign.has(sc) && storeSlotAssign.get(sc)!.has(p.id)) {
             // Performance-based slot assignment
@@ -943,8 +982,11 @@ function runQatarOptimizer(
       if (sc !== 'Off') {
         const store = activeStores.find(s => s.code === sc);
         const endOverride = extra.promoterEndTime.get(fname);
+        const dayTimeOverride = extra.promoterDayTime.get(`${fname}_${day}`);
         if (store) {
-          if (endOverride) {
+          if (dayTimeOverride) {
+            entry.timeRange = dayTimeOverride;
+          } else if (endOverride) {
             entry.timeRange = `${store.openTime}-${endOverride}`;
           } else if (store.shiftSlots && store.shiftSlots.length > 0) {
             entry.timeRange = matchShiftSlot(store.shiftSlots, dateStr);

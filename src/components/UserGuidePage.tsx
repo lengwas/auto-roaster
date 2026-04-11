@@ -227,7 +227,25 @@ const UserGuidePage = () => {
 assign("name", "Day", "STORE")
 day_off("name", "Day")
 end_time("name", "HH:MM")
+shift_time("name", "Day", "HH:MM-HH:MM")
 # comment lines start with hash`}</pre>
+
+          <h3>shift_time — ล็อกเวลาโดยไม่ล็อกร้าน</h3>
+          <p>
+            ใช้เมื่ออยากบังคับเวลาเข้า-ออก แต่ให้ optimizer เลือกร้านให้เอง
+            ระบบจะเลือกเฉพาะร้านที่มี <em>shift slot ตรงกับ time range นี้</em> พอดี
+          </p>
+          <pre className="ug-code">{`# kevin เข้ากะเช้า 10:00-19:00 วันอาทิตย์ ไม่จำกัดร้าน
+shift_time("kevin", "Sun", "10:00-19:00")
+
+# ใช้คู่กับ assign() ก็ได้ — ล็อกทั้งร้านและเวลา
+assign("kevin", "Sun", "VDM")
+shift_time("kevin", "Sun", "10:00-19:00")`}</pre>
+          <p className="ug-note">
+            <strong>หมายเหตุ:</strong> ถ้าร้านใน store setting มี shiftSlots หลายช่วง
+            (เช่น <code>10:00-19:00, 13:30-22:30</code>) optimizer จะเลือกให้ตรงกับที่เขียนไว้
+            — ถ้าไม่มีร้านไหนมี slot นี้เลย promoter จะได้ <code>Off</code>
+          </p>
 
           <h3>กฎ</h3>
           <ul>

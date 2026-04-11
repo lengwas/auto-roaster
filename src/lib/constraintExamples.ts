@@ -2,7 +2,7 @@
  * Canonical DSL reference for the "Additional Constraints" editor on Auto Assign.
  * The parser lives in src/lib/optimizer.ts → parseDSLConstraints().
  *
- * Only the four statements below are supported; anything else is ignored silently.
+ * Only the statements below are supported; anything else is ignored silently.
  * Comments start with `#` and are ignored. Names must be the lowercase first name.
  * Days must be one of: Mon, Tue, Wed, Thu, Fri, Sat, Sun.
  */
@@ -88,6 +88,29 @@ end_time("maureen", "21:30")`,
     ],
   },
   {
+    heading: 'Pin time range on a day (any store)',
+    items: [
+      {
+        title: 'Morning shift on Sunday',
+        description: 'kevin เข้ากะเช้า 10:00-19:00 วันอาทิตย์ โดยไม่จำกัดร้าน — optimizer จะเลือกร้านที่มี slot นี้ให้',
+        snippet: 'shift_time("kevin", "Sun", "10:00-19:00")',
+      },
+      {
+        title: 'Multi-day morning rotation',
+        description: 'บังคับเข้ากะเช้าทั้งอาทิตย์',
+        snippet: `shift_time("kevin", "Mon", "10:00-19:00")
+shift_time("kevin", "Tue", "10:00-19:00")
+shift_time("kevin", "Wed", "10:00-19:00")`,
+      },
+      {
+        title: 'Combined: pin store + time',
+        description: 'ใช้คู่กับ assign() ได้ — ล็อกทั้งร้านและเวลา',
+        snippet: `assign("kevin", "Sun", "VDM")
+shift_time("kevin", "Sun", "10:00-19:00")`,
+      },
+    ],
+  },
+  {
     heading: 'Comments',
     items: [
       {
@@ -129,6 +152,7 @@ export const CONSTRAINT_SYNTAX_LINES: string[] = [
   'assign("name", "Day", "STORE")',
   'day_off("name", "Day")',
   'end_time("name", "HH:MM")',
+  'shift_time("name", "Day", "HH:MM-HH:MM")',
   '# comment',
 ];
 
@@ -136,6 +160,7 @@ export const CONSTRAINT_NOTES: string[] = [
   'name = lowercase first name (e.g. "kevin", "maureen", "angela")',
   'Day = one of Mon, Tue, Wed, Thu, Fri, Sat, Sun',
   'STORE = store code in uppercase (e.g. VDM, AIR, HDM)',
+  'shift_time picks any store whose shift slots include that exact time range',
   'Lines starting with # are ignored',
   'Invalid / unrecognized lines are silently skipped',
 ];
