@@ -43,6 +43,17 @@ function fmtPct(n: number): string {
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
+// Recharts tooltip formatter signature is loose; accept unknown and format money when numeric.
+const moneyFormatter = (country: Country) => (v: unknown): string =>
+  typeof v === 'number' ? fmtMoney(v, country) : String(v ?? '');
+
+// Recharts Bar onClick payload shape — we only care about the original data row under `payload`.
+interface BarClickPayload { payload?: { label?: string } }
+const getBarLabel = (d: unknown): string | null => {
+  const p = (d as BarClickPayload | undefined)?.payload?.label;
+  return typeof p === 'string' ? p : null;
+};
+
 const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) => {
   // ── Filter state ──────────────────────────────────────────────────────
   const [fromMonth, setFromMonth] = useState(nMonthsAgo(5));
@@ -414,7 +425,7 @@ const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) =
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" style={{ fontSize: 11 }} />
               <YAxis style={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => fmtMoney(v, country)} />
+              <Tooltip formatter={moneyFormatter(country)} />
               <Legend />
               <Line type="monotone" dataKey="sales" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
@@ -429,12 +440,13 @@ const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) =
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" style={{ fontSize: 11 }} />
               <YAxis style={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => fmtMoney(v, country)} />
+              <Tooltip formatter={moneyFormatter(country)} />
               <Bar
                 dataKey="sales"
                 fill={CHART_COLORS[0]}
-                onClick={(d: { label?: string }) => {
-                  if (d?.label) toggle(selectedStores, d.label, setSelectedStores);
+                onClick={(d) => {
+                  const label = getBarLabel(d);
+                  if (label) toggle(selectedStores, label, setSelectedStores);
                 }}
                 style={{ cursor: 'pointer' }}
               />
@@ -450,12 +462,13 @@ const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) =
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" style={{ fontSize: 11 }} />
               <YAxis style={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => fmtMoney(v, country)} />
+              <Tooltip formatter={moneyFormatter(country)} />
               <Bar
                 dataKey="sales"
                 fill={CHART_COLORS[1]}
-                onClick={(d: { label?: string }) => {
-                  if (d?.label) toggle(selectedPromoters, d.label, setSelectedPromoters);
+                onClick={(d) => {
+                  const label = getBarLabel(d);
+                  if (label) toggle(selectedPromoters, label, setSelectedPromoters);
                 }}
                 style={{ cursor: 'pointer' }}
               />
@@ -471,12 +484,13 @@ const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) =
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" style={{ fontSize: 11 }} />
               <YAxis style={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => fmtMoney(v, country)} />
+              <Tooltip formatter={moneyFormatter(country)} />
               <Bar
                 dataKey="sales"
                 fill={CHART_COLORS[2]}
-                onClick={(d: { label?: string }) => {
-                  if (d?.label) toggle(selectedMalls, d.label, setSelectedMalls);
+                onClick={(d) => {
+                  const label = getBarLabel(d);
+                  if (label) toggle(selectedMalls, label, setSelectedMalls);
                 }}
                 style={{ cursor: 'pointer' }}
               />
@@ -492,12 +506,13 @@ const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) =
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" style={{ fontSize: 11 }} />
               <YAxis style={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => fmtMoney(v, country)} />
+              <Tooltip formatter={moneyFormatter(country)} />
               <Bar
                 dataKey="sales"
                 fill={CHART_COLORS[3]}
-                onClick={(d: { label?: string }) => {
-                  if (d?.label) toggle(selectedVendors, d.label, setSelectedVendors);
+                onClick={(d) => {
+                  const label = getBarLabel(d);
+                  if (label) toggle(selectedVendors, label, setSelectedVendors);
                 }}
                 style={{ cursor: 'pointer' }}
               />
@@ -513,12 +528,13 @@ const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) =
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis type="number" style={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="label" width={80} style={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => fmtMoney(v, country)} />
+              <Tooltip formatter={moneyFormatter(country)} />
               <Bar
                 dataKey="sales"
                 fill={CHART_COLORS[4]}
-                onClick={(d: { label?: string }) => {
-                  if (d?.label) toggle(selectedModels, d.label, setSelectedModels);
+                onClick={(d) => {
+                  const label = getBarLabel(d);
+                  if (label) toggle(selectedModels, label, setSelectedModels);
                 }}
                 style={{ cursor: 'pointer' }}
               />
@@ -535,7 +551,7 @@ const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) =
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="label" style={{ fontSize: 11 }} />
                 <YAxis style={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => fmtMoney(v, country)} />
+                <Tooltip formatter={moneyFormatter(country)} />
                 <Bar dataKey="sales" fill={CHART_COLORS[5]} />
               </BarChart>
             </ResponsiveContainer>
