@@ -60,26 +60,7 @@ function persistDrafts(drafts: SavedDraft[]) {
   localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
 }
 import './AutoAssignPage.css';
-
-// Warehouse text → store code
-const WAREHOUSE_CODE_MAP_UAE: Record<string, string> = {
-  'vir - dbm': 'VDM', 'vir - moe': 'VME', 'vir - dbh': 'VDH',
-  'vir - mrn': 'VMN', 'vir - mdf': 'VMF', 'vir - nkm': 'VNK',
-  'vir - yas': 'VYM', 'vir - amy': 'VAY', 'vir - rem': 'VRM',
-  'vir - adm': 'VAD', 'vir - arb': 'VAY', 'vir - azc': 'VNK',
-  'jsm - moe': 'JME', 'jsm - dbm': 'JDM', 'jsm - dbh': 'JDH',
-  'bdr - dbm': 'BDM', 'bdr - dbh': 'JDH',
-  'hls - dbm': 'HDM', 'sdg - dbm': 'SDM',
-  'air - 48': 'AIR', 'air - dcc': 'ADC', 'img - wld': 'IMG',
-};
-
-const WAREHOUSE_CODE_MAP_QA: Record<string, string> = {
-  'vir - vlm': 'VLM', 'vir - vmq': 'VMQ', 'vir - vdf': 'VDF',
-  'vir - vvg': 'VVG', 'vir - vvd': 'VVD',
-  'kdz - kvd': 'KVD', 'kdz - klm': 'KLM', 'kdz - moq': 'KMQ',
-  'kdz - dfc': 'VDF', 'ron - rkt': 'RKT',
-  'fnc - dfc': 'VDF', 'fnc - vvd': 'VVD',
-};
+import { WAREHOUSE_CODE_MAP_UAE, WAREHOUSE_CODE_MAP_QA } from '../lib/ordersAnalytics';
 
 // Build {`${promoterId}_${storeCode}`: avgDailyRevenue} from historical orders
 function buildPerfMatrix(

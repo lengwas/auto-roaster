@@ -15,6 +15,8 @@ function mapRow(row: Record<string, unknown>, country: Country): Order {
     salesperson: row.salesperson ? String(row.salesperson) : undefined,
     warehouse: row.warehouse ? String(row.warehouse) : undefined,
     platform: row.platform ? String(row.platform) : undefined,
+    sku: row.sku ? String(row.sku) : undefined,
+    name: row.name ? String(row.name) : undefined,
     amountAed: amount,
     paidAmountAed: row.paid_amount_aed != null ? Number(row.paid_amount_aed) : undefined,
     status: String(row.status || 'pending'),
@@ -36,8 +38,8 @@ export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
     const fromStr = fromDt.toISOString().split('T')[0];
 
     const cols = country === 'QA'
-      ? 'id, date, order_id, salesperson, warehouse, platform, amount_qar, paid_amount_aed, status'
-      : 'id, date, order_id, salesperson, warehouse, platform, amount_aed, paid_amount_aed, status';
+      ? 'id, date, order_id, salesperson, warehouse, platform, sku, name, amount_qar, paid_amount_aed, status'
+      : 'id, date, order_id, salesperson, warehouse, platform, sku, name, amount_aed, paid_amount_aed, status';
 
     // Supabase caps at 1000 rows per request – paginate to fetch all
     const PAGE_SIZE = 1000;

@@ -83,6 +83,8 @@ export interface Order {
   salesperson?: string; // free-text name; matched to Promoter.name
   warehouse?: string;   // matched to Store.warehouse
   platform?: string;
+  sku?: string;
+  name?: string;        // product name, e.g. "Airwheel-SE3S-Black"
   amountAed?: number;
   paidAmountAed?: number;
   status: string;       // 'completed' | 'pending' | 'cancelled' | 'returned'

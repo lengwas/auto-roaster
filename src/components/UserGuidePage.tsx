@@ -9,6 +9,7 @@ type SectionId =
   | 'pc-setting'
   | 'store-setting'
   | 'sales'
+  | 'dashboard'
   | 'attendance'
   | 'database'
   | 'export'
@@ -28,6 +29,7 @@ const SECTIONS: SectionLink[] = [
   { id: 'pc-setting',   label: 'PC Setting',         emoji: '👥' },
   { id: 'store-setting',label: 'Store Setting',      emoji: '🏬' },
   { id: 'sales',        label: 'Sales Performance',  emoji: '📊' },
+  { id: 'dashboard',    label: 'Dashboard',          emoji: '📈' },
   { id: 'attendance',   label: 'Attendance',         emoji: '🕘' },
   { id: 'database',     label: 'Database',           emoji: '🗄️' },
   { id: 'export',       label: 'Export',             emoji: '📤' },
@@ -333,6 +335,61 @@ Fri,Sat,Sun 13:00-22:00  # ลิสต์วัน (comma)`}</pre>
             <li>ตั้ง <strong>Store Tier</strong> (A/B/C/D) และ <strong>Promoter Grade Override</strong> ได้ที่นี่</li>
             <li>ใช้ map: warehouse → store code (เช่น <code>vir - dbm</code> → <code>VDM</code>)</li>
           </ul>
+        </section>
+
+        <section id="ug-dashboard" className="ug-section">
+          <h2>📈 Dashboard</h2>
+          <p>
+            Interactive analytics สำหรับ slice ยอดขายหลายมิติ + anomaly detection
+            ช่วยให้ AM focus ได้ทันทีเวลามีสาขาใดสาขาหนึ่งตกผิดปกติ
+          </p>
+
+          <h3>Filters</h3>
+          <ul>
+            <li><strong>From / To</strong> — month range (default 6 เดือนล่าสุด)</li>
+            <li><strong>Status</strong> — Completed only / All (exc. cancelled, returned)</li>
+            <li><strong>Chips</strong> multi-select: Store, Promoter, Mall, Vendor, Model, Platform — กดเลือกได้หลายตัว รวมกันแบบ AND</li>
+            <li><strong>Reset</strong> ล้างทุกช่องกลับเป็น default</li>
+          </ul>
+
+          <h3>KPIs</h3>
+          <ul>
+            <li><strong>Total Sales</strong> + delta% เทียบช่วงก่อนหน้า (same length ก่อนหน้า range ที่เลือก)</li>
+            <li><strong>Orders count, Avg order</strong></li>
+            <li><strong>Top Store / Top Promoter / Top Model</strong> ในช่วงที่เลือก</li>
+          </ul>
+
+          <h3>Charts</h3>
+          <ul>
+            <li><strong>Sales Trend</strong> — line chart รายเดือน</li>
+            <li><strong>By Store / By Promoter / By Mall / By Vendor / By Platform</strong> — bar charts (ทุกอันคลิกได้ → filter drill-down)</li>
+            <li><strong>Top Models</strong> — horizontal bar (top 10)</li>
+            <li><strong>Store × Month Heatmap</strong> — grid view ดูว่าแต่ละสาขาขึ้นลงยังไงข้ามเดือน</li>
+          </ul>
+
+          <h3>Dimensions derivation</h3>
+          <ul>
+            <li><strong>Store</strong> ← <code>warehouse</code> text map เช่น <code>vir - dbm</code> → <code>VDM</code></li>
+            <li><strong>Vendor + Model</strong> ← parse จาก <code>name</code> (product name)<br/>
+              เช่น <code>Airwheel-SE3S-Black</code> → vendor=<code>Airwheel</code>, model=<code>SE3S</code></li>
+            <li><strong>Mall</strong> ← 2 ตัวท้ายของ store code + lookup table (DM=Dubai Mall, ME=Mall of Emirates, ...)</li>
+          </ul>
+
+          <h3>Branch Anomaly Alert</h3>
+          <p>
+            ระบบเทียบยอดขายของแต่ละสาขาในช่วงที่เลือก vs ช่วงความยาวเท่ากันก่อนหน้า (prev period)
+            ถ้าพบสาขาที่:
+          </p>
+          <ul>
+            <li>ยอดขายตก <strong>≥ 20%</strong> จาก prev period</li>
+            <li>แต่ยอดรวมทั้งหมด<strong>ไม่ตกเกิน 5%</strong></li>
+            <li>prev period มียอดมากพอ (≥ AED 1,000 และ ≥ 1% ของ total) เพื่อตัด noise สาขาเล็ก</li>
+          </ul>
+          <p>
+            จะมี banner แดงโผล่บน dashboard พร้อม card แต่ละสาขา แสดง prev → now และ delta%
+            กดปุ่ม <strong>"Focus this store →"</strong> เพื่อ set filter ให้เหลือสาขานั้นสาขาเดียว
+            → charts ทุกอันจะ narrow ให้ AM วิเคราะห์ว่าเกิดอะไรขึ้น
+          </p>
         </section>
 
         <section id="ug-attendance" className="ug-section">
