@@ -120,6 +120,26 @@
 }
 
 
+.aa-constraint-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.aa-btn-help {
+  padding: 3px 9px;
+  font-size: 11px;
+  font-family: inherit;
+  border: 1px solid #6366f1;
+  border-radius: 5px;
+  background: #f5f3ff;
+  color: #6366f1;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.aa-btn-help:hover { background: #ede9fe; }
+
 .aa-dsl-editor {
   width: 100%;
   padding: 7px 8px;

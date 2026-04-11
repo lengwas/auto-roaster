@@ -11,6 +11,7 @@ import { useOrders } from '../hooks/useOrders';
 import { runOptimizer, loadConstraints, parseDSLConstraints, mergeConstraints } from '../lib/optimizer';
 import type { ParsedConstraints as OptimizerParsedConstraints } from '../lib/optimizer';
 import { validateShifts } from '../lib/shiftValidator';
+import ConstraintReferenceModal from './ConstraintReferenceModal';
 
 // ── Constraint snippet types ─────────────────────────────────────────────────
 interface ConstraintSnippet {
@@ -324,6 +325,7 @@ export default function AutoAssignPage({
   const [savedSnippets, setSavedSnippets] = useState<ConstraintSnippet[]>(() => loadSnippets());
   const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>(() => loadDrafts());
   const [draftSaveName, setDraftSaveName] = useState('');
+  const [showConstraintHelp, setShowConstraintHelp] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -720,7 +722,17 @@ export default function AutoAssignPage({
 
           {/* additional constraints — Python DSL editor */}
           <div className="aa-field" style={{ marginBottom: 6 }}>
-            <label className="aa-label">Additional Constraints</label>
+            <div className="aa-constraint-label-row">
+              <label className="aa-label">Additional Constraints</label>
+              <button
+                type="button"
+                className="aa-btn-help"
+                onClick={() => setShowConstraintHelp(true)}
+                title="View all supported constraint examples"
+              >
+                ? Examples
+              </button>
+            </div>
             <textarea
               className="aa-dsl-editor"
               rows={4}
@@ -937,6 +949,12 @@ export default function AutoAssignPage({
       </div>
 
       {/* Conflict confirmation dialog */}
+      <ConstraintReferenceModal
+        open={showConstraintHelp}
+        onClose={() => setShowConstraintHelp(false)}
+        onInsert={(snippet) => setDraftCode((prev) => prev.trim() ? `${prev.trim()}\n${snippet}` : snippet)}
+      />
+
       {showApplyConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: 'white', borderRadius: 12, padding: 24, maxWidth: 750, maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
