@@ -313,6 +313,21 @@ export function runOptimizer(
     }
   }
 
+  // Restricted stores: any store where ≥1 promoter has "must" is treated as
+  // a card-required store. Only promoters with must/preferred for that store
+  // are allowed; everyone else is INFEASIBLE. This mirrors the validator's
+  // `no-access` rule so the optimizer never produces a red alert by itself.
+  const restrictedStores = new Set<string>();
+  for (const mustSet of mustMap.values()) {
+    for (const sc of mustSet) restrictedStores.add(sc);
+  }
+  const hasAccess = (pid: string, sc: string): boolean => {
+    if (!restrictedStores.has(sc)) return true;
+    if (mustMap.get(pid)?.has(sc)) return true;
+    if (preferredMap.get(pid)?.has(sc)) return true;
+    return false;
+  };
+
   // Conflict pairs
   const conflictPairs: [string, string][] = conflicts.map(c => [c.promoterAId, c.promoterBId]);
 
@@ -426,6 +441,11 @@ export function runOptimizer(
           profit[i][j] = INFEASIBLE;
           continue;
         }
+        // Restricted store (card-required): only must/preferred allowed
+        if (!hasAccess(pid, sc)) {
+          profit[i][j] = INFEASIBLE;
+          continue;
+        }
 
         // Score = historical avg daily revenue + bonuses
         // Use store average revenue as fallback so higher-revenue stores are preferred
@@ -489,6 +509,7 @@ export function runOptimizer(
             if (bannedMap.get(p.id)?.has(storeCode)) return false;
             const hasMust = mustMap.has(p.id) && mustMap.get(p.id)!.size > 0;
             if (hasMust && !mustMap.get(p.id)!.has(storeCode)) return false;
+            if (!hasAccess(p.id, storeCode)) return false;
             // Check conflicts: skip if a conflicting promoter is already at this store
             for (const [pidA, pidB] of conflictPairs) {
               const other = pidA === p.id ? pidB : pidB === p.id ? pidA : null;
@@ -530,6 +551,7 @@ export function runOptimizer(
       let bestScore = -Infinity;
       for (const s of activeStores) {
         if (bannedMap.get(p.id)?.has(s.code)) continue;
+        if (!hasAccess(p.id, s.code)) continue;
         // Check capacity
         const cap = capMap.get(s.code) ?? 1;
         if ((curCount.get(s.code) ?? 0) >= cap) continue;
@@ -668,6 +690,18 @@ function runQatarOptimizer(
     map.get(pref.promoterId)!.add(pref.storeCode);
   }
 
+  // Restricted stores: any store with ≥1 must → only must/preferred allowed
+  const restrictedStores = new Set<string>();
+  for (const mustSet of mustMap.values()) {
+    for (const sc of mustSet) restrictedStores.add(sc);
+  }
+  const hasAccess = (pid: string, sc: string): boolean => {
+    if (!restrictedStores.has(sc)) return true;
+    if (mustMap.get(pid)?.has(sc)) return true;
+    if (preferredMap.get(pid)?.has(sc)) return true;
+    return false;
+  };
+
   // Conflict pairs
   const conflictPairs: [string, string][] = conflicts.map(c => [c.promoterAId, c.promoterBId]);
 
@@ -720,6 +754,7 @@ function runQatarOptimizer(
       const sc = storeSlots[j];
       if (bannedMap.get(pid)?.has(sc)) { profit[i][j] = INFEASIBLE; continue; }
       if (hasMust && !mustMap.get(pid)!.has(sc)) { profit[i][j] = INFEASIBLE; continue; }
+      if (!hasAccess(pid, sc)) { profit[i][j] = INFEASIBLE; continue; }
 
       const base = perfMatrix.get(`${pid}_${sc}`) ?? storeAvgMap.get(sc) ?? globalFallback;
       let bonus = 0;
@@ -764,7 +799,7 @@ function runQatarOptimizer(
     const current = storeCount.get(s.code) ?? 0;
     if (current < minN) {
       const candidates = activePromoters
-        .filter(p => blockMap.get(p.id) === 'Off' && !bannedMap.get(p.id)?.has(s.code))
+        .filter(p => blockMap.get(p.id) === 'Off' && !bannedMap.get(p.id)?.has(s.code) && hasAccess(p.id, s.code))
         .sort((a, b) =>
           (perfMatrix.get(`${b.id}_${s.code}`) ?? globalFallback) -
           (perfMatrix.get(`${a.id}_${s.code}`) ?? globalFallback)
@@ -782,6 +817,7 @@ function runQatarOptimizer(
     let bestScore = -Infinity;
     for (const s of activeStores) {
       if (bannedMap.get(p.id)?.has(s.code)) continue;
+      if (!hasAccess(p.id, s.code)) continue;
       const score = perfMatrix.get(`${p.id}_${s.code}`) ?? storeAvgMap.get(s.code) ?? globalFallback;
       if (score > bestScore) { bestScore = score; bestStore = s.code; }
     }
@@ -844,6 +880,7 @@ function runQatarOptimizer(
         const assigned = blockMap.get(p.id);
         if (!assigned || assigned === 'Off' || assigned === inspectStore) return false;
         if (bannedMap.get(p.id)?.has(inspectStore)) return false;
+        if (!hasAccess(p.id, inspectStore)) return false;
         // Must be working that day
         const dOff = parseDaysOff(p.workingDays);
         if (dOff.has(dayName(inspectDate))) return false;
