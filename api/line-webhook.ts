@@ -105,7 +105,11 @@ async function matchPromoter(
 
   if (!needle) return null;
 
-  // 0. Check alias table (user-corrected mappings) — highest priority after employee code
+  // 0. Check alias table FIRST (user-corrected mappings override everything).
+  // This must run before exact name match because OCR can misread a name to
+  // match a different real person (e.g. "Angela Uj" → OCR "Alexandre Ju"
+  // which happens to be a real admin). The alias table is the user's explicit
+  // correction and always wins.
   const { data: alias } = await supabaseAdmin
     .from(t('promoter_name_map', country))
     .select('promoter_id')
@@ -115,12 +119,12 @@ async function matchPromoter(
   if (alias?.promoter_id) {
     const mapped = data.find(r => r.id === alias.promoter_id);
     if (mapped) {
-      console.log(`[webhook] Alias matched "${needle}" → "${mapped.name}"`);
+      console.log(`[webhook] Alias matched "${needle}" → "${mapped.name}" (overrides exact match)`);
       return { id: mapped.id, name: String(mapped.name) };
     }
   }
 
-  // 1. Exact match
+  // 1. Exact match (only if no alias was found)
   for (const row of data) {
     const name = String(row.name).toLowerCase();
     const label = String(row.stores_label || '').toLowerCase();
