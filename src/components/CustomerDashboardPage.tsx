@@ -400,11 +400,11 @@ const CustomerDashboardPage = () => {
         {/* Standard breakdown charts (always shown) */}
         <div className="dash-chart-card">
           <h3>Sales by Branch</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={byBranch} layout="vertical">
+          <ResponsiveContainer width="100%" height={Math.max(180, byBranch.length * 22 + 40)}>
+            <BarChart data={byBranch} layout="vertical" margin={{ left: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" fontSize={11} />
-              <YAxis dataKey="name" type="category" fontSize={11} width={50} />
+              <XAxis type="number" fontSize={9} />
+              <YAxis dataKey="name" type="category" fontSize={9} width={42} interval={0} />
               <Tooltip />
               <Bar dataKey="value" name="Sales" fill="#6366f1" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -413,11 +413,11 @@ const CustomerDashboardPage = () => {
 
         <div className="dash-chart-card">
           <h3>Sales by Promoter</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={byPromoter} layout="vertical">
+          <ResponsiveContainer width="100%" height={Math.max(180, byPromoter.length * 22 + 40)}>
+            <BarChart data={byPromoter} layout="vertical" margin={{ left: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" fontSize={11} />
-              <YAxis dataKey="name" type="category" fontSize={11} width={90} />
+              <XAxis type="number" fontSize={9} />
+              <YAxis dataKey="name" type="category" fontSize={9} width={80} interval={0} />
               <Tooltip />
               <Bar dataKey="value" name="Sales" fill="#10b981" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -426,11 +426,11 @@ const CustomerDashboardPage = () => {
 
         <div className="dash-chart-card">
           <h3>Top Nationalities</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={byNationality} layout="vertical">
+          <ResponsiveContainer width="100%" height={Math.max(180, byNationality.length * 22 + 40)}>
+            <BarChart data={byNationality} layout="vertical" margin={{ left: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" fontSize={11} />
-              <YAxis dataKey="name" type="category" fontSize={11} width={80} />
+              <XAxis type="number" fontSize={9} />
+              <YAxis dataKey="name" type="category" fontSize={9} width={70} interval={0} />
               <Tooltip />
               <Bar dataKey="value" name="Customers" fill="#f59e0b" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -439,11 +439,11 @@ const CustomerDashboardPage = () => {
 
         <div className="dash-chart-card">
           <h3>Product Models</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={byModel} layout="vertical">
+          <ResponsiveContainer width="100%" height={Math.max(180, byModel.length * 22 + 40)}>
+            <BarChart data={byModel} layout="vertical" margin={{ left: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" fontSize={11} />
-              <YAxis dataKey="name" type="category" fontSize={11} width={80} />
+              <XAxis type="number" fontSize={9} />
+              <YAxis dataKey="name" type="category" fontSize={9} width={70} interval={0} />
               <Tooltip />
               <Bar dataKey="value" name="Units" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -479,8 +479,8 @@ const CustomerDashboardPage = () => {
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={byAgeRange}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={10} />
-              <YAxis fontSize={11} />
+              <XAxis dataKey="name" fontSize={9} interval={0} />
+              <YAxis fontSize={9} />
               <Tooltip />
               <Bar dataKey="value" name="Customers" fill="#06b6d4" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -489,11 +489,11 @@ const CustomerDashboardPage = () => {
 
         <div className="dash-chart-card">
           <h3>Group Type</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={byGroupType} layout="vertical">
+          <ResponsiveContainer width="100%" height={Math.max(180, byGroupType.length * 22 + 40)}>
+            <BarChart data={byGroupType} layout="vertical" margin={{ left: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" fontSize={11} />
-              <YAxis dataKey="name" type="category" fontSize={10} width={120} />
+              <XAxis type="number" fontSize={9} />
+              <YAxis dataKey="name" type="category" fontSize={9} width={110} interval={0} />
               <Tooltip />
               <Bar dataKey="value" name="Customers" fill="#ec4899" radius={[0, 4, 4, 0]} />
             </BarChart>
