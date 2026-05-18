@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from './lib/supabase-admin';
+import { supabaseAdmin } from './lib/supabase-admin.js';
 
 const SERIAL_PROMPT = `You are analyzing a photo of a luggage/suitcase product label or serial number sticker.
 
