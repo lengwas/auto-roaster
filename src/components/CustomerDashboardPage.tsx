@@ -165,13 +165,12 @@ const CustomerDashboardPage = () => {
 
   // ── Combined trend ───────────────────────────────────────────────────
   const trendData = useMemo(() => {
-    const m = new Map<string, Record<string, number>>();
+    const m = new Map<string, { sales: number; luggage: number }>();
     for (const c of filtered) {
       const ym = toYearMonth(c.date);
-      const cur = m.get(ym) ?? { month: 0 };
-      cur.month = 0; // placeholder
-      (cur as Record<string, number>)['sales'] = ((cur as Record<string, number>)['sales'] ?? 0) + 1;
-      (cur as Record<string, number>)['luggage'] = ((cur as Record<string, number>)['luggage'] ?? 0) + c.numberOfLuggage;
+      const cur = m.get(ym) ?? { sales: 0, luggage: 0 };
+      cur.sales += 1;
+      cur.luggage += c.numberOfLuggage;
       m.set(ym, cur);
     }
     return [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([ym, v]) => ({ month: ym, ...v }));
