@@ -346,7 +346,7 @@ const CustomerDashboardPage = () => {
             {isVsActive ? (
               <LineChart data={vsTrendData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" fontSize={11} />
+                <XAxis dataKey="month" fontSize={10} interval={0} angle={-30} textAnchor="end" height={45} />
                 <YAxis fontSize={11} />
                 <Tooltip />
                 <Legend />
@@ -357,7 +357,7 @@ const CustomerDashboardPage = () => {
             ) : (
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" fontSize={11} />
+                <XAxis dataKey="month" fontSize={10} interval={0} angle={-30} textAnchor="end" height={45} />
                 <YAxis fontSize={11} />
                 <Tooltip />
                 <Legend />
