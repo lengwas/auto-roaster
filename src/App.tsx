@@ -10,6 +10,7 @@ import AttendancePage from './components/AttendancePage';
 import DashboardPage from './components/DashboardPage';
 import UserGuidePage from './components/UserGuidePage';
 import ChangelogPage from './components/ChangelogPage';
+import CustomerDashboardPage from './components/CustomerDashboardPage';
 import { useAttendance } from './hooks/useAttendance';
 import { getDates, generateStoreCounts } from './data/mockData';
 import { useStores } from './hooks/useStores';
@@ -23,7 +24,7 @@ import { validateShifts } from './lib/shiftValidator';
 import type { StoreTierSetting, PromoterGradeOverride, Country } from './types/types';
 import './App.css';
 
-type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'dashboard' | 'auto-assign' | 'attendance' | 'db-schema' | 'guide' | 'changelog';
+type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'dashboard' | 'customers' | 'auto-assign' | 'attendance' | 'db-schema' | 'guide' | 'changelog';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'shift', label: 'Shift Table' },
@@ -31,6 +32,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'store-setting', label: 'Store Setting' },
   { key: 'sales', label: 'Sales Performance' },
   { key: 'dashboard', label: 'Dashboard' },
+  { key: 'customers', label: 'Customers' },
   { key: 'auto-assign', label: 'Auto Assign' },
   { key: 'attendance', label: 'Attendance' },
   { key: 'db-schema', label: 'Database' },
@@ -302,6 +304,7 @@ function App() {
             country={country}
           />
         )}
+        {activeTab === 'customers' && <CustomerDashboardPage />}
         {activeTab === 'auto-assign' && (
           <AutoAssignPage
             stores={stores}
