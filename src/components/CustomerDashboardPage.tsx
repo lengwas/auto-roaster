@@ -31,7 +31,7 @@ function groupCount(items: string[]): { name: string; value: number }[] {
 }
 
 type FilterMode = 'combine' | 'vs';
-type VsDimension = 'branch' | 'promoter' | 'nationality';
+type VsDimension = 'branch' | 'promoter' | 'nationality' | 'gender' | 'visa' | 'age' | 'group' | 'model';
 
 const pieLabelFn = ({ name, percent }: { name?: string; percent?: number }) =>
   `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`;
@@ -93,21 +93,31 @@ const CustomerDashboardPage = () => {
   const activeFilterCount = selBranch.size + selPromoter.size + selNationality.size +
     selGender.size + selVisa.size + selAge.size + selGroup.size + selModel.size;
 
-  // Determine which dimension is active for VS mode
+  // Determine which dimension is active for VS mode (first with 2+ selections wins)
+  const vsDimensionMap: { dim: VsDimension; set: Set<string> }[] = [
+    { dim: 'branch', set: selBranch },
+    { dim: 'promoter', set: selPromoter },
+    { dim: 'nationality', set: selNationality },
+    { dim: 'gender', set: selGender },
+    { dim: 'visa', set: selVisa },
+    { dim: 'age', set: selAge },
+    { dim: 'group', set: selGroup },
+    { dim: 'model', set: selModel },
+  ];
+
   const vsDimension = useMemo<VsDimension | null>(() => {
     if (filterMode !== 'vs') return null;
-    if (selBranch.size >= 2) return 'branch';
-    if (selPromoter.size >= 2) return 'promoter';
-    if (selNationality.size >= 2) return 'nationality';
+    for (const { dim, set } of vsDimensionMap) if (set.size >= 2) return dim;
     return null;
-  }, [filterMode, selBranch, selPromoter, selNationality]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterMode, selBranch, selPromoter, selNationality, selGender, selVisa, selAge, selGroup, selModel]);
 
   const vsLabels = useMemo<string[]>(() => {
     if (!vsDimension) return [];
-    if (vsDimension === 'branch') return [...selBranch];
-    if (vsDimension === 'promoter') return [...selPromoter];
-    return [...selNationality];
-  }, [vsDimension, selBranch, selPromoter, selNationality]);
+    const entry = vsDimensionMap.find(e => e.dim === vsDimension);
+    return entry ? [...entry.set] : [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vsDimension, selBranch, selPromoter, selNationality, selGender, selVisa, selAge, selGroup, selModel]);
 
   // Date-filtered non-duplicate claims (before dimension filters)
   const dateFiltered = useMemo(() => {
@@ -140,12 +150,24 @@ const CustomerDashboardPage = () => {
   const vsSlices = useMemo(() => {
     if (!vsDimension) return new Map<string, SalesClaim[]>();
     const m = new Map<string, SalesClaim[]>();
-    const getter = (c: SalesClaim) =>
-      vsDimension === 'branch' ? c.branch
-        : vsDimension === 'promoter' ? c.promoterName
-          : (c.nationality ?? '');
+    const getter = (c: SalesClaim): string => {
+      switch (vsDimension) {
+        case 'branch': return c.branch;
+        case 'promoter': return c.promoterName;
+        case 'nationality': return c.nationality ?? '';
+        case 'gender': return c.customerGender ?? '';
+        case 'visa': return c.visaType ?? '';
+        case 'age': return c.ageRange ?? '';
+        case 'group': return c.groupType ?? '';
+        case 'model': return parseModels(c.productList).join(',');
+      }
+    };
     for (const label of vsLabels) {
-      m.set(label, dateFiltered.filter(c => getter(c) === label));
+      if (vsDimension === 'model') {
+        m.set(label, dateFiltered.filter(c => parseModels(c.productList).includes(label)));
+      } else {
+        m.set(label, dateFiltered.filter(c => getter(c) === label));
+      }
     }
     return m;
   }, [vsDimension, vsLabels, dateFiltered]);
@@ -255,9 +277,9 @@ const CustomerDashboardPage = () => {
           </button>
         </div>
 
-        {filterMode === 'vs' && !vsDimension && (selBranch.size + selPromoter.size + selNationality.size) < 2 && (
+        {filterMode === 'vs' && !vsDimension && activeFilterCount < 2 && (
           <div style={{ fontSize: 12, color: '#f59e0b', margin: '4px 0 2px', fontStyle: 'italic' }}>
-            Select 2+ items in Branch, Promoter, or Nationality to compare
+            Select 2+ items in any dimension to compare (click chips above or bars in charts)
           </div>
         )}
 
