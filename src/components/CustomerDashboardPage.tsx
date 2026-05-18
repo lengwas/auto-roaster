@@ -63,6 +63,11 @@ const CustomerDashboardPage = () => {
   const [selBranch, setSelBranch] = useState<Set<string>>(new Set());
   const [selPromoter, setSelPromoter] = useState<Set<string>>(new Set());
   const [selNationality, setSelNationality] = useState<Set<string>>(new Set());
+  const [selGender, setSelGender] = useState<Set<string>>(new Set());
+  const [selVisa, setSelVisa] = useState<Set<string>>(new Set());
+  const [selAge, setSelAge] = useState<Set<string>>(new Set());
+  const [selGroup, setSelGroup] = useState<Set<string>>(new Set());
+  const [selModel, setSelModel] = useState<Set<string>>(new Set());
 
   // VS / Combine mode
   const [filterMode, setFilterMode] = useState<FilterMode>('combine');
@@ -72,6 +77,21 @@ const CustomerDashboardPage = () => {
     if (next.has(val)) next.delete(val); else next.add(val);
     setter(next);
   };
+
+  // Extract bar label from recharts click event
+  const getBarLabel = (d: unknown): string | null => {
+    const p = (d as { payload?: { name?: string } } | undefined)?.payload?.name;
+    return typeof p === 'string' ? p : null;
+  };
+
+  const resetAll = () => {
+    setSelBranch(new Set()); setSelPromoter(new Set()); setSelNationality(new Set());
+    setSelGender(new Set()); setSelVisa(new Set()); setSelAge(new Set());
+    setSelGroup(new Set()); setSelModel(new Set());
+  };
+
+  const activeFilterCount = selBranch.size + selPromoter.size + selNationality.size +
+    selGender.size + selVisa.size + selAge.size + selGroup.size + selModel.size;
 
   // Determine which dimension is active for VS mode
   const vsDimension = useMemo<VsDimension | null>(() => {
@@ -103,10 +123,18 @@ const CustomerDashboardPage = () => {
     return dateFiltered.filter(c => {
       if (selBranch.size > 0 && !selBranch.has(c.branch)) return false;
       if (selPromoter.size > 0 && !selPromoter.has(c.promoterName)) return false;
-      if (selNationality.size > 0 && c.nationality && !selNationality.has(c.nationality)) return false;
+      if (selNationality.size > 0 && (!c.nationality || !selNationality.has(c.nationality))) return false;
+      if (selGender.size > 0 && (!c.customerGender || !selGender.has(c.customerGender))) return false;
+      if (selVisa.size > 0 && (!c.visaType || !selVisa.has(c.visaType))) return false;
+      if (selAge.size > 0 && (!c.ageRange || !selAge.has(c.ageRange))) return false;
+      if (selGroup.size > 0 && (!c.groupType || !selGroup.has(c.groupType))) return false;
+      if (selModel.size > 0) {
+        const models = parseModels(c.productList);
+        if (!models.some(m => selModel.has(m))) return false;
+      }
       return true;
     });
-  }, [dateFiltered, selBranch, selPromoter, selNationality]);
+  }, [dateFiltered, selBranch, selPromoter, selNationality, selGender, selVisa, selAge, selGroup, selModel]);
 
   // VS slices: split data per selected label
   const vsSlices = useMemo(() => {
@@ -223,8 +251,8 @@ const CustomerDashboardPage = () => {
             >VS</button>
           </div>
 
-          <button className="dash-btn-reset" onClick={() => { setSelBranch(new Set()); setSelPromoter(new Set()); setSelNationality(new Set()); }}>
-            Reset filters
+          <button className="dash-btn-reset" onClick={resetAll}>
+            Reset{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </button>
         </div>
 
@@ -252,6 +280,17 @@ const CustomerDashboardPage = () => {
             {allNationalities.map(n => (
               <button key={n} className={`dash-chip${selNationality.has(n) ? ' active' : ''}`} onClick={() => toggle(selNationality, n, setSelNationality)}>{n}</button>
             ))}
+          </div>
+        )}
+        {/* Active chart-click filters */}
+        {(selGender.size + selVisa.size + selAge.size + selGroup.size + selModel.size) > 0 && (
+          <div className="dash-filter-row" style={{ marginTop: 6 }}>
+            <label style={{ color: '#6366f1' }}>Active</label>
+            {[...selGender].map(v => <button key={`g-${v}`} className="dash-chip active" onClick={() => toggle(selGender, v, setSelGender)}>Gender: {v} &times;</button>)}
+            {[...selVisa].map(v => <button key={`v-${v}`} className="dash-chip active" onClick={() => toggle(selVisa, v, setSelVisa)}>Visa: {v} &times;</button>)}
+            {[...selAge].map(v => <button key={`a-${v}`} className="dash-chip active" onClick={() => toggle(selAge, v, setSelAge)}>Age: {v} &times;</button>)}
+            {[...selGroup].map(v => <button key={`gr-${v}`} className="dash-chip active" onClick={() => toggle(selGroup, v, setSelGroup)}>Group: {v} &times;</button>)}
+            {[...selModel].map(v => <button key={`m-${v}`} className="dash-chip active" onClick={() => toggle(selModel, v, setSelModel)}>Model: {v} &times;</button>)}
           </div>
         )}
       </div>
@@ -406,7 +445,8 @@ const CustomerDashboardPage = () => {
               <XAxis type="number" fontSize={9} />
               <YAxis dataKey="name" type="category" fontSize={9} width={42} interval={0} />
               <Tooltip />
-              <Bar dataKey="value" name="Sales" fill="#6366f1" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="value" name="Sales" fill="#6366f1" radius={[0, 4, 4, 0]} style={{ cursor: 'pointer' }}
+                onClick={d => { const l = getBarLabel(d); if (l) toggle(selBranch, l, setSelBranch); }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -419,7 +459,8 @@ const CustomerDashboardPage = () => {
               <XAxis type="number" fontSize={9} />
               <YAxis dataKey="name" type="category" fontSize={9} width={80} interval={0} />
               <Tooltip />
-              <Bar dataKey="value" name="Sales" fill="#10b981" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="value" name="Sales" fill="#10b981" radius={[0, 4, 4, 0]} style={{ cursor: 'pointer' }}
+                onClick={d => { const l = getBarLabel(d); if (l) toggle(selPromoter, l, setSelPromoter); }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -432,7 +473,8 @@ const CustomerDashboardPage = () => {
               <XAxis type="number" fontSize={9} />
               <YAxis dataKey="name" type="category" fontSize={9} width={70} interval={0} />
               <Tooltip />
-              <Bar dataKey="value" name="Customers" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="value" name="Customers" fill="#f59e0b" radius={[0, 4, 4, 0]} style={{ cursor: 'pointer' }}
+                onClick={d => { const l = getBarLabel(d); if (l) toggle(selNationality, l, setSelNationality); }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -445,7 +487,8 @@ const CustomerDashboardPage = () => {
               <XAxis type="number" fontSize={9} />
               <YAxis dataKey="name" type="category" fontSize={9} width={70} interval={0} />
               <Tooltip />
-              <Bar dataKey="value" name="Units" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="value" name="Units" fill="#8b5cf6" radius={[0, 4, 4, 0]} style={{ cursor: 'pointer' }}
+                onClick={d => { const l = getBarLabel(d); if (l) toggle(selModel, l, setSelModel); }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -454,7 +497,8 @@ const CustomerDashboardPage = () => {
           <h3>Gender</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={byGender} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabelFn}>
+              <Pie data={byGender} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabelFn}
+                onClick={(_: unknown, idx: number) => { const name = byGender[idx]?.name; if (name) toggle(selGender, name, setSelGender); }} style={{ cursor: 'pointer' }}>
                 {byGender.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip />
@@ -466,7 +510,8 @@ const CustomerDashboardPage = () => {
           <h3>Visa Type</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={byVisaType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabelFn}>
+              <Pie data={byVisaType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabelFn}
+                onClick={(_: unknown, idx: number) => { const name = byVisaType[idx]?.name; if (name) toggle(selVisa, name, setSelVisa); }} style={{ cursor: 'pointer' }}>
                 {byVisaType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip />
@@ -482,7 +527,8 @@ const CustomerDashboardPage = () => {
               <XAxis dataKey="name" fontSize={9} interval={0} />
               <YAxis fontSize={9} />
               <Tooltip />
-              <Bar dataKey="value" name="Customers" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value" name="Customers" fill="#06b6d4" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }}
+                onClick={d => { const l = getBarLabel(d); if (l) toggle(selAge, l, setSelAge); }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -495,7 +541,8 @@ const CustomerDashboardPage = () => {
               <XAxis type="number" fontSize={9} />
               <YAxis dataKey="name" type="category" fontSize={9} width={110} interval={0} />
               <Tooltip />
-              <Bar dataKey="value" name="Customers" fill="#ec4899" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="value" name="Customers" fill="#ec4899" radius={[0, 4, 4, 0]} style={{ cursor: 'pointer' }}
+                onClick={d => { const l = getBarLabel(d); if (l) toggle(selGroup, l, setSelGroup); }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
