@@ -36,6 +36,9 @@ const WAREHOUSE_CODE_MAP_QA: Record<string, string> = {
   'fnc - dfc': 'VDF', // FNAC DFC → map to VDF store
   'fnc - vvd': 'VVD', // FNAC Vendome → map to VVD store
 };
+// Thailand — populate when store list is confirmed
+const WAREHOUSE_CODE_MAP_TH: Record<string, string> = {};
+
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // Grade A can be placed at store tier A or B, etc.
@@ -164,8 +167,8 @@ const SalesPerformancePage = ({
 
   // Fetch all orders going back 6m so period filter is client-side
   const { orders, loading, error } = useOrders(6, country);
-  const WAREHOUSE_CODE_MAP = country === 'QA' ? WAREHOUSE_CODE_MAP_QA : WAREHOUSE_CODE_MAP_UAE;
-  const currencyLabel = country === 'QA' ? 'QAR' : 'AED';
+  const WAREHOUSE_CODE_MAP = { UAE: WAREHOUSE_CODE_MAP_UAE, QA: WAREHOUSE_CODE_MAP_QA, TH: WAREHOUSE_CODE_MAP_TH }[country];
+  const currencyLabel = { UAE: 'AED', QA: 'QAR', TH: 'THB' }[country];
 
   // ── lookups ──────────────────────────────────────────────────────────────
   // Match orders.warehouse → store using:
@@ -962,7 +965,7 @@ interface FitMapProps {
 }
 
 const FitMapView = ({ promoterRows, stores, tierMap, shifts, period, country }: FitMapProps) => {
-  const currencyLabel = country === 'QA' ? 'QAR' : 'AED';
+  const currencyLabel = { UAE: 'AED', QA: 'QAR', TH: 'THB' }[country];
   // Which stores each promoter has been at (from orders data this period)
   // storePerfs already contains this
 

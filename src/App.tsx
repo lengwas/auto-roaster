@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import ShiftTable from './components/ShiftTable';
 import PCSettingPage from './components/PCSettingPage';
 import StoreSettingPage from './components/StoreSettingPage';
@@ -41,6 +41,7 @@ const TABS: { key: TabKey; label: string }[] = [
 const COUNTRIES: { code: Country; label: string; flag: string }[] = [
   { code: 'UAE', label: 'UAE', flag: '🇦🇪' },
   { code: 'QA', label: 'Qatar', flag: '🇶🇦' },
+  { code: 'TH', label: 'Thailand', flag: '🇹🇭' },
 ];
 
 function App() {
@@ -59,7 +60,15 @@ function App() {
   const { promoters, setPromoters, savePromoter, insertPromoter } = usePromoters(country);
   const { specialDates, upsert: markDate, remove: unmarkDate } = useSpecialDates(country);
   const [showExport, setShowExport] = useState(false);
-  const { shifts, saveShift, error: shiftsError, earliestDate } = useShifts(country);
+  const { shifts, setShifts, saveShift, reload: reloadShifts, error: shiftsError, earliestDate } = useShifts(country);
+
+  // ── Draft buffer: track unsaved shift changes ───────────────────────────
+  // Key: `${promoterId}_${date}` → payload to save
+  const [pendingChanges, setPendingChanges] = useState<Map<string, { promoterId: string; date: string; type: string; timeRange?: string; note?: string }>>(new Map());
+  const [saving, setSaving] = useState(false);
+
+  // Reset pending when country changes
+  useEffect(() => { setPendingChanges(new Map()); }, [country]);
   const { storePreferences, setStorePreferences, upsertPreference, deletePreference } = useStorePreferences(stores, country);
   const { conflicts: promoterConflicts, setConflicts: setPromoterConflicts, saveConflict, deleteConflict } = useConflicts(country);
   const { orders } = useOrders(6, country);
@@ -97,8 +106,36 @@ function App() {
   );
 
   const handleShiftChange = useCallback((promoterId: string, date: string, newType: string, timeRange?: string, note?: string) => {
-    saveShift(promoterId, date, newType, timeRange, note);
-  }, [saveShift]);
+    // Buffer change locally (draft) — don't write to DB yet
+    const key = `${promoterId}_${date}`;
+    setPendingChanges(prev => {
+      const next = new Map(prev);
+      next.set(key, { promoterId, date, type: newType, timeRange, note });
+      return next;
+    });
+    // Update local shifts state for immediate UI feedback
+    setShifts(prev => {
+      const filtered = prev.filter(s => !(s.promoterId === promoterId && s.date === date));
+      if (!newType) return filtered;
+      return [...filtered, { id: `draft_${key}`, promoterId, date, type: newType, timeRange, note }];
+    });
+  }, [setShifts]);
+
+  const savePendingChanges = useCallback(async () => {
+    if (pendingChanges.size === 0) return;
+    setSaving(true);
+    const entries = [...pendingChanges.values()];
+    for (const e of entries) {
+      await saveShift(e.promoterId, e.date, e.type, e.timeRange, e.note);
+    }
+    setPendingChanges(new Map());
+    setSaving(false);
+  }, [pendingChanges, saveShift]);
+
+  const discardPendingChanges = useCallback(async () => {
+    setPendingChanges(new Map());
+    await reloadShifts();
+  }, [reloadShifts]);
 
   /** Sync an attendance note edit back to the matching shift's note (same promoter+date). */
   const handleSyncAttendanceToShift = useCallback((promoterId: string, date: string, note: string) => {
@@ -164,6 +201,39 @@ function App() {
             <span style={{ color: '#7f1d1d' }}>
               Fix: Run <code>scripts/supabase-fix-anon-policies.sql</code> in your Supabase SQL Editor to allow anon-key access.
             </span>
+          </div>
+        )}
+        {activeTab === 'shift' && pendingChanges.size > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: '#fefce8', border: '1px solid #facc15', borderRadius: 8,
+            padding: '8px 16px', margin: '12px 16px 0', fontSize: 13,
+          }}>
+            <span style={{ color: '#a16207', fontWeight: 600 }}>
+              Draft — {pendingChanges.size} unsaved change{pendingChanges.size > 1 ? 's' : ''}
+            </span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              <button
+                onClick={discardPendingChanges}
+                style={{
+                  padding: '4px 14px', borderRadius: 6, border: '1px solid #d1d5db',
+                  background: '#fff', cursor: 'pointer', fontSize: 13,
+                }}
+              >
+                Discard
+              </button>
+              <button
+                onClick={savePendingChanges}
+                disabled={saving}
+                style={{
+                  padding: '4px 14px', borderRadius: 6, border: 'none',
+                  background: '#16a34a', color: '#fff', cursor: 'pointer', fontSize: 13,
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
         )}
         {activeTab === 'shift' && (

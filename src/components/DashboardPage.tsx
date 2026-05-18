@@ -29,8 +29,10 @@ interface EnrichedOrder extends Order {
 
 type DimensionKey = 'store' | 'promoter' | 'vendor' | 'model' | 'mall' | 'platform' | 'sku';
 
+const CURRENCY: Record<Country, string> = { UAE: 'AED', QA: 'QAR', TH: 'THB' };
+
 function fmtMoney(n: number, country: Country): string {
-  const cur = country === 'QA' ? 'QAR' : 'AED';
+  const cur = CURRENCY[country];
   if (n >= 1_000_000) return `${cur} ${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000) return `${cur} ${(n / 1_000).toFixed(0)}k`;
   return `${cur} ${Math.round(n).toLocaleString()}`;

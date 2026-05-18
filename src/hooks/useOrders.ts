@@ -3,11 +3,11 @@ import { supabase } from '../lib/supabase';
 import { t } from '../lib/tables';
 import type { Order, Country } from '../types/types';
 
+const AMOUNT_COL: Record<Country, string> = { UAE: 'amount_aed', QA: 'amount_qar', TH: 'amount_thb' };
+
 function mapRow(row: Record<string, unknown>, country: Country): Order {
-  // For Qatar, use amount_qar as the revenue field (mapped to amountAed for calculation compatibility)
-  const amount = country === 'QA'
-    ? (row.amount_qar != null ? Number(row.amount_qar) : undefined)
-    : (row.amount_aed != null ? Number(row.amount_aed) : undefined);
+  const col = AMOUNT_COL[country];
+  const amount = row[col] != null ? Number(row[col]) : undefined;
   return {
     id: String(row.id),
     date: String(row.date).split('T')[0],
@@ -37,9 +37,8 @@ export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
     fromDt.setMonth(fromDt.getMonth() - monthsBack);
     const fromStr = fromDt.toISOString().split('T')[0];
 
-    const cols = country === 'QA'
-      ? 'id, date, order_id, salesperson, warehouse, platform, sku, name, amount_qar, paid_amount_aed, status'
-      : 'id, date, order_id, salesperson, warehouse, platform, sku, name, amount_aed, paid_amount_aed, status';
+    const amtCol = AMOUNT_COL[country];
+    const cols = `id, date, order_id, salesperson, warehouse, platform, sku, name, ${amtCol}, paid_amount_aed, status`;
 
     // Supabase caps at 1000 rows per request – paginate to fetch all
     const PAGE_SIZE = 1000;

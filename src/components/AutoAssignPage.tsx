@@ -60,7 +60,7 @@ function persistDrafts(drafts: SavedDraft[]) {
   localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
 }
 import './AutoAssignPage.css';
-import { WAREHOUSE_CODE_MAP_UAE, WAREHOUSE_CODE_MAP_QA } from '../lib/ordersAnalytics';
+import { WAREHOUSE_CODE_MAP_UAE, WAREHOUSE_CODE_MAP_QA, WAREHOUSE_CODE_MAP_TH } from '../lib/ordersAnalytics';
 
 // Build {`${promoterId}_${storeCode}`: avgDailyRevenue} from historical orders
 function buildPerfMatrix(
@@ -607,7 +607,7 @@ export default function AutoAssignPage({
 
   // ── Revenue forecast from historical performance ───────────────────────
   const { orders } = useOrders(3, country);
-  const warehouseMap = country === 'QA' ? WAREHOUSE_CODE_MAP_QA : WAREHOUSE_CODE_MAP_UAE;
+  const warehouseMap = { UAE: WAREHOUSE_CODE_MAP_UAE, QA: WAREHOUSE_CODE_MAP_QA, TH: WAREHOUSE_CODE_MAP_TH }[country];
   const perfMatrix = useMemo(
     () => buildPerfMatrix(orders, promoters, stores, warehouseMap),
     [orders, promoters, stores, warehouseMap],

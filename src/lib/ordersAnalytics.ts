@@ -27,8 +27,17 @@ export const WAREHOUSE_CODE_MAP_QA: Record<string, string> = {
   'fnc - dfc': 'VDF', 'fnc - vvd': 'VVD',
 };
 
+// Thailand — populate when store list is confirmed
+export const WAREHOUSE_CODE_MAP_TH: Record<string, string> = {};
+
+const WAREHOUSE_MAPS: Record<Country, Record<string, string>> = {
+  UAE: WAREHOUSE_CODE_MAP_UAE,
+  QA: WAREHOUSE_CODE_MAP_QA,
+  TH: WAREHOUSE_CODE_MAP_TH,
+};
+
 export function getWarehouseMap(country: Country): Record<string, string> {
-  return country === 'QA' ? WAREHOUSE_CODE_MAP_QA : WAREHOUSE_CODE_MAP_UAE;
+  return WAREHOUSE_MAPS[country];
 }
 
 /** Resolve an order's store code from its warehouse text. */
@@ -91,10 +100,18 @@ export const MALL_NAMES_QA: Record<string, string> = {
   KT: 'Katara',
 };
 
+// Thailand — populate when store list is confirmed
+export const MALL_NAMES_TH: Record<string, string> = {};
+
+const MALL_NAME_MAPS: Record<Country, Record<string, string>> = {
+  UAE: MALL_NAMES_UAE,
+  QA: MALL_NAMES_QA,
+  TH: MALL_NAMES_TH,
+};
+
 export function getMallName(storeCode: string, country: Country): string {
   const code = getMallCode(storeCode);
-  const map = country === 'QA' ? MALL_NAMES_QA : MALL_NAMES_UAE;
-  return map[code] ?? code ?? 'Unknown';
+  return MALL_NAME_MAPS[country][code] ?? code ?? 'Unknown';
 }
 
 // ── Aggregation helpers ─────────────────────────────────────────────────────

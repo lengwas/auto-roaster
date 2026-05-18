@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { t } from '../lib/tables';
 import type { Shift, Country } from '../types/types';
@@ -20,53 +20,53 @@ export function useShifts(country: Country = 'UAE') {
   const [error, setError] = useState<string | null>(null);
   const [earliestDate, setEarliestDate] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setShifts([]);
 
-    // Supabase caps at 1000 rows per request – paginate to fetch all shifts
     const PAGE_SIZE = 1000;
+    const allRows: Record<string, unknown>[] = [];
+    let from = 0;
+    let hasMore = true;
 
-    async function fetchAll() {
-      const allRows: Record<string, unknown>[] = [];
-      let from = 0;
-      let hasMore = true;
+    while (hasMore) {
+      const { data, error: err } = await supabase
+        .from(t('shifts', country))
+        .select('*')
+        .order('date', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
 
-      while (hasMore) {
-        const { data, error: err } = await supabase
-          .from(t('shifts', country))
-          .select('*')
-          .order('date', { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
-
-        if (err) {
-          console.error('[useShifts] Failed to load shifts from Supabase:', err.message, err);
-          setError(err.message);
-          setLoading(false);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          allRows.push(...(data as Record<string, unknown>[]));
-        }
-
-        hasMore = (data?.length ?? 0) === PAGE_SIZE;
-        from += PAGE_SIZE;
+      if (err) {
+        console.error('[useShifts] Failed to load shifts from Supabase:', err.message, err);
+        setError(err.message);
+        setLoading(false);
+        return;
       }
 
-      console.log(`[useShifts] Loaded ${allRows.length} shifts for ${country} (${Math.ceil(from / PAGE_SIZE)} pages).`);
-      if (allRows.length > 0) {
-        const mapped = allRows.map(r => mapRow(r));
-        setShifts(mapped);
-        const minDate = mapped.reduce((min, s) => s.date < min ? s.date : min, mapped[0].date);
-        setEarliestDate(minDate);
+      if (data && data.length > 0) {
+        allRows.push(...(data as Record<string, unknown>[]));
       }
-      setLoading(false);
+
+      hasMore = (data?.length ?? 0) === PAGE_SIZE;
+      from += PAGE_SIZE;
     }
 
-    fetchAll();
+    console.log(`[useShifts] Loaded ${allRows.length} shifts for ${country} (${Math.ceil(from / PAGE_SIZE)} pages).`);
+    if (allRows.length > 0) {
+      const mapped = allRows.map(r => mapRow(r));
+      setShifts(mapped);
+      const minDate = mapped.reduce((min, s) => s.date < min ? s.date : min, mapped[0].date);
+      setEarliestDate(minDate);
+    } else {
+      setShifts([]);
+    }
+    setLoading(false);
   }, [country]);
+
+  useEffect(() => {
+    setShifts([]);
+    fetchAll();
+  }, [fetchAll]);
 
   async function saveShift(
     promoterId: string,
@@ -110,5 +110,5 @@ export function useShifts(country: Country = 'UAE') {
     }
   }
 
-  return { shifts, setShifts, saveShift, loading, error, earliestDate };
+  return { shifts, setShifts, saveShift, reload: fetchAll, loading, error, earliestDate };
 }

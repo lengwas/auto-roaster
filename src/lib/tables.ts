@@ -1,6 +1,8 @@
 import type { Country } from '../types/types';
 
-/** Return the Supabase table name for a given country. Qatar uses `_qa` suffix. */
+const SUFFIX: Record<Country, string> = { UAE: '', QA: '_qa', TH: '_th' };
+
+/** Return the Supabase table name for a given country. Qatar uses `_qa`, Thailand uses `_th`. */
 export function t(table: string, country: Country): string {
-  return country === 'QA' ? `${table}_qa` : table;
+  return `${table}${SUFFIX[country]}`;
 }
