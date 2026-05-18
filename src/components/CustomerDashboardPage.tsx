@@ -181,6 +181,16 @@ const CustomerDashboardPage = () => {
     for (const c of nonDup) if (c.nationality) s.add(c.nationality);
     return [...s].sort();
   }, [nonDup]);
+  const allVisaTypes = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of nonDup) if (c.visaType) s.add(c.visaType);
+    return [...s].sort();
+  }, [nonDup]);
+  const allGenders = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of nonDup) if (c.customerGender) s.add(c.customerGender);
+    return [...s].sort();
+  }, [nonDup]);
 
   // ── Combined KPIs ────────────────────────────────────────────────────
   const kpi = computeKpis(filtered);
@@ -295,20 +305,28 @@ const CustomerDashboardPage = () => {
             <button key={p} className={`dash-chip${selPromoter.has(p) ? ' active' : ''}`} onClick={() => toggle(selPromoter, p, setSelPromoter)}>{p}</button>
           ))}
         </div>
-        {allNationalities.length <= 30 && (
-          <div className="dash-filter-row">
-            <label>Nationality</label>
-            {allNationalities.map(n => (
-              <button key={n} className={`dash-chip${selNationality.has(n) ? ' active' : ''}`} onClick={() => toggle(selNationality, n, setSelNationality)}>{n}</button>
-            ))}
-          </div>
-        )}
-        {/* Active chart-click filters */}
-        {(selGender.size + selVisa.size + selAge.size + selGroup.size + selModel.size) > 0 && (
+        <div className="dash-filter-row">
+          <label>Nationality</label>
+          {allNationalities.map(n => (
+            <button key={n} className={`dash-chip${selNationality.has(n) ? ' active' : ''}`} onClick={() => toggle(selNationality, n, setSelNationality)}>{n}</button>
+          ))}
+        </div>
+        <div className="dash-filter-row">
+          <label>Visa</label>
+          {allVisaTypes.map(v => (
+            <button key={v} className={`dash-chip${selVisa.has(v) ? ' active' : ''}`} onClick={() => toggle(selVisa, v, setSelVisa)}>{v}</button>
+          ))}
+        </div>
+        <div className="dash-filter-row">
+          <label>Gender</label>
+          {allGenders.map(g => (
+            <button key={g} className={`dash-chip${selGender.has(g) ? ' active' : ''}`} onClick={() => toggle(selGender, g, setSelGender)}>{g}</button>
+          ))}
+        </div>
+        {/* Active chart-click filters (age, group, model) */}
+        {(selAge.size + selGroup.size + selModel.size) > 0 && (
           <div className="dash-filter-row" style={{ marginTop: 6 }}>
             <label style={{ color: '#6366f1' }}>Active</label>
-            {[...selGender].map(v => <button key={`g-${v}`} className="dash-chip active" onClick={() => toggle(selGender, v, setSelGender)}>Gender: {v} &times;</button>)}
-            {[...selVisa].map(v => <button key={`v-${v}`} className="dash-chip active" onClick={() => toggle(selVisa, v, setSelVisa)}>Visa: {v} &times;</button>)}
             {[...selAge].map(v => <button key={`a-${v}`} className="dash-chip active" onClick={() => toggle(selAge, v, setSelAge)}>Age: {v} &times;</button>)}
             {[...selGroup].map(v => <button key={`gr-${v}`} className="dash-chip active" onClick={() => toggle(selGroup, v, setSelGroup)}>Group: {v} &times;</button>)}
             {[...selModel].map(v => <button key={`m-${v}`} className="dash-chip active" onClick={() => toggle(selModel, v, setSelModel)}>Model: {v} &times;</button>)}
