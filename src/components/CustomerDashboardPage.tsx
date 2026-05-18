@@ -4,7 +4,6 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
 } from 'recharts';
 import { useSalesClaims } from '../hooks/useSalesClaims';
-import type { SalesClaim } from '../hooks/useSalesClaims';
 import './DashboardPage.css'; // reuse existing dashboard styles
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -262,7 +261,7 @@ const CustomerDashboardPage = () => {
           <h3>Gender</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={byGender} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+              <Pie data={byGender} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                 {byGender.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip />
@@ -275,7 +274,7 @@ const CustomerDashboardPage = () => {
           <h3>Visa Type</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={byVisaType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+              <Pie data={byVisaType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                 {byVisaType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip />

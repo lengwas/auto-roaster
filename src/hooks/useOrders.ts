@@ -63,7 +63,7 @@ export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
         }
 
         if (data && data.length > 0) {
-          allRows.push(...(data as Record<string, unknown>[]));
+          allRows.push(...(data as unknown as Record<string, unknown>[]));
         }
 
         hasMore = (data?.length ?? 0) === PAGE_SIZE;
