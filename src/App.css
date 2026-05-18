@@ -52,6 +52,8 @@
   background: var(--bg-surface);
   border-bottom: 2px solid var(--border-color);
   padding: 0 24px;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .tab-btn {
