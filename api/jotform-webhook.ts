@@ -323,6 +323,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── 4. Send Lark notification ─────────────────────────────────────
+  const larkUrl = process.env.LARK_WEBHOOK_URL;
+  if (larkUrl) {
+    const serialList = itemResults
+      .map((r, i) => `  ${i + 1}. ${r.model} → ${r.serial || '❌ OCR failed'}`)
+      .join('\n');
+    const larkMsg = {
+      msg_type: 'interactive',
+      card: {
+        header: {
+          title: { tag: 'plain_text', content: `🛒 New Sale — ${parsed.promoterName}` },
+          template: 'green',
+        },
+        elements: [
+          { tag: 'div', text: { tag: 'lark_md', content:
+            `**Promoter:** ${parsed.promoterName}\n` +
+            `**Branch:** ${parsed.branch}\n` +
+            `**Date:** ${parsed.date}${parsed.time ? ' ' + parsed.time : ''}\n` +
+            `**Luggage:** ${parsed.numberOfLuggage}\n` +
+            `**Customer:** ${parsed.customerGender || '-'} | ${parsed.nationality || '-'} | ${parsed.visaType || '-'}\n` +
+            `**Products:**\n${parsed.productList || '-'}\n` +
+            `**Serial Numbers:**\n${serialList || '  (none)'}`,
+          }},
+        ],
+      },
+    };
+
+    try {
+      await fetch(larkUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(larkMsg),
+      });
+    } catch (e) {
+      console.error('[jotform-webhook] Lark notification failed:', e);
+    }
+  }
+
   return res.status(200).json({
     ok: true,
     claimId,
