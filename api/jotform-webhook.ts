@@ -43,15 +43,75 @@ async function ocrSerialFromUrl(imageUrl: string): Promise<{ serial: string | nu
   if (!apiKey) return { serial: null, raw: 'GEMINI_API_KEY not set' };
 
   try {
-    // JotForm uploads require authentication — use JotForm API key if available
+    // JotForm uploads are protected — try multiple download strategies
     const jotformKey = process.env.JOTFORM_API_KEY;
-    const fetchUrl = jotformKey && imageUrl.includes('jotform.com')
-      ? `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}apiKey=${jotformKey}`
-      : imageUrl;
-    const imgResp = await fetch(fetchUrl);
-    if (!imgResp.ok) return { serial: null, raw: `Image download failed: ${imgResp.status} from ${imageUrl.slice(0, 80)}` };
-    const buf = Buffer.from(await imgResp.arrayBuffer());
-    const mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+    let buf: Buffer | null = null;
+    let mimeType = 'image/jpeg';
+
+    // Strategy 1: Direct URL with API key as cookie/param
+    if (jotformKey && imageUrl.includes('jotform.com')) {
+      // Try JotForm API proxy: fetch via submission endpoint
+      const resp1 = await fetch(imageUrl, {
+        headers: { 'Cookie': `api_key=${jotformKey}` },
+        redirect: 'follow',
+      });
+      const ct1 = resp1.headers.get('content-type') || '';
+      if (resp1.ok && ct1.startsWith('image')) {
+        buf = Buffer.from(await resp1.arrayBuffer());
+        mimeType = ct1;
+        console.log('[ocr] Downloaded via cookie auth, size:', buf.length);
+      }
+    }
+
+    // Strategy 2: Direct fetch (works if JotForm upload is public)
+    if (!buf) {
+      const resp2 = await fetch(imageUrl, { redirect: 'follow' });
+      const ct2 = resp2.headers.get('content-type') || '';
+      if (resp2.ok && ct2.startsWith('image')) {
+        buf = Buffer.from(await resp2.arrayBuffer());
+        mimeType = ct2;
+        console.log('[ocr] Downloaded via direct fetch, size:', buf.length);
+      } else {
+        console.log('[ocr] Direct fetch returned:', resp2.status, ct2.slice(0, 50));
+      }
+    }
+
+    // Strategy 3: JotForm API — get submission details which includes download URLs
+    if (!buf && jotformKey && imageUrl.includes('jotform.com')) {
+      // Extract submission ID from URL path: /uploads/user/formID/submissionID/file.jpg
+      const parts = imageUrl.split('/');
+      const submIdx = parts.findIndex(p => /^\d{10,}$/.test(p));
+      if (submIdx !== -1) {
+        const subId = parts[submIdx];
+        const apiUrl = `https://api.jotform.com/submission/${subId}?apiKey=${jotformKey}`;
+        const resp3 = await fetch(apiUrl);
+        if (resp3.ok) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const subData: any = await resp3.json();
+          // Find matching file URL in answers
+          const answers = subData?.content?.answers ?? {};
+          for (const ans of Object.values(answers) as { answer?: unknown }[]) {
+            if (Array.isArray(ans.answer)) {
+              for (const file of ans.answer as string[]) {
+                if (typeof file === 'string' && imageUrl.includes(file.split('/').pop() ?? '___')) {
+                  const resp4 = await fetch(file);
+                  const ct4 = resp4.headers.get('content-type') || '';
+                  if (resp4.ok && ct4.startsWith('image')) {
+                    buf = Buffer.from(await resp4.arrayBuffer());
+                    mimeType = ct4;
+                    console.log('[ocr] Downloaded via JotForm API submission, size:', buf.length);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (!buf) {
+      return { serial: null, raw: `Image download failed — all strategies exhausted for ${imageUrl.slice(0, 80)}` };
+    }
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
@@ -170,34 +230,28 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
   const groupRaw = raw.q10_typeA10;
   const groupType = Array.isArray(groupRaw) ? groupRaw.join(', ') : (typeof groupRaw === 'string' ? groupRaw : null);
 
-  // Extract image URLs — search all fields for URLs (string, array, or nested)
+  // Extract image URLs — search all fields for actual image file URLs
   const imageUrls: string[] = [];
+  const isImageUrl = (u: string) =>
+    u.startsWith('http') &&
+    u.includes('jotform.com/uploads/') &&
+    !u.endsWith('/upload');  // exclude upload endpoint
   const extractUrls = (val: unknown): void => {
     if (typeof val === 'string') {
-      const urls = val.split(/[\n,]/).map(u => u.trim()).filter(u => u.startsWith('http'));
-      imageUrls.push(...urls);
+      for (const u of val.split(/[\n,]/)) {
+        const trimmed = u.trim();
+        if (isImageUrl(trimmed)) imageUrls.push(trimmed);
+      }
     } else if (Array.isArray(val)) {
       for (const item of val) extractUrls(item);
     } else if (val && typeof val === 'object') {
       for (const v of Object.values(val as Record<string, unknown>)) extractUrls(v);
     }
   };
-  for (const [key, val] of Object.entries(raw)) {
-    // Check fields likely to contain images
-    if (/image|serial|photo|upload|file/i.test(key)) {
-      extractUrls(val);
-    }
-    // Also check any string with jotform/upload URLs
-    if (typeof val === 'string' && (val.includes('jotform.com') || val.includes('upload'))) {
-      extractUrls(val);
-    }
+  for (const [, val] of Object.entries(raw)) {
+    extractUrls(val);
   }
-  console.log('[jotform-webhook] Image URLs found:', imageUrls.length, imageUrls.slice(0, 3));
-  // Log all raw keys for debugging image field discovery
-  console.log('[jotform-webhook] Raw keys with values:', Object.entries(raw)
-    .filter(([, v]) => v !== '' && v !== null && v !== undefined)
-    .map(([k, v]) => `${k}=${typeof v === 'string' ? v.slice(0, 60) : JSON.stringify(v).slice(0, 60)}`)
-    .join(' | '));
+  console.log('[jotform-webhook] Image URLs found:', imageUrls.length, imageUrls);
 
   const luggageStr = str('q11_numberOf');
   const numberOfLuggage = luggageStr ? parseInt(luggageStr) || 0 : 0;
