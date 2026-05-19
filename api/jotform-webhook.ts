@@ -165,13 +165,34 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
   const groupRaw = raw.q10_typeA10;
   const groupType = Array.isArray(groupRaw) ? groupRaw.join(', ') : (typeof groupRaw === 'string' ? groupRaw : null);
 
-  // Extract image URLs — search all fields for URLs
+  // Extract image URLs — search all fields for URLs (string, array, or nested)
   const imageUrls: string[] = [];
-  for (const [, val] of Object.entries(raw)) {
-    if (typeof val === 'string' && val.includes('jotform.com/uploads')) {
-      imageUrls.push(...val.split('\n').map(u => u.trim()).filter(u => u.startsWith('http')));
+  const extractUrls = (val: unknown): void => {
+    if (typeof val === 'string') {
+      const urls = val.split(/[\n,]/).map(u => u.trim()).filter(u => u.startsWith('http'));
+      imageUrls.push(...urls);
+    } else if (Array.isArray(val)) {
+      for (const item of val) extractUrls(item);
+    } else if (val && typeof val === 'object') {
+      for (const v of Object.values(val as Record<string, unknown>)) extractUrls(v);
+    }
+  };
+  for (const [key, val] of Object.entries(raw)) {
+    // Check fields likely to contain images
+    if (/image|serial|photo|upload|file/i.test(key)) {
+      extractUrls(val);
+    }
+    // Also check any string with jotform/upload URLs
+    if (typeof val === 'string' && (val.includes('jotform.com') || val.includes('upload'))) {
+      extractUrls(val);
     }
   }
+  console.log('[jotform-webhook] Image URLs found:', imageUrls.length, imageUrls.slice(0, 3));
+  // Log all raw keys for debugging image field discovery
+  console.log('[jotform-webhook] Raw keys with values:', Object.entries(raw)
+    .filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    .map(([k, v]) => `${k}=${typeof v === 'string' ? v.slice(0, 60) : JSON.stringify(v).slice(0, 60)}`)
+    .join(' | '));
 
   const luggageStr = str('q11_numberOf');
   const numberOfLuggage = luggageStr ? parseInt(luggageStr) || 0 : 0;
