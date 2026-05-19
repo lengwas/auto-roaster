@@ -111,75 +111,85 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
   const submissionId = String(body.submissionID || body.submission_id || '');
   if (!submissionId) return null;
 
-  // JotForm sends a rawRequest field containing the full submission as JSON
-  let raw: Record<string, unknown> = body;
+  // JotForm sends rawRequest as a JSON string with all question answers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let raw: Record<string, any> = {};
   if (typeof body.rawRequest === 'string') {
-    try { raw = JSON.parse(body.rawRequest); } catch { /* use body as-is */ }
+    try { raw = JSON.parse(body.rawRequest); } catch { /* empty */ }
   }
 
-  // Flatten all values — JotForm nests answers under question IDs
-  const flat = new Map<string, string>();
-  for (const [key, val] of Object.entries(raw)) {
-    if (typeof val === 'string') {
-      flat.set(key.toLowerCase(), val);
-    } else if (val && typeof val === 'object') {
-      // JotForm sometimes wraps values: { answer: "text" } or { prettyFormat: "text" }
-      const obj = val as Record<string, unknown>;
-      const text = String(obj.answer ?? obj.prettyFormat ?? obj.value ?? '');
-      if (text) flat.set(key.toLowerCase(), text);
-    }
-  }
-
-  // Helper: find value by keyword in key or known question labels
-  const find = (...keywords: string[]): string | null => {
-    for (const [k, v] of flat) {
-      for (const kw of keywords) {
-        if (k.includes(kw)) return v.trim() || null;
-      }
-    }
+  // Helper: get string value from raw, handling nested objects
+  const str = (key: string): string | null => {
+    const v = raw[key];
+    if (typeof v === 'string') return v.trim() || null;
+    if (Array.isArray(v)) return v.join(', ') || null;
     return null;
   };
 
-  // Extract image URLs — JotForm file uploads come as newline-separated URLs
-  const imageUrls: string[] = [];
-  for (const [k, v] of flat) {
-    if ((k.includes('image') || k.includes('serial') || k.includes('photo') || k.includes('upload')) && v.includes('http')) {
-      imageUrls.push(...v.split('\n').map(u => u.trim()).filter(u => u.startsWith('http')));
+  // Parse date: {year, month, day} → YYYY-MM-DD
+  let dateStr: string | null = null;
+  const dateObj = raw.q12_date;
+  if (dateObj && typeof dateObj === 'object' && dateObj.year) {
+    const y = String(dateObj.year);
+    const m = String(dateObj.month).padStart(2, '0');
+    const d = String(dateObj.day).padStart(2, '0');
+    dateStr = `${y}-${m}-${d}`;
+  }
+
+  // Parse time: {timeInput, hourSelect, minuteSelect} → HH:MM
+  let timeStr: string | null = null;
+  const timeObj = raw.q6_time;
+  if (timeObj && typeof timeObj === 'object') {
+    timeStr = String(timeObj.timeInput || `${timeObj.hourSelect}:${timeObj.minuteSelect}`);
+  }
+
+  // Parse product list: JSON array or text
+  let productList: string | null = null;
+  const prodRaw = raw.q13_typeA;
+  if (typeof prodRaw === 'string') {
+    try {
+      const arr = JSON.parse(prodRaw);
+      if (Array.isArray(arr)) {
+        productList = arr.map((p: { Model?: string; Colour?: string }) =>
+          `Model: ${p.Model || '?'}, Colour: ${p.Colour || '?'}`
+        ).join('\n');
+      } else {
+        productList = prodRaw;
+      }
+    } catch {
+      productList = prodRaw;
     }
   }
 
-  // Parse date
-  let dateStr = find('date');
-  if (dateStr) {
-    // Try to normalize to YYYY-MM-DD
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) dateStr = d.toISOString().split('T')[0];
+  // Parse group type: can be array
+  const groupRaw = raw.q10_typeA10;
+  const groupType = Array.isArray(groupRaw) ? groupRaw.join(', ') : (typeof groupRaw === 'string' ? groupRaw : null);
+
+  // Extract image URLs — search all fields for URLs
+  const imageUrls: string[] = [];
+  for (const [, val] of Object.entries(raw)) {
+    if (typeof val === 'string' && val.includes('jotform.com/uploads')) {
+      imageUrls.push(...val.split('\n').map(u => u.trim()).filter(u => u.startsWith('http')));
+    }
   }
 
-  // Parse time
-  let timeStr = find('time');
-  if (timeStr) {
-    const tm = timeStr.match(/(\d{1,2}):(\d{2})/);
-    timeStr = tm ? `${tm[1].padStart(2, '0')}:${tm[2]}` : null;
-  }
-
-  const luggageStr = find('luggage', 'number of');
+  const luggageStr = str('q11_numberOf');
   const numberOfLuggage = luggageStr ? parseInt(luggageStr) || 0 : 0;
 
   return {
     submissionId,
-    uniqueId: find('unique', 'id') ?? null,
+    uniqueId: null, // generated server-side if needed
     date: dateStr,
     time: timeStr,
-    promoterName: find('promoter', 'name') ?? null,
-    branch: find('branch', 'store') ?? null,
-    customerGender: find('gender') ?? null,
-    nationality: find('nationality', 'nation') ?? null,
-    visaType: find('visa') ?? null,
-    ageRange: find('age', 'decision') ?? null,
-    groupType: find('group') ?? null,
+    promoterName: str('q3_promoterName'),
+    branch: str('q4_typeA4'),
+    customerGender: str('q5_typeA5'),
+    nationality: str('q7_nationality'),
+    visaType: str('q8_visaType'),
+    ageRange: str('q9_typeA9'),
+    groupType,
     numberOfLuggage,
-    productList: find('product', 'model') ?? null,
+    productList,
     imageUrls,
   };
 }
