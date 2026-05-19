@@ -519,15 +519,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ app_id: larkAppId, app_secret: larkAppSecret }),
         });
-        const tokenJson = await tokenResp.json() as { tenant_access_token?: string };
+        const tokenJson = await tokenResp.json() as { tenant_access_token?: string; code?: number; msg?: string };
         const token = tokenJson.tenant_access_token;
+        console.log('[lark] Token response:', tokenJson.code, tokenJson.msg ? tokenJson.msg : 'ok', token ? 'got token' : 'NO TOKEN');
 
         if (token) {
           // Download + upload each image to Lark
           for (const imgUrl of parsed.imageUrls.slice(0, 4)) { // max 4 images
             try {
               const imgBuf = await downloadJotformImage(imgUrl, parsed.submissionId);
-              if (!imgBuf) continue;
+              if (!imgBuf) { console.log('[lark] Image download failed for', imgUrl.slice(0, 60)); continue; }
+              console.log('[lark] Downloaded image, size:', imgBuf.length);
 
               const formData = new FormData();
               formData.append('image_type', 'message');
@@ -538,18 +540,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData,
               });
-              const uploadJson = await uploadResp.json() as { code?: number; data?: { image_key?: string } };
+              const uploadJson = await uploadResp.json() as { code?: number; msg?: string; data?: { image_key?: string } };
+              console.log('[lark] Upload response:', JSON.stringify(uploadJson).slice(0, 200));
               if (uploadJson.code === 0 && uploadJson.data?.image_key) {
                 imageKeys.push(uploadJson.data.image_key);
-                console.log('[lark] Uploaded image, key:', uploadJson.data.image_key);
+              } else {
+                console.error('[lark] Upload failed:', uploadJson.code, uploadJson.msg);
               }
             } catch (e) {
-              console.error('[lark] Image upload failed:', e);
+              console.error('[lark] Image upload error:', e);
             }
           }
         }
       } catch (e) {
-        console.error('[lark] Token fetch failed:', e);
+        console.error('[lark] Token fetch error:', e);
       }
     }
 
@@ -571,18 +575,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }},
     ];
 
-    // Add images to card
+    // Add images to card (only if uploaded successfully)
     if (imageKeys.length > 0) {
       elements.push({ tag: 'hr' });
       for (const key of imageKeys) {
         elements.push({ tag: 'img', img_key: key, alt: { tag: 'plain_text', content: 'Serial Number Photo' } });
       }
-    } else if (parsed.imageUrls.length > 0) {
-      // Fallback: show image URLs as links
-      elements.push({ tag: 'hr' });
-      elements.push({ tag: 'div', text: { tag: 'lark_md', content:
-        '**Photos:**\n' + parsed.imageUrls.map((u, i) => `[Image ${i + 1}](${u})`).join('\n'),
-      }});
     }
 
     const larkMsg = {
