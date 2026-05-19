@@ -268,7 +268,21 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
 
   return {
     submissionId,
-    uniqueId: str('q15_unique') || str('q15_autoincrement') || str('q15') || findByKeyword(raw, 'unique', 'autoincrement', 'AE-'),
+    uniqueId: (() => {
+      // Try direct keys first
+      for (const key of Object.keys(raw)) {
+        const v = raw[key];
+        const s = typeof v === 'string' ? v.trim() : '';
+        // Match AE-XXXXXX pattern
+        if (/^AE-\d+$/.test(s)) return s;
+        // Check nested value
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          const nested = String((v as Record<string, unknown>).value ?? (v as Record<string, unknown>).answer ?? '').trim();
+          if (/^AE-\d+$/.test(nested)) return nested;
+        }
+      }
+      return str('q15_unique') || str('q15_autoincrement') || str('q15') || findByKeyword(raw, 'unique', 'autoincrement', 'AE-');
+    })(),
     date: dateStr,
     time: timeStr,
     promoterName: str('q3_promoterName'),
@@ -399,7 +413,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const claimId = claim.id;
-  console.log(`[jotform-webhook] Claim ${claimId} saved for ${parsed.promoterName} @ ${parsed.branch} on ${parsed.date}`);
+  console.log(`[jotform-webhook] Claim ${claimId} [${parsed.uniqueId || 'no-uid'}] saved for ${parsed.promoterName} @ ${parsed.branch} on ${parsed.date}`);
 
   // ── 2. Parse & insert items ───────────────────────────────────────
   const products = parseProductList(parsed.productList || '');
@@ -565,6 +579,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const elements: any[] = [
       { tag: 'div', text: { tag: 'lark_md', content:
+        `${parsed.uniqueId ? `**Order:** [${parsed.uniqueId}]\n` : ''}` +
         `**Promoter:** ${parsed.promoterName}\n` +
         `**Branch:** ${parsed.branch}\n` +
         `**Date:** ${parsed.date}${parsed.time ? ' ' + parsed.time : ''}\n` +
@@ -587,7 +602,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       msg_type: 'interactive',
       card: {
         header: {
-          title: { tag: 'plain_text', content: `🛒 New Sale — ${parsed.promoterName}` },
+          title: { tag: 'plain_text', content: `🛒 ${parsed.uniqueId ? `[${parsed.uniqueId}] ` : ''}New Sale — ${parsed.promoterName}` },
           template: 'green',
         },
         elements,
