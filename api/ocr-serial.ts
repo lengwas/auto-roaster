@@ -1,12 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin } from './lib/supabase-admin.js';
 
-const SERIAL_PROMPT = `You are analyzing a photo of a luggage/suitcase product label or serial number sticker.
+const SERIAL_PROMPT = `Extract the serial number from this luggage/suitcase product image.
 
-Extract the serial number from the image. The serial number is typically:
-- An alphanumeric string (letters and numbers)
-- Found on a sticker, label, or engraved plate on the product
-- May be preceded by "S/N", "Serial", "SN:", or similar prefix
+Serial numbers follow this pattern: starts with model letters (e.g. SE3P, SE3L, SQ3S) followed by alphanumeric characters, typically 16 characters total.
+Examples:
+- SE3PSXH25JDA0072
+- SE3LSXH24Q9A0006
+- SQ3SPXZ253HA0502
+
+The serial number is usually on a sticker, label, or engraved plate on the product.
 
 Return ONLY valid JSON (no markdown, no backticks):
 {
