@@ -43,74 +43,41 @@ async function ocrSerialFromUrl(imageUrl: string): Promise<{ serial: string | nu
   if (!apiKey) return { serial: null, raw: 'GEMINI_API_KEY not set' };
 
   try {
-    // JotForm uploads are protected — try multiple download strategies
     const jotformKey = process.env.JOTFORM_API_KEY;
     let buf: Buffer | null = null;
     let mimeType = 'image/jpeg';
 
-    // Strategy 1: Direct URL with API key as cookie/param
-    if (jotformKey && imageUrl.includes('jotform.com')) {
-      // Try JotForm API proxy: fetch via submission endpoint
-      const resp1 = await fetch(imageUrl, {
-        headers: { 'Cookie': `api_key=${jotformKey}` },
-        redirect: 'follow',
-      });
-      const ct1 = resp1.headers.get('content-type') || '';
-      if (resp1.ok && ct1.startsWith('image')) {
-        buf = Buffer.from(await resp1.arrayBuffer());
-        mimeType = ct1;
-        console.log('[ocr] Downloaded via cookie auth, size:', buf.length);
+    // JotForm uploads: convert www URL → api.jotform.com URL with API key
+    // www.jotform.com/uploads/user/formID/subID/file.jpg
+    // → api.jotform.com/uploads/user/formID/subID/file.jpg?apiKey=xxx
+    if (jotformKey && imageUrl.includes('jotform.com/uploads/')) {
+      const apiUrl = imageUrl.replace('www.jotform.com', 'api.jotform.com') + `?apiKey=${jotformKey}`;
+      console.log('[ocr] Trying JotForm API URL:', apiUrl.slice(0, 120));
+      const resp = await fetch(apiUrl, { redirect: 'follow' });
+      const ct = resp.headers.get('content-type') || '';
+      console.log('[ocr] JotForm API response:', resp.status, ct.slice(0, 50), 'size:', resp.headers.get('content-length'));
+      if (resp.ok && ct.startsWith('image')) {
+        buf = Buffer.from(await resp.arrayBuffer());
+        mimeType = ct;
+        console.log('[ocr] Downloaded via JotForm API, size:', buf.length);
       }
     }
 
-    // Strategy 2: Direct fetch (works if JotForm upload is public)
+    // Fallback: direct fetch (non-JotForm URLs or public uploads)
     if (!buf) {
-      const resp2 = await fetch(imageUrl, { redirect: 'follow' });
-      const ct2 = resp2.headers.get('content-type') || '';
-      if (resp2.ok && ct2.startsWith('image')) {
-        buf = Buffer.from(await resp2.arrayBuffer());
-        mimeType = ct2;
+      const resp = await fetch(imageUrl, { redirect: 'follow' });
+      const ct = resp.headers.get('content-type') || '';
+      if (resp.ok && ct.startsWith('image')) {
+        buf = Buffer.from(await resp.arrayBuffer());
+        mimeType = ct;
         console.log('[ocr] Downloaded via direct fetch, size:', buf.length);
       } else {
-        console.log('[ocr] Direct fetch returned:', resp2.status, ct2.slice(0, 50));
-      }
-    }
-
-    // Strategy 3: JotForm API — get submission details which includes download URLs
-    if (!buf && jotformKey && imageUrl.includes('jotform.com')) {
-      // Extract submission ID from URL path: /uploads/user/formID/submissionID/file.jpg
-      const parts = imageUrl.split('/');
-      const submIdx = parts.findIndex(p => /^\d{10,}$/.test(p));
-      if (submIdx !== -1) {
-        const subId = parts[submIdx];
-        const apiUrl = `https://api.jotform.com/submission/${subId}?apiKey=${jotformKey}`;
-        const resp3 = await fetch(apiUrl);
-        if (resp3.ok) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const subData: any = await resp3.json();
-          // Find matching file URL in answers
-          const answers = subData?.content?.answers ?? {};
-          for (const ans of Object.values(answers) as { answer?: unknown }[]) {
-            if (Array.isArray(ans.answer)) {
-              for (const file of ans.answer as string[]) {
-                if (typeof file === 'string' && imageUrl.includes(file.split('/').pop() ?? '___')) {
-                  const resp4 = await fetch(file);
-                  const ct4 = resp4.headers.get('content-type') || '';
-                  if (resp4.ok && ct4.startsWith('image')) {
-                    buf = Buffer.from(await resp4.arrayBuffer());
-                    mimeType = ct4;
-                    console.log('[ocr] Downloaded via JotForm API submission, size:', buf.length);
-                  }
-                }
-              }
-            }
-          }
-        }
+        console.log('[ocr] Direct fetch failed:', resp.status, ct.slice(0, 50));
       }
     }
 
     if (!buf) {
-      return { serial: null, raw: `Image download failed — all strategies exhausted for ${imageUrl.slice(0, 80)}` };
+      return { serial: null, raw: `Image download failed for ${imageUrl.slice(0, 80)}` };
     }
 
     const res = await fetch(
