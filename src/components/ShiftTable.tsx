@@ -185,6 +185,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
   const [hiddenPromoterIds, setHiddenPromoterIds] = useState<Set<string>>(new Set());
   const [activeOnlyPromoters, setActiveOnlyPromoters] = useState(true);
   const [hideEmptyStores, setHideEmptyStores] = useState(true);
+  const [zoom, setZoom] = useState(100); // percentage
   // Default to current month if it overlaps with dates, otherwise use dates range
   const [filterStart, setFilterStart] = useState(() => {
     const d = new Date();
@@ -708,6 +709,12 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
           >
             All
           </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 12, borderLeft: '1px solid #d1d5db', paddingLeft: 10 }}>
+            <button className="date-range-reset" onClick={() => setZoom(z => Math.max(50, z - 10))} title="Zoom out">−</button>
+            <span style={{ fontSize: 11, color: '#64748b', minWidth: 32, textAlign: 'center' }}>{zoom}%</span>
+            <button className="date-range-reset" onClick={() => setZoom(z => Math.min(150, z + 10))} title="Zoom in">+</button>
+            {zoom !== 100 && <button className="date-range-reset" onClick={() => setZoom(100)} title="Reset zoom">Reset</button>}
+          </div>
         </div>
       </div>
 
@@ -765,7 +772,7 @@ const ShiftTable = ({ stores, promoters, shifts, storeCounts, dates, orders = []
         </div>
       )}
 
-      <div className="shift-grid">
+      <div className="shift-grid" style={zoom !== 100 ? { transform: `scale(${zoom / 100})`, transformOrigin: 'top left', width: `${10000 / zoom}%` } : undefined}>
         {/* ===== HEADER SECTION (Sticky Top) ===== */}
         <div className="header-section">
           <div className="grid-row header-date-row">
