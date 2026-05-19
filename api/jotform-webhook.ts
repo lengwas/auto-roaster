@@ -191,12 +191,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  console.log('[jotform-webhook] Received payload keys:', Object.keys(req.body ?? {}));
+  // JotForm sends as form-encoded or JSON — normalize
+  const body = req.body ?? {};
+  console.log('[jotform-webhook] Content-Type:', req.headers['content-type']);
+  console.log('[jotform-webhook] Payload keys:', Object.keys(body));
+  console.log('[jotform-webhook] Raw body sample:', JSON.stringify(body).slice(0, 1000));
 
-  const parsed = parseJotformPayload(req.body ?? {});
+  const parsed = parseJotformPayload(body);
   if (!parsed || !parsed.submissionId) {
-    console.log('[jotform-webhook] Could not parse submission, raw body:', JSON.stringify(req.body).slice(0, 500));
-    return res.status(400).json({ error: 'Invalid submission data' });
+    console.log('[jotform-webhook] Could not parse submission');
+    return res.status(200).json({ error: 'Invalid submission data', keys: Object.keys(body) });
   }
 
   if (!parsed.date || !parsed.promoterName) {
