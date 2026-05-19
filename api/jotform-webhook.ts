@@ -184,6 +184,41 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
   };
 }
 
+// ── Disable Vercel body parser — JotForm sends multipart/form-data ────
+export const config = { api: { bodyParser: false } };
+
+function readRawBody(req: VercelRequest): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+function parseFormUrlEncoded(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const pair of text.split('&')) {
+    const [key, ...rest] = pair.split('=');
+    if (key) result[decodeURIComponent(key)] = decodeURIComponent(rest.join('='));
+  }
+  return result;
+}
+
+function parseMultipartFormData(text: string, boundary: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const parts = text.split('--' + boundary);
+  for (const part of parts) {
+    const headerEnd = part.indexOf('\r\n\r\n');
+    if (headerEnd === -1) continue;
+    const headers = part.slice(0, headerEnd);
+    const body = part.slice(headerEnd + 4).replace(/\r\n$/, '');
+    const nameMatch = headers.match(/name="([^"]+)"/);
+    if (nameMatch) result[nameMatch[1]] = body.trim();
+  }
+  return result;
+}
+
 // ── Webhook handler ───────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -191,11 +226,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // JotForm sends as form-encoded or JSON — normalize
-  const body = req.body ?? {};
-  console.log('[jotform-webhook] Content-Type:', req.headers['content-type']);
-  console.log('[jotform-webhook] Payload keys:', Object.keys(body));
-  console.log('[jotform-webhook] Raw body sample:', JSON.stringify(body).slice(0, 1000));
+  const rawBody = await readRawBody(req);
+  const contentType = req.headers['content-type'] || '';
+  console.log('[jotform-webhook] Content-Type:', contentType);
+  console.log('[jotform-webhook] Raw body length:', rawBody.length);
+
+  // Parse based on content type
+  let body: Record<string, unknown> = {};
+  if (contentType.includes('application/json')) {
+    try { body = JSON.parse(rawBody); } catch { /* empty */ }
+  } else if (contentType.includes('multipart/form-data')) {
+    const boundaryMatch = contentType.match(/boundary=(.+)/);
+    if (boundaryMatch) {
+      body = parseMultipartFormData(rawBody, boundaryMatch[1]);
+    }
+  } else {
+    // application/x-www-form-urlencoded
+    body = parseFormUrlEncoded(rawBody);
+  }
+
+  console.log('[jotform-webhook] Parsed keys:', Object.keys(body));
+  console.log('[jotform-webhook] Body sample:', JSON.stringify(body).slice(0, 1500));
 
   const parsed = parseJotformPayload(body);
   if (!parsed || !parsed.submissionId) {
