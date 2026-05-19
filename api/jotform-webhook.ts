@@ -43,8 +43,13 @@ async function ocrSerialFromUrl(imageUrl: string): Promise<{ serial: string | nu
   if (!apiKey) return { serial: null, raw: 'GEMINI_API_KEY not set' };
 
   try {
-    const imgResp = await fetch(imageUrl);
-    if (!imgResp.ok) return { serial: null, raw: `Image download failed: ${imgResp.status}` };
+    // JotForm uploads require authentication — use JotForm API key if available
+    const jotformKey = process.env.JOTFORM_API_KEY;
+    const fetchUrl = jotformKey && imageUrl.includes('jotform.com')
+      ? `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}apiKey=${jotformKey}`
+      : imageUrl;
+    const imgResp = await fetch(fetchUrl);
+    if (!imgResp.ok) return { serial: null, raw: `Image download failed: ${imgResp.status} from ${imageUrl.slice(0, 80)}` };
     const buf = Buffer.from(await imgResp.arrayBuffer());
     const mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
 
