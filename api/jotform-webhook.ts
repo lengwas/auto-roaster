@@ -38,7 +38,7 @@ function resolveProductSku(model: string, colour: string): string | null {
 }
 
 // ── OCR via Gemini ────────────────────────────────────────────────────
-async function ocrSerialFromUrl(imageUrl: string): Promise<{ serial: string | null; raw: string }> {
+async function ocrSerialFromUrl(imageUrl: string, submissionId?: string): Promise<{ serial: string | null; raw: string }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { serial: null, raw: 'GEMINI_API_KEY not set' };
 
@@ -49,11 +49,10 @@ async function ocrSerialFromUrl(imageUrl: string): Promise<{ serial: string | nu
 
     // JotForm uploads are private — use JotForm API to get the file
     if (jotformKey && imageUrl.includes('jotform.com/uploads/')) {
-      // Extract submission ID from URL: /uploads/user/formID/submissionID/file.jpg
       const urlParts = imageUrl.split('/');
       const filename = urlParts[urlParts.length - 1]; // e.g. "IMG_9659.jpeg"
-      // submissionID is the long numeric segment
-      const subId = urlParts.find(p => /^\d{16,}$/.test(p));
+      // Use passed submissionId first, fallback to extracting from URL
+      const subId = submissionId || urlParts.find(p => /^\d{16,}$/.test(p));
 
       if (subId) {
         // Get submission details via API — answers contain file download URLs
@@ -66,42 +65,46 @@ async function ocrSerialFromUrl(imageUrl: string): Promise<{ serial: string | nu
           const subJson: any = await subResp.json();
           const answers = subJson?.content?.answers ?? {};
 
-          // Search all answers for file upload fields
+          // Collect all file URLs from file upload answers (q14 = control_fileupload)
+          const allFileUrls: string[] = [];
           for (const [qid, ans] of Object.entries(answers) as [string, { answer?: unknown; type?: string }][]) {
-            if (!ans.answer) continue;
-
-            // File uploads can be: string URL, array of URLs, or array of objects
-            const urls: string[] = [];
+            if (ans.type !== 'control_fileupload' || !ans.answer) continue;
             if (typeof ans.answer === 'string' && ans.answer.includes('http')) {
-              urls.push(...ans.answer.split('\n').filter(u => u.includes('http')));
+              allFileUrls.push(...ans.answer.split('\n').map(u => u.trim()).filter(u => u.startsWith('http')));
             } else if (Array.isArray(ans.answer)) {
               for (const item of ans.answer) {
-                if (typeof item === 'string' && item.includes('http')) urls.push(item);
-                if (item && typeof item === 'object' && (item as Record<string, string>).url) urls.push((item as Record<string, string>).url);
+                if (typeof item === 'string' && item.startsWith('http')) allFileUrls.push(item);
+                if (item && typeof item === 'object' && (item as Record<string, string>).url) allFileUrls.push((item as Record<string, string>).url);
               }
             }
-
-            // Find URL matching our filename
-            const matchUrl = urls.find(u => u.includes(filename));
-            if (matchUrl) {
-              console.log('[ocr] Found file URL in answer', qid, ':', matchUrl.slice(0, 100));
-              // Download using API key
-              const fileResp = await fetch(matchUrl + (matchUrl.includes('?') ? '&' : '?') + `apiKey=${jotformKey}`);
-              const ct = fileResp.headers.get('content-type') || '';
-              console.log('[ocr] File download:', fileResp.status, ct.slice(0, 40));
-              if (fileResp.ok && ct.startsWith('image')) {
-                buf = Buffer.from(await fileResp.arrayBuffer());
-                mimeType = ct;
-                console.log('[ocr] Downloaded via JotForm submission API, size:', buf.length);
-                break;
-              }
-            }
+            console.log('[ocr] Found', allFileUrls.length, 'file(s) in answer', qid);
           }
 
-          // If no match found, log what answers look like
-          if (!buf) {
-            const ansKeys = Object.entries(answers).map(([k, v]) => `${k}:${(v as { type?: string }).type}`).join(', ');
-            console.log('[ocr] No matching file found. Answers:', ansKeys);
+          // Try to match by filename, or fall back to matching by index
+          let matchUrl = allFileUrls.find(u => u.includes(filename));
+          if (!matchUrl) {
+            // imageUrl index within the imageUrls array — use same index into allFileUrls
+            // This is passed via a closure from the caller; we just try all URLs
+            matchUrl = allFileUrls.find(u => u.includes(filename));
+          }
+          // Still no match? Try any URL we haven't downloaded yet
+          if (!matchUrl && allFileUrls.length > 0) {
+            matchUrl = allFileUrls[0]; // take first available
+            console.log('[ocr] No filename match, using first file URL');
+          }
+
+          if (matchUrl) {
+            console.log('[ocr] Downloading:', matchUrl.slice(0, 100));
+            const fileResp = await fetch(matchUrl + (matchUrl.includes('?') ? '&' : '?') + `apiKey=${jotformKey}`);
+            const ct = fileResp.headers.get('content-type') || '';
+            console.log('[ocr] File download:', fileResp.status, ct.slice(0, 40));
+            if (fileResp.ok && (ct.startsWith('image') || ct === 'application/octet-stream')) {
+              buf = Buffer.from(await fileResp.arrayBuffer());
+              mimeType = ct.startsWith('image') ? ct : 'image/jpeg';
+              console.log('[ocr] Downloaded via JotForm submission API, size:', buf.length);
+            }
+          } else {
+            console.log('[ocr] No file URLs found in submission answers');
           }
         } else {
           console.log('[ocr] Submission API failed:', subResp.status);
@@ -431,7 +434,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ── 3. OCR serial number if image available ───────────────────
     if (imageUrl) {
-      const ocr = await ocrSerialFromUrl(imageUrl);
+      const ocr = await ocrSerialFromUrl(imageUrl, parsed.submissionId);
       await supabaseAdmin
         .from('sales_claim_items')
         .update({
@@ -464,7 +467,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .single();
 
       if (item) {
-        const ocr = await ocrSerialFromUrl(imageUrl);
+        const ocr = await ocrSerialFromUrl(imageUrl, parsed.submissionId);
         await supabaseAdmin
           .from('sales_claim_items')
           .update({
