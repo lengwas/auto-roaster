@@ -177,6 +177,22 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
     try { raw = JSON.parse(body.rawRequest); } catch { /* empty */ }
   }
 
+  // Helper: find value by searching all keys for keywords
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const findByKeyword = (obj: Record<string, any>, ...keywords: string[]): string | null => {
+    for (const [k, v] of Object.entries(obj)) {
+      const val = typeof v === 'string' ? v : (v && typeof v === 'object' && v.value ? String(v.value) : null);
+      if (!val) continue;
+      for (const kw of keywords) {
+        if (k.toLowerCase().includes(kw.toLowerCase()) || val.includes(kw)) return val.trim();
+      }
+    }
+    return null;
+  };
+
+  // Log all raw keys for field discovery
+  console.log('[jotform-webhook] rawRequest keys:', Object.keys(raw).filter(k => !k.startsWith('js') && !k.startsWith('submit') && !k.startsWith('build') && !k.startsWith('event')).join(', '));
+
   // Helper: get string value from raw, handling nested objects
   const str = (key: string): string | null => {
     const v = raw[key];
@@ -252,7 +268,7 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
 
   return {
     submissionId,
-    uniqueId: null, // generated server-side if needed
+    uniqueId: str('q15_unique') || str('q15_autoincrement') || str('q15') || findByKeyword(raw, 'unique', 'autoincrement', 'AE-'),
     date: dateStr,
     time: timeStr,
     promoterName: str('q3_promoterName'),
