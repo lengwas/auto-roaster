@@ -37,94 +37,75 @@ function resolveProductSku(model: string, colour: string): string | null {
   return m + (abbr ? '_' + abbr : '');
 }
 
-// ── OCR via Gemini ────────────────────────────────────────────────────
-async function ocrSerialFromUrl(imageUrl: string, submissionId?: string): Promise<{ serial: string | null; raw: string }> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { serial: null, raw: 'GEMINI_API_KEY not set' };
+// ── Download JotForm image helper ─────────────────────────────────────
+async function downloadJotformImage(imageUrl: string, submissionId?: string): Promise<Buffer | null> {
+  const jotformKey = process.env.JOTFORM_API_KEY;
+  let buf: Buffer | null = null;
 
-  try {
-    const jotformKey = process.env.JOTFORM_API_KEY;
-    let buf: Buffer | null = null;
-    let mimeType = 'image/jpeg';
+  if (jotformKey && imageUrl.includes('jotform.com/uploads/')) {
+    const urlParts = imageUrl.split('/');
+    const filename = urlParts[urlParts.length - 1];
+    const subId = submissionId || urlParts.find(p => /^\d{16,}$/.test(p));
 
-    // JotForm uploads are private — use JotForm API to get the file
-    if (jotformKey && imageUrl.includes('jotform.com/uploads/')) {
-      const urlParts = imageUrl.split('/');
-      const filename = urlParts[urlParts.length - 1]; // e.g. "IMG_9659.jpeg"
-      // Use passed submissionId first, fallback to extracting from URL
-      const subId = submissionId || urlParts.find(p => /^\d{16,}$/.test(p));
-
-      if (subId) {
-        // Get submission details via API — answers contain file download URLs
-        const apiUrl = `https://api.jotform.com/submission/${subId}?apiKey=${jotformKey}`;
-        console.log('[ocr] Fetching submission:', subId);
+    if (subId) {
+      const apiUrl = `https://api.jotform.com/submission/${subId}?apiKey=${jotformKey}`;
+      try {
         const subResp = await fetch(apiUrl);
-
         if (subResp.ok) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const subJson: any = await subResp.json();
           const answers = subJson?.content?.answers ?? {};
-
-          // Collect all file URLs from file upload answers (q14 = control_fileupload)
           const allFileUrls: string[] = [];
-          for (const [qid, ans] of Object.entries(answers) as [string, { answer?: unknown; type?: string }][]) {
+          for (const [, ans] of Object.entries(answers) as [string, { answer?: unknown; type?: string }][]) {
             if (ans.type !== 'control_fileupload' || !ans.answer) continue;
             if (typeof ans.answer === 'string' && ans.answer.includes('http')) {
               allFileUrls.push(...ans.answer.split('\n').map(u => u.trim()).filter(u => u.startsWith('http')));
             } else if (Array.isArray(ans.answer)) {
               for (const item of ans.answer) {
                 if (typeof item === 'string' && item.startsWith('http')) allFileUrls.push(item);
-                if (item && typeof item === 'object' && (item as Record<string, string>).url) allFileUrls.push((item as Record<string, string>).url);
               }
             }
-            console.log('[ocr] Found', allFileUrls.length, 'file(s) in answer', qid);
           }
-
-          // Try to match by filename, or fall back to matching by index
-          let matchUrl = allFileUrls.find(u => u.includes(filename));
-          if (!matchUrl) {
-            // imageUrl index within the imageUrls array — use same index into allFileUrls
-            // This is passed via a closure from the caller; we just try all URLs
-            matchUrl = allFileUrls.find(u => u.includes(filename));
-          }
-          // Still no match? Try any URL we haven't downloaded yet
-          if (!matchUrl && allFileUrls.length > 0) {
-            matchUrl = allFileUrls[0]; // take first available
-            console.log('[ocr] No filename match, using first file URL');
-          }
-
+          const matchUrl = allFileUrls.find(u => u.includes(filename)) || allFileUrls[0];
           if (matchUrl) {
-            console.log('[ocr] Downloading:', matchUrl.slice(0, 100));
             const fileResp = await fetch(matchUrl + (matchUrl.includes('?') ? '&' : '?') + `apiKey=${jotformKey}`);
             const ct = fileResp.headers.get('content-type') || '';
-            console.log('[ocr] File download:', fileResp.status, ct.slice(0, 40));
             if (fileResp.ok && (ct.startsWith('image') || ct === 'application/octet-stream')) {
               buf = Buffer.from(await fileResp.arrayBuffer());
-              mimeType = ct.startsWith('image') ? ct : 'image/jpeg';
-              console.log('[ocr] Downloaded via JotForm submission API, size:', buf.length);
             }
-          } else {
-            console.log('[ocr] No file URLs found in submission answers');
           }
-        } else {
-          console.log('[ocr] Submission API failed:', subResp.status);
         }
+      } catch (e) {
+        console.error('[downloadJotformImage] Error:', e);
       }
     }
+  }
 
-    // Fallback: direct fetch (non-JotForm URLs)
-    if (!buf && !imageUrl.includes('jotform.com')) {
+  // Fallback: direct fetch
+  if (!buf && !imageUrl.includes('jotform.com')) {
+    try {
       const resp = await fetch(imageUrl, { redirect: 'follow' });
       const ct = resp.headers.get('content-type') || '';
       if (resp.ok && ct.startsWith('image')) {
         buf = Buffer.from(await resp.arrayBuffer());
-        mimeType = ct;
       }
-    }
+    } catch { /* ignore */ }
+  }
 
+  return buf;
+}
+
+// ── OCR via Gemini ────────────────────────────────────────────────────
+async function ocrSerialFromUrl(imageUrl: string, submissionId?: string): Promise<{ serial: string | null; raw: string }> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { serial: null, raw: 'GEMINI_API_KEY not set' };
+
+  try {
+    const buf = await downloadJotformImage(imageUrl, submissionId);
     if (!buf) {
       return { serial: null, raw: `Image download failed for ${imageUrl.slice(0, 80)}` };
     }
+    const mimeType = 'image/jpeg';
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
@@ -481,12 +462,88 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── 4. Send Lark notification ─────────────────────────────────────
+  // ── 4. Send Lark notification with images ──────────────────────────
   const larkUrl = process.env.LARK_WEBHOOK_URL;
   if (larkUrl) {
+    // Upload images to Lark if App credentials are available
+    const larkAppId = process.env.LARK_APP_ID;
+    const larkAppSecret = process.env.LARK_APP_SECRET;
+    const imageKeys: string[] = [];
+
+    if (larkAppId && larkAppSecret && parsed.imageUrls.length > 0) {
+      try {
+        // Get tenant_access_token
+        const tokenResp = await fetch('https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ app_id: larkAppId, app_secret: larkAppSecret }),
+        });
+        const tokenJson = await tokenResp.json() as { tenant_access_token?: string };
+        const token = tokenJson.tenant_access_token;
+
+        if (token) {
+          // Download + upload each image to Lark
+          for (const imgUrl of parsed.imageUrls.slice(0, 4)) { // max 4 images
+            try {
+              const imgBuf = await downloadJotformImage(imgUrl, parsed.submissionId);
+              if (!imgBuf) continue;
+
+              const formData = new FormData();
+              formData.append('image_type', 'message');
+              formData.append('image', new Blob([imgBuf], { type: 'image/jpeg' }), 'serial.jpg');
+
+              const uploadResp = await fetch('https://open.larksuite.com/open-apis/im/v1/images', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+              });
+              const uploadJson = await uploadResp.json() as { code?: number; data?: { image_key?: string } };
+              if (uploadJson.code === 0 && uploadJson.data?.image_key) {
+                imageKeys.push(uploadJson.data.image_key);
+                console.log('[lark] Uploaded image, key:', uploadJson.data.image_key);
+              }
+            } catch (e) {
+              console.error('[lark] Image upload failed:', e);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[lark] Token fetch failed:', e);
+      }
+    }
+
     const serialList = itemResults
       .map((r, i) => `  ${i + 1}. ${r.model} → ${r.serial || '❌ OCR failed'}`)
       .join('\n');
+
+    // Build card elements
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const elements: any[] = [
+      { tag: 'div', text: { tag: 'lark_md', content:
+        `**Promoter:** ${parsed.promoterName}\n` +
+        `**Branch:** ${parsed.branch}\n` +
+        `**Date:** ${parsed.date}${parsed.time ? ' ' + parsed.time : ''}\n` +
+        `**Luggage:** ${parsed.numberOfLuggage}\n` +
+        `**Customer:** ${parsed.customerGender || '-'} | ${parsed.nationality || '-'} | ${parsed.visaType || '-'}\n` +
+        `**Products:**\n${parsed.productList || '-'}\n` +
+        `**Serial Numbers:**\n${serialList || '  (none)'}`,
+      }},
+    ];
+
+    // Add images to card
+    if (imageKeys.length > 0) {
+      elements.push({ tag: 'hr' });
+      for (const key of imageKeys) {
+        elements.push({ tag: 'img', img_key: key, alt: { tag: 'plain_text', content: 'Serial Number Photo' } });
+      }
+    } else if (parsed.imageUrls.length > 0) {
+      // Fallback: show image URLs as links
+      elements.push({ tag: 'hr' });
+      elements.push({ tag: 'div', text: { tag: 'lark_md', content:
+        '**Photos:**\n' + parsed.imageUrls.map((u, i) => `[Image ${i + 1}](${u})`).join('\n'),
+      }});
+    }
+
     const larkMsg = {
       msg_type: 'interactive',
       card: {
@@ -494,17 +551,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           title: { tag: 'plain_text', content: `🛒 New Sale — ${parsed.promoterName}` },
           template: 'green',
         },
-        elements: [
-          { tag: 'div', text: { tag: 'lark_md', content:
-            `**Promoter:** ${parsed.promoterName}\n` +
-            `**Branch:** ${parsed.branch}\n` +
-            `**Date:** ${parsed.date}${parsed.time ? ' ' + parsed.time : ''}\n` +
-            `**Luggage:** ${parsed.numberOfLuggage}\n` +
-            `**Customer:** ${parsed.customerGender || '-'} | ${parsed.nationality || '-'} | ${parsed.visaType || '-'}\n` +
-            `**Products:**\n${parsed.productList || '-'}\n` +
-            `**Serial Numbers:**\n${serialList || '  (none)'}`,
-          }},
-        ],
+        elements,
       },
     };
 
