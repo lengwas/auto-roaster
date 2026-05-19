@@ -47,32 +47,75 @@ async function ocrSerialFromUrl(imageUrl: string): Promise<{ serial: string | nu
     let buf: Buffer | null = null;
     let mimeType = 'image/jpeg';
 
-    // JotForm uploads: convert www URL → api.jotform.com URL with API key
-    // www.jotform.com/uploads/user/formID/subID/file.jpg
-    // → api.jotform.com/uploads/user/formID/subID/file.jpg?apiKey=xxx
+    // JotForm uploads are private — use JotForm API to get the file
     if (jotformKey && imageUrl.includes('jotform.com/uploads/')) {
-      const apiUrl = imageUrl.replace('www.jotform.com', 'api.jotform.com') + `?apiKey=${jotformKey}`;
-      console.log('[ocr] Trying JotForm API URL:', apiUrl.slice(0, 120));
-      const resp = await fetch(apiUrl, { redirect: 'follow' });
-      const ct = resp.headers.get('content-type') || '';
-      console.log('[ocr] JotForm API response:', resp.status, ct.slice(0, 50), 'size:', resp.headers.get('content-length'));
-      if (resp.ok && ct.startsWith('image')) {
-        buf = Buffer.from(await resp.arrayBuffer());
-        mimeType = ct;
-        console.log('[ocr] Downloaded via JotForm API, size:', buf.length);
+      // Extract submission ID from URL: /uploads/user/formID/submissionID/file.jpg
+      const urlParts = imageUrl.split('/');
+      const filename = urlParts[urlParts.length - 1]; // e.g. "IMG_9659.jpeg"
+      // submissionID is the long numeric segment
+      const subId = urlParts.find(p => /^\d{16,}$/.test(p));
+
+      if (subId) {
+        // Get submission details via API — answers contain file download URLs
+        const apiUrl = `https://api.jotform.com/submission/${subId}?apiKey=${jotformKey}`;
+        console.log('[ocr] Fetching submission:', subId);
+        const subResp = await fetch(apiUrl);
+
+        if (subResp.ok) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const subJson: any = await subResp.json();
+          const answers = subJson?.content?.answers ?? {};
+
+          // Search all answers for file upload fields
+          for (const [qid, ans] of Object.entries(answers) as [string, { answer?: unknown; type?: string }][]) {
+            if (!ans.answer) continue;
+
+            // File uploads can be: string URL, array of URLs, or array of objects
+            const urls: string[] = [];
+            if (typeof ans.answer === 'string' && ans.answer.includes('http')) {
+              urls.push(...ans.answer.split('\n').filter(u => u.includes('http')));
+            } else if (Array.isArray(ans.answer)) {
+              for (const item of ans.answer) {
+                if (typeof item === 'string' && item.includes('http')) urls.push(item);
+                if (item && typeof item === 'object' && (item as Record<string, string>).url) urls.push((item as Record<string, string>).url);
+              }
+            }
+
+            // Find URL matching our filename
+            const matchUrl = urls.find(u => u.includes(filename));
+            if (matchUrl) {
+              console.log('[ocr] Found file URL in answer', qid, ':', matchUrl.slice(0, 100));
+              // Download using API key
+              const fileResp = await fetch(matchUrl + (matchUrl.includes('?') ? '&' : '?') + `apiKey=${jotformKey}`);
+              const ct = fileResp.headers.get('content-type') || '';
+              console.log('[ocr] File download:', fileResp.status, ct.slice(0, 40));
+              if (fileResp.ok && ct.startsWith('image')) {
+                buf = Buffer.from(await fileResp.arrayBuffer());
+                mimeType = ct;
+                console.log('[ocr] Downloaded via JotForm submission API, size:', buf.length);
+                break;
+              }
+            }
+          }
+
+          // If no match found, log what answers look like
+          if (!buf) {
+            const ansKeys = Object.entries(answers).map(([k, v]) => `${k}:${(v as { type?: string }).type}`).join(', ');
+            console.log('[ocr] No matching file found. Answers:', ansKeys);
+          }
+        } else {
+          console.log('[ocr] Submission API failed:', subResp.status);
+        }
       }
     }
 
-    // Fallback: direct fetch (non-JotForm URLs or public uploads)
-    if (!buf) {
+    // Fallback: direct fetch (non-JotForm URLs)
+    if (!buf && !imageUrl.includes('jotform.com')) {
       const resp = await fetch(imageUrl, { redirect: 'follow' });
       const ct = resp.headers.get('content-type') || '';
       if (resp.ok && ct.startsWith('image')) {
         buf = Buffer.from(await resp.arrayBuffer());
         mimeType = ct;
-        console.log('[ocr] Downloaded via direct fetch, size:', buf.length);
-      } else {
-        console.log('[ocr] Direct fetch failed:', resp.status, ct.slice(0, 50));
       }
     }
 
