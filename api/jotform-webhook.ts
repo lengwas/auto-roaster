@@ -441,6 +441,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
         .eq('id', item.id);
 
+      // Register serial number if OCR succeeded
+      if (ocr.serial) {
+        await supabaseAdmin.from('serial_registry').upsert({
+          serial_number: ocr.serial,
+          model: p.model,
+          colour: p.colour,
+          sku: resolveProductSku(p.model, p.colour),
+          promoter_name: parsed.promoterName,
+          branch: parsed.branch,
+          date: parsed.date,
+          claim_item_id: item.id,
+          source: 'jotform',
+        }, { onConflict: 'serial_number' });
+      }
+
       itemResults.push({ model: p.model, serial: ocr.serial, status: ocr.serial ? 'success' : 'failed' });
       console.log(`[jotform-webhook] OCR item ${i} (${p.model}): ${ocr.serial || 'FAILED'}`);
     } else {
@@ -473,6 +488,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ocr_raw: ocr.raw,
           })
           .eq('id', item.id);
+        if (ocr.serial) {
+          await supabaseAdmin.from('serial_registry').upsert({
+            serial_number: ocr.serial,
+            promoter_name: parsed.promoterName,
+            branch: parsed.branch,
+            date: parsed.date,
+            claim_item_id: item.id,
+            source: 'jotform',
+          }, { onConflict: 'serial_number' });
+        }
         itemResults.push({ model: 'unknown', serial: ocr.serial, status: ocr.serial ? 'success' : 'failed' });
       }
     }
