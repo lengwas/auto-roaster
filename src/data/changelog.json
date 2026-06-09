@@ -1,6 +1,265 @@
 {
-  "generatedAt": "2026-04-10T16:49:44.821Z",
+  "generatedAt": "2026-06-09T04:41:12.088Z",
   "entries": [
+    {
+      "hash": "3ad6a61c0618191739faa071ad3223647c2b2204",
+      "short": "3ad6a61",
+      "author": "lengwas",
+      "date": "2026-06-09T11:36:04+07:00",
+      "subject": "Fix OCR: migrate gemini-2.0-flash → gemini-2.5-flash (model discontinued)"
+    },
+    {
+      "hash": "c38a99e0ba070dd1622edbbf341dc3f908637236",
+      "short": "c38a99e",
+      "author": "lengwas",
+      "date": "2026-05-19T13:41:57+07:00",
+      "subject": "Add order number [AE-XXXXXX] to Lark card + serial_registry + fix uniqueId extraction"
+    },
+    {
+      "hash": "0ff6eef583fda6b6ba8e8caf9ca72b0702491f2d",
+      "short": "0ff6eef",
+      "author": "lengwas",
+      "date": "2026-05-19T12:05:37+07:00",
+      "subject": "Lark: remove link fallback, add detailed upload debug logs"
+    },
+    {
+      "hash": "e990d0cc6d9ef14b19575265972f27867b78adf2",
+      "short": "e990d0c",
+      "author": "lengwas",
+      "date": "2026-05-19T12:02:14+07:00",
+      "subject": "Add serial_registry table + auto-register serials from JotForm OCR"
+    },
+    {
+      "hash": "06de066fa9146d3d0285a69ab2d9743b623b7f8c",
+      "short": "06de066",
+      "author": "lengwas",
+      "date": "2026-05-19T11:52:03+07:00",
+      "subject": "Fix: extract unique_id (AE-XXXXXX) from JotForm rawRequest + add field logging"
+    },
+    {
+      "hash": "5cbe12f00e67bd3d14630298ec639330216cd194",
+      "short": "5cbe12f",
+      "author": "lengwas",
+      "date": "2026-05-19T11:01:08+07:00",
+      "subject": "Add Lark image support: upload photos to Lark + display in card message"
+    },
+    {
+      "hash": "c3ea742866a95809b1db82224b8458b2cdb88b46",
+      "short": "c3ea742",
+      "author": "lengwas",
+      "date": "2026-05-19T10:51:53+07:00",
+      "subject": "Add zoom controls (50-150%) to Shift Table toolbar"
+    },
+    {
+      "hash": "6d740f3b77d76e9a03be84f98f6e67531b41b282",
+      "short": "6d740f3",
+      "author": "lengwas",
+      "date": "2026-05-19T10:40:17+07:00",
+      "subject": "Fix: accept application/octet-stream + use webhook submissionID for API"
+    },
+    {
+      "hash": "41a69e01865d2f4abe108b45e1b8f64549905873",
+      "short": "41a69e0",
+      "author": "lengwas",
+      "date": "2026-05-19T10:32:19+07:00",
+      "subject": "Fix: download JotForm images via Submission API + answer file URLs"
+    },
+    {
+      "hash": "6bfbc957f4f4bcd545a963068c9fe5986e4fa009",
+      "short": "6bfbc95",
+      "author": "lengwas",
+      "date": "2026-05-19T10:29:28+07:00",
+      "subject": "Fix: download JotForm images via api.jotform.com with API key"
+    },
+    {
+      "hash": "3b315a6a1d87d4ac1d114ae3d5ec3cc6cba79192",
+      "short": "3b315a6",
+      "author": "lengwas",
+      "date": "2026-05-19T10:13:51+07:00",
+      "subject": "Fix: multi-strategy image download for JotForm protected uploads"
+    },
+    {
+      "hash": "40eec3409c4f08701f8209357c0dc74ec3294065",
+      "short": "40eec34",
+      "author": "lengwas",
+      "date": "2026-05-19T10:04:14+07:00",
+      "subject": "Fix: use JotForm API key to download authenticated upload images"
+    },
+    {
+      "hash": "63973f24b531846615a73f9c3e431f109da0811a",
+      "short": "63973f2",
+      "author": "lengwas",
+      "date": "2026-05-19T10:00:27+07:00",
+      "subject": "Fix: expand image URL extraction + add debug logs for field discovery"
+    },
+    {
+      "hash": "1f7e04e731e564521465189897c15e4238b6eeb4",
+      "short": "1f7e04e",
+      "author": "lengwas",
+      "date": "2026-05-19T09:56:28+07:00",
+      "subject": "Fix: map actual JotForm question IDs from rawRequest payload"
+    },
+    {
+      "hash": "d1979cdf668877f57d5a1a7301cce3a4d2c45d5e",
+      "short": "d1979cd",
+      "author": "lengwas",
+      "date": "2026-05-19T09:49:54+07:00",
+      "subject": "Fix: parse multipart/form-data from JotForm webhook"
+    },
+    {
+      "hash": "9ba6d171f58455f5df78524ff3a9815fb12f039f",
+      "short": "9ba6d17",
+      "author": "lengwas",
+      "date": "2026-05-19T09:44:17+07:00",
+      "subject": "Fix: handle undefined req.body in JotForm webhook + add debug logging"
+    },
+    {
+      "hash": "0729db297ae92a7e5660cecc129a2eebf2e0d3a6",
+      "short": "0729db2",
+      "author": "lengwas",
+      "date": "2026-05-19T09:31:28+07:00",
+      "subject": "JotForm webhook: send Lark notification after processing sale"
+    },
+    {
+      "hash": "a461667d28a0825a2dd99e8f7ced6a7db9178bc3",
+      "short": "a461667",
+      "author": "lengwas",
+      "date": "2026-05-19T09:26:46+07:00",
+      "subject": "Add JotForm webhook endpoint for real-time sales claims + serial OCR"
+    },
+    {
+      "hash": "469c9b644dd34e11b143293e7e0609c3775aa307",
+      "short": "469c9b6",
+      "author": "lengwas",
+      "date": "2026-05-18T17:38:54+07:00",
+      "subject": "Fix: show Nationality, Visa Type, Gender as chip filter rows"
+    },
+    {
+      "hash": "7284be2f15e5e3485ea69390923b0d79a15a79d3",
+      "short": "7284be2",
+      "author": "lengwas",
+      "date": "2026-05-18T17:32:26+07:00",
+      "subject": "Customer Dashboard: VS mode supports all dimensions"
+    },
+    {
+      "hash": "a9e79a7453e0326149c1c423ef62c42be5c55b67",
+      "short": "a9e79a7",
+      "author": "lengwas",
+      "date": "2026-05-18T17:23:15+07:00",
+      "subject": "Fix: Sales Trend X-axis showing 0 instead of year-month labels"
+    },
+    {
+      "hash": "4c5b3725535460b159bb2d3beaec77c036c0ebd1",
+      "short": "4c5b372",
+      "author": "lengwas",
+      "date": "2026-05-18T17:20:03+07:00",
+      "subject": "Fix: show all month labels on Sales Trend X-axis"
+    },
+    {
+      "hash": "6a049fc2bb18e18265124f2003943040000f8530",
+      "short": "6a049fc",
+      "author": "lengwas",
+      "date": "2026-05-18T17:04:07+07:00",
+      "subject": "Customer Dashboard: interactive click-to-filter on all charts"
+    },
+    {
+      "hash": "34b93ce3f74ec628515b12ebb10314252c19040a",
+      "short": "34b93ce",
+      "author": "lengwas",
+      "date": "2026-05-18T16:57:48+07:00",
+      "subject": "Customer Dashboard: show all Y-axis labels with dynamic chart height"
+    },
+    {
+      "hash": "a26e640b7033ec42ee90b7f1884aeed8d96865f9",
+      "short": "a26e640",
+      "author": "lengwas",
+      "date": "2026-05-18T16:43:57+07:00",
+      "subject": "Customer Dashboard: add VS/Combine filter mode for side-by-side comparison"
+    },
+    {
+      "hash": "397f8dbf216f183d471ec86d7e762358ea3259db",
+      "short": "397f8db",
+      "author": "lengwas",
+      "date": "2026-05-18T15:59:37+07:00",
+      "subject": "Fix: resolve TypeScript build errors for Vercel deployment"
+    },
+    {
+      "hash": "8c0586fa02683b34312b20defcfa9d485108024e",
+      "short": "8c0586f",
+      "author": "lengwas",
+      "date": "2026-05-18T13:51:53+07:00",
+      "subject": "Fix: add horizontal scroll to tab nav bar for overflow tabs"
+    },
+    {
+      "hash": "83caeea97b7db51b2c6e6d2b595334fdb274332b",
+      "short": "83caeea",
+      "author": "lengwas",
+      "date": "2026-05-18T13:45:44+07:00",
+      "subject": "Add Customer Dashboard tab with survey analytics from sales_claims"
+    },
+    {
+      "hash": "96e65f0f6ef60ce542f95881acd97f9d2feb81be",
+      "short": "96e65f0",
+      "author": "lengwas",
+      "date": "2026-05-18T13:33:49+07:00",
+      "subject": "Fix: add .js extension to import in ocr-serial API route"
+    },
+    {
+      "hash": "b4ef438aab5d5a905d11f6ae45d402bf3dc57157",
+      "short": "b4ef438",
+      "author": "lengwas",
+      "date": "2026-05-18T13:20:16+07:00",
+      "subject": "Add Thailand country support, commission verification system, and Vercel OCR endpoint"
+    },
+    {
+      "hash": "e0dfeedd1f804773668a447659f276326bbc3369",
+      "short": "e0dfeed",
+      "author": "lengwas",
+      "date": "2026-04-12T19:30:42+07:00",
+      "subject": "Webhook: alias table always overrides exact name match"
+    },
+    {
+      "hash": "07d66418aad4fd38bccd41fa51fd1f76d626c348",
+      "short": "07d6641",
+      "author": "lengwas",
+      "date": "2026-04-11T14:24:04+07:00",
+      "subject": "Dashboard: fix recharts 3.x type signatures for formatter + Bar onClick"
+    },
+    {
+      "hash": "0916d8adc45af3cef59d16986d9a9c7c9ad2bdd5",
+      "short": "0916d8a",
+      "author": "lengwas",
+      "date": "2026-04-11T14:13:34+07:00",
+      "subject": "Add interactive Dashboard tab with multi-dimension slicing + branch anomaly alerts"
+    },
+    {
+      "hash": "aa320c72a87221b7007d08b69fd4935b05eff711",
+      "short": "aa320c7",
+      "author": "lengwas",
+      "date": "2026-04-11T13:22:36+07:00",
+      "subject": "Add shift_time DSL: pin time range for a promoter/day without pinning store"
+    },
+    {
+      "hash": "19d4a3ebd49b868c169477c8a4ba16cf79eb2251",
+      "short": "19d4a3e",
+      "author": "lengwas",
+      "date": "2026-04-11T13:14:32+07:00",
+      "subject": "Optimizer: never assign promoters to restricted (no-access) stores"
+    },
+    {
+      "hash": "12a23cb79d33006035becb62bf248324bf0ea9b7",
+      "short": "12a23cb",
+      "author": "lengwas",
+      "date": "2026-04-11T13:07:55+07:00",
+      "subject": "Add constraint DSL reference modal + detailed user guide"
+    },
+    {
+      "hash": "b254150764fc1a42a954a1bc17356247084b0bc4",
+      "short": "b254150",
+      "author": "lengwas",
+      "date": "2026-04-10T23:54:26+07:00",
+      "subject": "Fix Vercel build: drop dead code, no-op changelog script in CI"
+    },
     {
       "hash": "2936d4fccf60f4f1382821688ae327c1a02f7ae3",
       "short": "2936d4f",
@@ -441,265 +700,6 @@
       "author": "lengwas",
       "date": "2026-03-27T11:32:28+07:00",
       "subject": "Prefer higher-revenue stores in optimizer fallback, improve today column highlight"
-    },
-    {
-      "hash": "4a0d8e450eca9b632cee59cbccb4dd1231af9f72",
-      "short": "4a0d8e4",
-      "author": "lengwas",
-      "date": "2026-03-27T11:13:34+07:00",
-      "subject": "Optimizer: reassign Off promoters to best revenue store instead of idle"
-    },
-    {
-      "hash": "775fb6e58e076311238659c809a39293653d5a99",
-      "short": "775fb6e",
-      "author": "lengwas",
-      "date": "2026-03-27T10:36:23+07:00",
-      "subject": "Fix ShiftTable date filter: auto-detect dates range for AutoAssign"
-    },
-    {
-      "hash": "c3372b8f0b8473466191fe3a78a44b6e615cbe41",
-      "short": "c3372b8",
-      "author": "lengwas",
-      "date": "2026-03-27T09:38:18+07:00",
-      "subject": "Support flexible day-specific shift slots (Mon-Thu, Fri,Sat,Sun format)"
-    },
-    {
-      "hash": "52ca243dea2d0ae7a1b5d80776d86a96c516f0df",
-      "short": "52ca243",
-      "author": "lengwas",
-      "date": "2026-03-27T09:30:46+07:00",
-      "subject": "Fix store revenue sorting, date navigation, notes, shift slots, clean up UI"
-    },
-    {
-      "hash": "7e830452ea45f92126020c35a3da0c17a9e0dbaa",
-      "short": "7e83045",
-      "author": "lengwas",
-      "date": "2026-03-27T08:55:53+07:00",
-      "subject": "Fix optimizer staffing, show grade/tier in shift table, sort stores by tier+revenue"
-    },
-    {
-      "hash": "3eb535a10b4c4a8c2534792c8f51635a33134728",
-      "short": "3eb535a",
-      "author": "lengwas",
-      "date": "2026-03-26T19:31:33+07:00",
-      "subject": "Add revenue-maximizing optimizer, fix tier panel toggle, preference save feedback"
-    },
-    {
-      "hash": "88c3e9e566da5e9418bc0e5de796912326dd19ca",
-      "short": "88c3e9e",
-      "author": "lengwas",
-      "date": "2026-03-26T19:05:23+07:00",
-      "subject": "Fix store sorting by revenue, remove time display, show revenue amount"
-    },
-    {
-      "hash": "33f1b763e1e0fd1dd9ffddd2f30d6c0aecd2d214",
-      "short": "33f1b76",
-      "author": "lengwas",
-      "date": "2026-03-26T19:00:51+07:00",
-      "subject": "Sort stores by net revenue, promoters alphabetically with admins last"
-    },
-    {
-      "hash": "65b54ae79bba9b7b4604c1a29b4691e3d0292417",
-      "short": "65b54ae",
-      "author": "lengwas",
-      "date": "2026-03-26T18:57:06+07:00",
-      "subject": "Auto-calculate store tiers from revenue data"
-    },
-    {
-      "hash": "ebe79416e11f890ff0897ea5b9722a05abf4bff0",
-      "short": "ebe7941",
-      "author": "lengwas",
-      "date": "2026-03-26T18:52:34+07:00",
-      "subject": "Sort shift table by net revenue, fix add promoter, add paid_amount_aed"
-    },
-    {
-      "hash": "a170391f34cd8986e17954c96c30946f8b60f5a3",
-      "short": "a170391",
-      "author": "lengwas",
-      "date": "2026-03-24T21:06:12+08:00",
-      "subject": "Fix Gemini model IDs: use correct names from Google API docs"
-    },
-    {
-      "hash": "15ce203706a53e906d097dd482da44bf0d6cc226",
-      "short": "15ce203",
-      "author": "lengwas",
-      "date": "2026-03-24T20:47:20+08:00",
-      "subject": "Add multi-slot shifts, inline edit form, update Gemini prompt logic"
-    },
-    {
-      "hash": "b190720ac5f0baf1926dad430acda00eeb5e2186",
-      "short": "b190720",
-      "author": "lengwas",
-      "date": "2026-03-24T00:47:33+08:00",
-      "subject": "Add newbie factor (Bayesian shrinkage) and auto store tiers to sales performance"
-    },
-    {
-      "hash": "78248612cccc5693aa4f6a9c65cb65da7c0fef54",
-      "short": "7824861",
-      "author": "lengwas",
-      "date": "2026-03-24T00:37:32+08:00",
-      "subject": "Add sales performance analyzer with day-of-week normalization"
-    },
-    {
-      "hash": "088c794e3c517326714f827783d037b2e49b8942",
-      "short": "088c794",
-      "author": "lengwas",
-      "date": "2026-03-24T00:26:39+08:00",
-      "subject": "Fix TS build errors: remove unused setShifts and getCurrentMonthRange"
-    },
-    {
-      "hash": "faa885bc394b25c443305c5d585a1a318a9b4980",
-      "short": "faa885b",
-      "author": "lengwas",
-      "date": "2026-03-24T00:22:16+08:00",
-      "subject": "Fix shifts not showing: add Supabase anon RLS policies, improve error handling, remove month filter default"
-    },
-    {
-      "hash": "64cde4267b2ec2549b0238b90706912c1a9b6369",
-      "short": "64cde42",
-      "author": "lengwas",
-      "date": "2026-03-23T08:33:08+07:00",
-      "subject": "Load shifts from Supabase and persist edits back to DB"
-    },
-    {
-      "hash": "52c006e4a114fde8fc65bb5c1aabaa6ba69bd54c",
-      "short": "52c006e",
-      "author": "lengwas",
-      "date": "2026-03-23T08:15:19+07:00",
-      "subject": "Fix preference persistence, add promoter form, improve performance scoring"
-    },
-    {
-      "hash": "8881592ccfea07a634365759941546fe3f7add15",
-      "short": "8881592",
-      "author": "lengwas",
-      "date": "2026-03-23T07:50:43+07:00",
-      "subject": "Fix PC Setting preference save + add Store Setting promoter assignment"
-    },
-    {
-      "hash": "eab0f79db69becbcfb2f5835ccae4ea6b9d606ea",
-      "short": "eab0f79",
-      "author": "lengwas",
-      "date": "2026-03-23T07:47:47+07:00",
-      "subject": "Fix: remove invalid gemini-2.5-flash-lite model, use stable model for constraint parsing"
-    },
-    {
-      "hash": "e11dd9b1510e5ac5a7bfa5884da9c17c74fa0b21",
-      "short": "e11dd9b",
-      "author": "lengwas",
-      "date": "2026-03-23T07:41:47+07:00",
-      "subject": "Parse natural language constraints via Gemini into structured equations for Python optimizer"
-    },
-    {
-      "hash": "ea26eb03973d1feb99fefaf8e36e8c2434929c74",
-      "short": "ea26eb0",
-      "author": "lengwas",
-      "date": "2026-03-23T07:27:01+07:00",
-      "subject": "Add date range filter to ShiftTable, defaulting to current month"
-    },
-    {
-      "hash": "aec479d0b7a2ac68137dd2ddfa7bb4e864aedc3c",
-      "short": "aec479d",
-      "author": "lengwas",
-      "date": "2026-03-23T00:37:31+07:00",
-      "subject": "Move revenue forecast from left panel to header row below DOW in ShiftTable"
-    },
-    {
-      "hash": "7bed26d0573e4e947bd6bfa15a64dda649161136",
-      "short": "7bed26d",
-      "author": "lengwas",
-      "date": "2026-03-23T00:25:55+07:00",
-      "subject": "Persist promoter conflicts to Supabase + add Gemini 2.5 models"
-    },
-    {
-      "hash": "c9dd62e5d3bfa4b8f88043862066bb12c7c950eb",
-      "short": "c9dd62e",
-      "author": "lengwas",
-      "date": "2026-03-23T00:21:27+07:00",
-      "subject": "Fix store time format and add revenue forecast to Auto Assign"
-    },
-    {
-      "hash": "01a452a1529a7d01c73eb96a5e511743183f0e13",
-      "short": "01a452a",
-      "author": "lengwas",
-      "date": "2026-03-23T00:10:19+07:00",
-      "subject": "Show shift time range in table cells"
-    },
-    {
-      "hash": "e63d3cffee63fb7374273c5192c6e4e53c391f3e",
-      "short": "e63d3cf",
-      "author": "lengwas",
-      "date": "2026-03-23T00:08:42+07:00",
-      "subject": "Add Python revenue optimizer and hide empty stores in ShiftTable"
-    },
-    {
-      "hash": "1a769771f40f4e775c446ed9586a1009ff6d746a",
-      "short": "1a76977",
-      "author": "lengwas",
-      "date": "2026-03-21T17:45:08+07:00",
-      "subject": "Fix promoter save: async error handling, fallback without role column"
-    },
-    {
-      "hash": "8b59248cbfff087defd82ad0ee89f73ced8ebef0",
-      "short": "8b59248",
-      "author": "lengwas",
-      "date": "2026-03-21T17:31:47+07:00",
-      "subject": "Add role/multi-dayoff, Auto Assign as ShiftTable, explicit Save buttons"
-    },
-    {
-      "hash": "0809fdd7ec84ffa831710e2ec627447fa2ae0d19",
-      "short": "0809fdd",
-      "author": "lengwas",
-      "date": "2026-03-21T17:04:16+07:00",
-      "subject": "Fix Auto Assign JSON errors and add additional constraints textarea"
-    },
-    {
-      "hash": "b2cfb2a4867fb9087982b7341332dbb4383fd273",
-      "short": "b2cfb2a",
-      "author": "lengwas",
-      "date": "2026-03-21T11:49:44+07:00",
-      "subject": "Add Gemini model selector and token usage tracking to Auto Assign"
-    },
-    {
-      "hash": "f1a3ea0ae967cb3d4cc4e2a874e445b8cbcae003",
-      "short": "f1a3ea0",
-      "author": "lengwas",
-      "date": "2026-03-21T11:21:04+07:00",
-      "subject": "Add Auto Assign tab with Gemini AI draft scheduling and feedback chat"
-    },
-    {
-      "hash": "726f2c261fbf4b39ce8ccac4cc7db5f981437b42",
-      "short": "726f2c2",
-      "author": "lengwas",
-      "date": "2026-03-21T11:05:59+07:00",
-      "subject": "Add grade distribution bar and methodology panel to Sales Performance tab"
-    },
-    {
-      "hash": "8f28a8e0346fe58e7797500c21d230f67b6dadb9",
-      "short": "8f28a8e",
-      "author": "lengwas",
-      "date": "2026-03-21T10:55:12+07:00",
-      "subject": "Fix warehouse matching for real orders data + add performance Python script"
-    },
-    {
-      "hash": "2692f5abc23e14b8c16adadbed97bab58dd8deb9",
-      "short": "2692f5a",
-      "author": "lengwas",
-      "date": "2026-03-20T19:33:44+07:00",
-      "subject": "Fix store lookup + add test orders SQL script"
-    },
-    {
-      "hash": "a71c6a46d593606b2ba3b849ffce323481c60eea",
-      "short": "a71c6a4",
-      "author": "lengwas",
-      "date": "2026-03-20T19:23:19+07:00",
-      "subject": "Add Sales Performance tab with grade-tier analysis"
-    },
-    {
-      "hash": "c27e252cc85263ef304acb07711543118808f00c",
-      "short": "c27e252",
-      "author": "lengwas",
-      "date": "2026-03-20T18:48:54+07:00",
-      "subject": "Database tab: show only Shift Data flat table"
     }
   ]
 }
