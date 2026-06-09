@@ -249,14 +249,15 @@ function extractSerialFromImage_(apiKey, imageUrl) {
   var mimeType = imageBlob.getContentType() || 'image/jpeg';
 
   // Call Gemini Vision
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   var payload = {
     contents: [{
       parts: [
         { text: 'Extract the serial number from this luggage/product image. Return ONLY the serial number text (alphanumeric string), nothing else. If no serial number is visible, return "NONE".' },
         { inline_data: { mime_type: mimeType, data: base64 } }
       ]
-    }]
+    }],
+    generationConfig: { temperature: 0, thinkingConfig: { thinkingBudget: 0 } }
   };
 
   var resp = UrlFetchApp.fetch(url, {

@@ -108,7 +108,7 @@ async function ocrSerialFromUrl(imageUrl: string, submissionId?: string): Promis
     const mimeType = 'image/jpeg';
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,7 +117,7 @@ async function ocrSerialFromUrl(imageUrl: string, submissionId?: string): Promis
             { text: SERIAL_OCR_PROMPT },
             { inlineData: { mimeType, data: buf.toString('base64') } },
           ] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 256 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 512, thinkingConfig: { thinkingBudget: 0 } },
         }),
       },
     );
