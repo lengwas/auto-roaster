@@ -83,11 +83,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const limit = (req.method === 'POST' && req.body?.limit) || 50;
 
-  // Fetch pending items
+  // Fetch items needing OCR: never-tried ('pending') and transient failures ('error').
+  // Genuine "ran but no serial found" rows are 'failed' (terminal) and skipped.
   const { data: pending, error: fetchErr } = await supabaseAdmin
     .from('sales_claim_items')
     .select('id, image_url')
-    .eq('ocr_status', 'pending')
+    .in('ocr_status', ['pending', 'error'])
     .not('image_url', 'is', null)
     .limit(limit);
 
@@ -120,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const msg = e instanceof Error ? e.message : String(e);
       await supabaseAdmin
         .from('sales_claim_items')
-        .update({ ocr_status: 'failed', ocr_raw: `Error: ${msg}` })
+        .update({ ocr_status: 'error', ocr_raw: `Error: ${msg}` }) // 'error' = transient, retried next run
         .eq('id', item.id);
 
       results.push({ id: item.id, serial: null, status: 'error' });

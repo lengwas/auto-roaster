@@ -192,16 +192,25 @@ function syncClaimsToSupabase() {
   var vercelUrl = PropertiesService.getScriptProperties().getProperty('VERCEL_APP_URL');
   if (vercelUrl && itemRows.length > 0) {
     Logger.log('Triggering Vercel OCR for ' + itemRows.length + ' items...');
-    try {
-      var ocrResp = UrlFetchApp.fetch(vercelUrl + '/api/ocr-serial', {
-        method: 'POST',
-        contentType: 'application/json',
-        payload: JSON.stringify({ limit: 50 }),
-        muteHttpExceptions: true,
-      });
-      Logger.log('OCR response: ' + ocrResp.getContentText().slice(0, 300));
-    } catch (e) {
-      Logger.log('OCR trigger failed (non-blocking): ' + e.message);
+    // Loop batches until nothing is left (or budget cap). Each call OCRs 50;
+    // cap keeps us inside the Apps Script 6-min execution limit (~6 x 55s).
+    var MAX_OCR_BATCHES = 6;
+    for (var b = 0; b < MAX_OCR_BATCHES; b++) {
+      try {
+        var ocrResp = UrlFetchApp.fetch(vercelUrl + '/api/ocr-serial', {
+          method: 'POST',
+          contentType: 'application/json',
+          payload: JSON.stringify({ limit: 50 }),
+          muteHttpExceptions: true,
+        });
+        var ocrBody = ocrResp.getContentText();
+        Logger.log('OCR batch ' + (b + 1) + ': ' + ocrBody.slice(0, 200));
+        var parsed = JSON.parse(ocrBody);
+        if (!parsed || (parsed.processed || 0) === 0) break; // backlog drained
+      } catch (e) {
+        Logger.log('OCR trigger failed (non-blocking): ' + e.message);
+        break;
+      }
     }
   }
 }
