@@ -25,6 +25,10 @@ export interface Promoter {
   /** Comma-separated day names that are days off, e.g. "Fri,Sat" */
   workingDays: string;
   role: PromoterRole;
+  /** Commission rate as a percent of selling price, e.g. 0.5 = 0.5%, 1 = 1% */
+  commissionRate?: number;
+  /** Daily salary (per working day), in local currency */
+  dailySalary?: number;
 }
 
 export type ShiftType = string; // store code or 'LOP' | 'Off' | 'SL'

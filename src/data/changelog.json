@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-06-09T04:41:12.088Z",
+  "generatedAt": "2026-06-09T10:24:19.393Z",
   "entries": [
+    {
+      "hash": "c837502ab3a87746e8324eb7b1f7ba2113070ba5",
+      "short": "c837502",
+      "author": "lengwas",
+      "date": "2026-06-09T16:41:16+07:00",
+      "subject": "Make serial OCR recover from transient failures + drain backlog"
+    },
+    {
+      "hash": "c7259ba1807cf549c064427dbc04a7e4aed95a19",
+      "short": "c7259ba",
+      "author": "lengwas",
+      "date": "2026-06-09T13:11:33+07:00",
+      "subject": "Add commission verification system + wire into app"
+    },
     {
       "hash": "3ad6a61c0618191739faa071ad3223647c2b2204",
       "short": "3ad6a61",
@@ -686,20 +700,6 @@
       "author": "lengwas",
       "date": "2026-03-27T12:01:25+07:00",
       "subject": "Respect maxCapacity when reassigning Off promoters to stores"
-    },
-    {
-      "hash": "583a56e07fb7b3d17ccff0bb59924d530e376964",
-      "short": "583a56e",
-      "author": "lengwas",
-      "date": "2026-03-27T11:47:42+07:00",
-      "subject": "Fix conflict check in min-staffing enforcement phase"
-    },
-    {
-      "hash": "492f01c35299d00dd3416e737faba390092b421f",
-      "short": "492f01c",
-      "author": "lengwas",
-      "date": "2026-03-27T11:32:28+07:00",
-      "subject": "Prefer higher-revenue stores in optimizer fallback, improve today column highlight"
     }
   ]
 }

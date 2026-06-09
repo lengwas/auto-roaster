@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useCommissionData } from '../hooks/useCommission';
 import type { ClaimWithItems } from '../hooks/useCommission';
+import VendorReportUpload from './VendorReportUpload';
 import './DashboardPage.css';
 
 function fmtMoney(n: number): string {
@@ -148,6 +149,9 @@ const CommissionPage = () => {
           <div style={{ fontSize: 12, color: '#6366f1', marginTop: 4, fontWeight: 600 }}>{actionMsg}</div>
         )}
       </div>
+
+      {/* ── Upload vendor monthly report ─────────────────────────── */}
+      <VendorReportUpload month={month} />
 
       {/* ── KPIs ─────────────────────────────────────────────────── */}
       {summary && (

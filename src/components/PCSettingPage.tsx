@@ -271,6 +271,8 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                 <th style={{ width: 180 }}>Name</th>
                 <th style={{ width: 90 }}>Status</th>
                 <th style={{ width: 80 }}>Role</th>
+                <th style={{ width: 80 }}>Comm %</th>
+                <th style={{ width: 90 }}>Salary/day</th>
                 <th>Days Off</th>
                 <th>Conditions</th>
                 <th style={{ width: 80 }}>Detail</th>
@@ -303,6 +305,24 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                           <option value="promoter">Promoter</option>
                           <option value="admin">Admin</option>
                         </select>
+                      </td>
+                      <td className="cell-center">
+                        <input
+                          type="number" step="0.1" min="0"
+                          className="dayoff-select" style={{ width: 60, textAlign: 'right' }}
+                          value={p.commissionRate ?? 0.5}
+                          onChange={e => updatePromoter(p.id, { commissionRate: e.target.value === '' ? 0 : Number(e.target.value) })}
+                          title="Commission rate (% of selling price)"
+                        />
+                      </td>
+                      <td className="cell-center">
+                        <input
+                          type="number" step="1" min="0"
+                          className="dayoff-select" style={{ width: 72, textAlign: 'right' }}
+                          value={p.dailySalary ?? 0}
+                          onChange={e => updatePromoter(p.id, { dailySalary: e.target.value === '' ? 0 : Number(e.target.value) })}
+                          title="Daily salary (per working day)"
+                        />
                       </td>
                       <td>
                         <div className="dayoff-chips">
@@ -345,7 +365,7 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                     </tr>
                     {isExpanded && (
                       <tr key={`${p.id}-expand`} className="expand-row">
-                        <td colSpan={7}>
+                        <td colSpan={9}>
                           <div className="pref-grid">
                             {activeStores.map(store => {
                               const pref = getPref(p.id, store.code);

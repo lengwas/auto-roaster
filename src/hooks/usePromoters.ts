@@ -12,6 +12,8 @@ function mapRow(row: Record<string, unknown>): Promoter {
     active: Boolean(row.active),
     workingDays: row.day_off ? String(row.day_off) : '',
     role: (row.role === 'admin' ? 'admin' : 'promoter'),
+    commissionRate: row.commission_rate != null ? Number(row.commission_rate) : 0.5,
+    dailySalary: row.daily_salary != null ? Number(row.daily_salary) : 0,
   };
 }
 
@@ -39,6 +41,7 @@ export function usePromoters(country: Country = 'UAE') {
   async function savePromoter(p: Promoter): Promise<string | null> {
     // Try with all columns, then progressively remove optional ones
     const payloads: Record<string, unknown>[] = [
+      { active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays, role: p.role, commission_rate: p.commissionRate ?? 0.5, daily_salary: p.dailySalary ?? 0 },
       { active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays, role: p.role },
       { active: p.active, name: p.name, day_off: p.workingDays, role: p.role },
       { active: p.active, name: p.name, day_off: p.workingDays },
