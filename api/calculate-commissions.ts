@@ -44,16 +44,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const result: CommissionResult = { calculated: 0, skipped: 0, totalCommission: 0, deductions: 0, errors: [] };
 
-  // ── 1. Load active commission rules ──────────────────────────────
-  const { data: rules } = await supabaseAdmin
+  // ── 1. Load active commission rules. May be empty — when no rule matches
+  //      we fall back to the promoter's own commission_rate (PC Setting page). ──
+  const { data: rulesData } = await supabaseAdmin
     .from('commission_rules')
     .select('*')
     .eq('active', true)
     .order('priority', { ascending: false });
-
-  if (!rules || rules.length === 0) {
-    return res.json({ ...result, message: 'No active commission rules found. Add rules to commission_rules table first.' });
-  }
+  const rules = rulesData ?? [];
 
   // ── 2. Load verified claim items for this month ──────────────────
   const { data: claims } = await supabaseAdmin
@@ -82,13 +80,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── 3. Load promoter lookup (name → id) ──────────────────────────
   const { data: promoters } = await supabaseAdmin
     .from('promoters')
-    .select('id, name');
+    .select('id, name, commission_rate');
 
   const promoterByName = new Map<string, string>();
+  const promoterRateById = new Map<string, number>();
   for (const p of promoters ?? []) {
     promoterByName.set(p.name.toLowerCase(), p.id);
     const first = p.name.split(' ')[0].toLowerCase();
     if (!promoterByName.has(first)) promoterByName.set(first, p.id);
+    promoterRateById.set(p.id, p.commission_rate != null ? Number(p.commission_rate) : 0.5);
   }
 
   // ── 4. Check existing ledger entries to avoid duplicates ─────────
@@ -142,20 +142,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       break; // highest priority that matches
     }
 
-    if (!bestRule) {
+    // Effective rate: a matched rule wins; otherwise fall back to the promoter's
+    // own commission_rate (% set on the PC Setting page).
+    let ruleId: string | null = null;
+    let rateValue: number;
+    let rateType = 'percentage';
+    if (bestRule) {
+      ruleId = bestRule.id;
+      rateValue = bestRule.rate_value;
+      rateType = bestRule.rate_type;
+    } else if (promoterId && promoterRateById.has(promoterId)) {
+      rateValue = promoterRateById.get(promoterId)!;
+    } else {
       result.skipped++;
       continue;
     }
 
     // Calculate commission
     const sellingPrice = item.selling_price || 0;
-    let commissionAmount = 0;
-
-    if (bestRule.rate_type === 'percentage') {
-      commissionAmount = sellingPrice * (bestRule.rate_value / 100);
-    } else if (bestRule.rate_type === 'fixed') {
-      commissionAmount = bestRule.rate_value;
-    }
+    const commissionAmount = rateType === 'fixed' ? rateValue : sellingPrice * (rateValue / 100);
 
     // Insert ledger entry
     const { error: ledgerErr } = await supabaseAdmin
@@ -168,8 +173,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         model: item.model,
         sku: item.sku,
         selling_price: sellingPrice,
-        commission_rule_id: bestRule.id,
-        commission_rate: bestRule.rate_value,
+        commission_rule_id: ruleId,
+        commission_rate: rateValue,
         commission_amount: Math.round(commissionAmount * 100) / 100,
         month,
         status: 'pending',
