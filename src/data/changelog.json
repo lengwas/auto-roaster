@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-06-09T10:24:19.393Z",
+  "generatedAt": "2026-06-11T06:15:33.655Z",
   "entries": [
+    {
+      "hash": "3e3d5e69de5f136d4903147d0a56ee8ae2aadcd2",
+      "short": "3e3d5e6",
+      "author": "lengwas",
+      "date": "2026-06-11T11:54:16+07:00",
+      "subject": "calculate-commissions: fall back to promoter.commission_rate when no rule matches"
+    },
+    {
+      "hash": "55dee6152486c03b6d206d17e4e02c9a722994c4",
+      "short": "55dee61",
+      "author": "lengwas",
+      "date": "2026-06-09T17:35:19+07:00",
+      "subject": "Commission: vendor-report upload + per-promoter pay settings"
+    },
     {
       "hash": "c837502ab3a87746e8324eb7b1f7ba2113070ba5",
       "short": "c837502",
@@ -686,20 +700,6 @@
       "author": "lengwas",
       "date": "2026-03-27T13:11:45+07:00",
       "subject": "Keep store colors on today column, highlight header and borders only"
-    },
-    {
-      "hash": "dc220ad28aaac41e871e00fc0dfb8edd89242b3a",
-      "short": "dc220ad",
-      "author": "lengwas",
-      "date": "2026-03-27T13:07:42+07:00",
-      "subject": "Redesign recommended stores as colored chips grouped by tier"
-    },
-    {
-      "hash": "90cab1a2512aae7f04611b7d06468d2a81a6fceb",
-      "short": "90cab1a",
-      "author": "lengwas",
-      "date": "2026-03-27T12:01:25+07:00",
-      "subject": "Respect maxCapacity when reassigning Off promoters to stores"
     }
   ]
 }

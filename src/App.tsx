@@ -307,7 +307,7 @@ function App() {
           />
         )}
         {activeTab === 'customers' && <CustomerDashboardPage />}
-        {activeTab === 'commission' && <CommissionPage />}
+        {activeTab === 'commission' && <CommissionPage stores={stores} promoters={promoters} country={country} />}
         {activeTab === 'auto-assign' && (
           <AutoAssignPage
             stores={stores}

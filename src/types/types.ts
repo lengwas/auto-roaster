@@ -88,6 +88,7 @@ export interface Order {
   warehouse?: string;   // matched to Store.warehouse
   platform?: string;
   sku?: string;
+  serialNumber?: string; // admin-recorded serial number
   name?: string;        // product name, e.g. "Airwheel-SE3S-Black"
   amountAed?: number;
   paidAmountAed?: number;

@@ -16,6 +16,7 @@ function mapRow(row: Record<string, unknown>, country: Country): Order {
     warehouse: row.warehouse ? String(row.warehouse) : undefined,
     platform: row.platform ? String(row.platform) : undefined,
     sku: row.sku ? String(row.sku) : undefined,
+    serialNumber: row.serial_number ? String(row.serial_number) : undefined,
     name: row.name ? String(row.name) : undefined,
     amountAed: amount,
     paidAmountAed: row.paid_amount_aed != null ? Number(row.paid_amount_aed) : undefined,
@@ -38,7 +39,7 @@ export function useOrders(monthsBack: number = 6, country: Country = 'UAE') {
     const fromStr = fromDt.toISOString().split('T')[0];
 
     const amtCol = AMOUNT_COL[country];
-    const cols = `id, date, order_id, salesperson, warehouse, platform, sku, name, ${amtCol}, paid_amount_aed, status`;
+    const cols = `id, date, order_id, salesperson, warehouse, platform, sku, serial_number, name, ${amtCol}, paid_amount_aed, status`;
 
     // Supabase caps at 1000 rows per request – paginate to fetch all
     const PAGE_SIZE = 1000;

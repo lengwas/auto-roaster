@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useCommissionData } from '../hooks/useCommission';
 import type { ClaimWithItems } from '../hooks/useCommission';
+import type { Store, Promoter, Country } from '../types/types';
 import VendorReportUpload from './VendorReportUpload';
+import OrderCommissionView from './OrderCommissionView';
 import './DashboardPage.css';
 
 function fmtMoney(n: number): string {
@@ -16,8 +18,11 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: '#6b7280',
 };
 
-const CommissionPage = () => {
+interface CommissionPageProps { stores: Store[]; promoters: Promoter[]; country: Country; }
+
+const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [view, setView] = useState<'orders' | 'claims'>('orders');
   const { claims, ledger, rules, summary, loading } = useCommissionData(month);
 
   const [expandedClaim, setExpandedClaim] = useState<string | null>(null);
@@ -27,8 +32,8 @@ const CommissionPage = () => {
   const [calcLoading, setCalcLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
 
-  // Promoter list
-  const promoters = useMemo(() => {
+  // Promoter name list (for the claims filter dropdown)
+  const promoterNames = useMemo(() => {
     const s = new Set(claims.map(c => c.promoterName));
     return [...s].sort();
   }, [claims]);
@@ -125,7 +130,7 @@ const CommissionPage = () => {
           <label style={{ marginLeft: 16 }}>Promoter</label>
           <select value={filterPromoter} onChange={e => setFilterPromoter(e.target.value)} style={{ padding: '4px 8px', fontSize: 12, borderRadius: 6, border: '1px solid #d1d5db' }}>
             <option value="all">All</option>
-            {promoters.map(p => <option key={p} value={p}>{p}</option>)}
+            {promoterNames.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
@@ -153,6 +158,21 @@ const CommissionPage = () => {
       {/* ── Upload vendor monthly report ─────────────────────────── */}
       <VendorReportUpload month={month} />
 
+      {/* ── View toggle: Orders (admin) vs Jotform claims ────────── */}
+      <div style={{ display: 'flex', margin: '12px 0', border: '1px solid #d1d5db', borderRadius: 6, overflow: 'hidden', width: 'fit-content' }}>
+        {(['orders', 'claims'] as const).map(v => (
+          <button key={v} onClick={() => setView(v)}
+            style={{ border: 'none', padding: '6px 16px', cursor: 'pointer', fontSize: 13, background: view === v ? '#eef2ff' : '#fff', color: view === v ? '#4338ca' : '#6b7280', fontWeight: view === v ? 700 : 400 }}>
+            {v === 'orders' ? 'Orders (admin → vendor)' : 'Jotform Claims'}
+          </button>
+        ))}
+      </div>
+
+      {view === 'orders' && (
+        <OrderCommissionView month={month} country={country} stores={stores} promoters={promoters} />
+      )}
+
+      {view === 'claims' && (<>
       {/* ── KPIs ─────────────────────────────────────────────────── */}
       {summary && (
         <div className="dash-kpis">
@@ -254,6 +274,7 @@ const CommissionPage = () => {
       {filtered.length === 0 && (
         <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, marginTop: 16 }}>No claims found for {month}</p>
       )}
+      </>)}
     </div>
   );
 };
