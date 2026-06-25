@@ -143,8 +143,6 @@ const EXCLUDED_STATUS = new Set(['cancelled', 'canceled', 'returned', 'void', 'r
 
 export interface VendorNet { saleDate: string; storeCode: string | null; sku: string | null; quantity: number; isReturn: boolean; }
 
-const cellKey = (store: string | null, date: string, sku: string | null) =>
-  `${store ?? ''}|${date}|${(sku ?? '').toUpperCase()}`;
 
 // Normalize an order's product name to the vendor SKU format ("Airwheel-SE3S - Black" → "SE3S_BK").
 // MUST mirror normalizeSku in scripts/import-vendor-report.mjs / api/lib/vendor-parse.ts so both
@@ -210,11 +208,14 @@ export function reconcileOrders(
     return f;
   };
 
-  // Vendor sale-quantity pool (per store/date/sku), sales only
+  // Vendor sale-quantity pool per (store, sku) for the WHOLE month.
+  // A monthly vendor report rarely lines up with the order's exact day, so we
+  // match on store + sku across the month rather than store + date + sku.
+  const monthKey = (store: string | null, sku: string | null) => `${store ?? ''}|${(sku ?? '').toUpperCase()}`;
   const salePool = new Map<string, number>();
   for (const v of vendorLines) {
     if (v.isReturn || !v.storeCode) continue;
-    const k = cellKey(v.storeCode, v.saleDate, v.sku);
+    const k = monthKey(v.storeCode, v.sku);
     salePool.set(k, (salePool.get(k) ?? 0) + v.quantity);
   }
 
@@ -229,7 +230,7 @@ export function reconcileOrders(
     let status: OrderVerifyStatus;
     if (!r.storeCode) status = 'no_store';
     else {
-      const k = cellKey(r.storeCode, o.date, normalizeProductSku(o.sku));
+      const k = monthKey(r.storeCode, normalizeProductSku(o.sku));
       const remaining = salePool.get(k) ?? 0;
       if (remaining >= 1) { salePool.set(k, remaining - 1); status = r.promoter ? 'verified' : 'no_promoter'; }
       else status = 'no_vendor';
