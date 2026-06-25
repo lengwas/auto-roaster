@@ -33,12 +33,13 @@ export function useVendorLines(month: string) {
       if (cancelled) return;
       setLines(all.map(r => {
         const q = Number(r.quantity || 0);
-        const isReturn = String(r.trans_type || '').toLowerCase() === 'return';
+        const isReturn = String(r.trans_type || '').toLowerCase() === 'return' || q < 0;
         return {
           saleDate: String(r.date).split('T')[0],
           storeCode: r.store_code ? String(r.store_code) : null,
           sku: r.sku ? String(r.sku) : null,
-          quantity: isReturn ? -Math.abs(q) : Math.abs(q),
+          quantity: Math.abs(q),
+          isReturn,
         };
       }));
       setLoading(false);

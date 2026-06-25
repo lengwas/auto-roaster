@@ -32,7 +32,14 @@ export type OrderVerifyStatus =
   | 'no_vendor'       // no matching vendor sale qty (over-reported / unconfirmed)
   | 'no_store'        // warehouse couldn't be mapped to a store
   | 'no_promoter'     // salesperson couldn't be matched to a promoter
+  | 'returned'        // clawed back by a vendor return (within lookback window)
   | 'excluded';       // cancelled / returned order — not paid
+
+export interface OrderFlags {
+  serialRepeat?: boolean;     // this serial appears on >1 order (returned & resold)
+  serialUnverified?: boolean; // serial not found in serial_registry
+  returnNote?: string;        // explanation when status === 'returned'
+}
 
 export interface OrderCommissionRow {
   id: string;
@@ -46,9 +53,19 @@ export interface OrderCommissionRow {
   promoterId: string | null;
   amount: number;
   commissionRate: number | null; // percent
-  commission: number;
+  commission: number;            // negative when status === 'returned' (clawback)
   status: OrderVerifyStatus;
+  flags: OrderFlags;
 }
+
+// Vendor return lookback window (days) by store-code prefix → vendor.
+// Matches the vendor_return_windows table (virgin 30, jashanmal 14, ...).
+const RETURN_WINDOW_DAYS: Record<string, number> = { V: 30, J: 14, H: 30, B: 30, S: 30 };
+const windowForStore = (storeCode: string | null) =>
+  (storeCode && RETURN_WINDOW_DAYS[storeCode[0].toUpperCase()]) || 30;
+
+const daysBetween = (a: string, b: string) =>
+  Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000);
 
 export interface PromoterCommission {
   promoterId: string | null;
@@ -74,71 +91,130 @@ function buildStoreByWarehouse(stores: Store[], country: Country): Map<string, S
 
 const EXCLUDED_STATUS = new Set(['cancelled', 'canceled', 'returned', 'void', 'refund', 'cn']);
 
-export interface VendorNet { saleDate: string; storeCode: string | null; sku: string | null; quantity: number; }
+export interface VendorNet { saleDate: string; storeCode: string | null; sku: string | null; quantity: number; isReturn: boolean; }
 
 const cellKey = (store: string | null, date: string, sku: string | null) =>
   `${store ?? ''}|${date}|${(sku ?? '').toUpperCase()}`;
 
+interface Resolved { store: Store | undefined; storeCode: string | null; promoter: Promoter | undefined; amount: number; rate: number | null; }
+
 /**
- * Reconcile admin orders for a month against vendor net quantities.
- * `rateOf(promoterId)` returns the promoter commission rate (percent).
+ * Reconcile admin `orders` against vendor report data for a month.
+ * - Sales: orders dated in `month` are confirmed against vendor sale quantity per store/date/sku.
+ * - Serial: flags duplicate serials (resold units) and serials missing from serial_registry.
+ * - Returns: each vendor return unit in `month` (no serial) claws back the most recent prior
+ *   sale in the same store within the vendor lookback window (virgin 30d / jashanmal 14d).
+ *
+ * `allOrders` should span enough history to cover the return lookback window.
  */
 export function reconcileOrders(
-  orders: Order[],
+  allOrders: Order[],
   vendorLines: VendorNet[],
   stores: Store[],
   promoters: Promoter[],
   country: Country,
+  month: string,
+  registrySerials: Set<string>,
 ): { rows: OrderCommissionRow[]; byPromoter: PromoterCommission[] } {
   const storeByWarehouse = buildStoreByWarehouse(stores, country);
   const promoterByName = new Map(promoters.map(p => [p.name.toLowerCase().trim(), p]));
 
-  // Net vendor quantity available per (store, date, sku)
-  const vendorPool = new Map<string, number>();
-  for (const v of vendorLines) {
-    if (!v.storeCode) continue;
-    const k = cellKey(v.storeCode, v.saleDate, v.sku);
-    vendorPool.set(k, (vendorPool.get(k) ?? 0) + (v.quantity || 0));
+  // Count each serial across all orders → repeats = returned & resold
+  const serialCount = new Map<string, number>();
+  for (const o of allOrders) {
+    const s = (o.serialNumber || '').trim().toUpperCase();
+    if (s) serialCount.set(s, (serialCount.get(s) ?? 0) + 1);
   }
 
-  // Deterministic order: by date asc then id (so confirmation assignment is stable)
-  const sorted = [...orders].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  const resolve = (o: Order): Resolved => {
+    const store = o.warehouse ? storeByWarehouse.get(o.warehouse.toLowerCase().trim()) : undefined;
+    const promoter = o.salesperson ? promoterByName.get(o.salesperson.toLowerCase().trim()) : undefined;
+    return { store, storeCode: store?.code ?? null, promoter, amount: o.amountAed ?? 0, rate: promoter ? (promoter.commissionRate ?? 0.5) : null };
+  };
+
+  const flagsFor = (o: Order): OrderFlags => {
+    const s = (o.serialNumber || '').trim().toUpperCase();
+    const f: OrderFlags = {};
+    if (s && (serialCount.get(s) ?? 0) > 1) f.serialRepeat = true;
+    if (s && registrySerials.size > 0 && !registrySerials.has(s)) f.serialUnverified = true;
+    return f;
+  };
+
+  // Vendor sale-quantity pool (per store/date/sku), sales only
+  const salePool = new Map<string, number>();
+  for (const v of vendorLines) {
+    if (v.isReturn || !v.storeCode) continue;
+    const k = cellKey(v.storeCode, v.saleDate, v.sku);
+    salePool.set(k, (salePool.get(k) ?? 0) + v.quantity);
+  }
+
+  // ── 1. Reconcile this month's sale orders against vendor sale qty ──
+  const monthOrders = allOrders
+    .filter(o => o.date.startsWith(month) && !EXCLUDED_STATUS.has(o.status.toLowerCase()))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
   const rows: OrderCommissionRow[] = [];
-  for (const o of sorted) {
-    const store = o.warehouse ? storeByWarehouse.get(o.warehouse.toLowerCase().trim()) : undefined;
-    const storeCode = store?.code ?? null;
-    const promoter = o.salesperson ? promoterByName.get(o.salesperson.toLowerCase().trim()) : undefined;
-    const amount = o.amountAed ?? 0;
-    const rate = promoter ? (promoter.commissionRate ?? 0.5) : null;
-
+  for (const o of monthOrders) {
+    const r = resolve(o);
     let status: OrderVerifyStatus;
-    if (EXCLUDED_STATUS.has(o.status.toLowerCase())) status = 'excluded';
-    else if (!storeCode) status = 'no_store';
+    if (!r.storeCode) status = 'no_store';
     else {
-      // consume one unit of vendor-confirmed qty for this cell
-      const k = cellKey(storeCode, o.date, o.sku ?? null);
-      const remaining = vendorPool.get(k) ?? 0;
-      if (remaining >= 1) { vendorPool.set(k, remaining - 1); status = promoter ? 'verified' : 'no_promoter'; }
+      const k = cellKey(r.storeCode, o.date, o.sku ?? null);
+      const remaining = salePool.get(k) ?? 0;
+      if (remaining >= 1) { salePool.set(k, remaining - 1); status = r.promoter ? 'verified' : 'no_promoter'; }
       else status = 'no_vendor';
     }
-
-    const commission = status === 'verified' && rate != null ? amount * (rate / 100) : 0;
+    const commission = status === 'verified' && r.rate != null ? r.amount * (r.rate / 100) : 0;
     rows.push({
       id: o.id, date: o.date, orderId: o.orderId,
-      storeCode, storeName: store?.name ?? null,
+      storeCode: r.storeCode, storeName: r.store?.name ?? null,
       sku: o.sku ?? null, serialNumber: o.serialNumber ?? null,
-      salesperson: o.salesperson ?? null, promoterId: promoter?.id ?? null,
-      amount, commissionRate: rate, commission, status,
+      salesperson: o.salesperson ?? null, promoterId: r.promoter?.id ?? null,
+      amount: r.amount, commissionRate: r.rate, commission, status, flags: flagsFor(o),
     });
   }
 
-  // Per-promoter summary (verified only)
+  // ── 2. Cross-month return clawback (vendor returns carry no serial) ──
+  const clawedIds = new Set<string>();
+  const soldByStore = new Map<string, { o: Order; r: Resolved }[]>();
+  for (const o of allOrders) {
+    if (EXCLUDED_STATUS.has(o.status.toLowerCase())) continue;
+    const r = resolve(o);
+    if (!r.storeCode) continue;
+    (soldByStore.get(r.storeCode) ?? soldByStore.set(r.storeCode, []).get(r.storeCode)!).push({ o, r });
+  }
+  for (const arr of soldByStore.values()) arr.sort((a, b) => b.o.date.localeCompare(a.o.date)); // most recent first
+
+  for (const v of vendorLines) {
+    if (!v.isReturn || !v.storeCode) continue;
+    const win = windowForStore(v.storeCode);
+    let toClaw = Math.round(v.quantity);
+    for (const { o, r } of soldByStore.get(v.storeCode) ?? []) {
+      if (toClaw <= 0) break;
+      if (clawedIds.has(o.id)) continue;
+      const age = daysBetween(o.date, v.saleDate);
+      if (age < 0 || age > win) continue; // outside the lookback window
+      clawedIds.add(o.id);
+      toClaw -= 1;
+      const commission = r.rate != null ? r.amount * (r.rate / 100) : 0;
+      rows.push({
+        id: `${o.id}__ret_${v.saleDate}`, date: v.saleDate, orderId: o.orderId,
+        storeCode: r.storeCode, storeName: r.store?.name ?? null,
+        sku: o.sku ?? null, serialNumber: o.serialNumber ?? null,
+        salesperson: o.salesperson ?? null, promoterId: r.promoter?.id ?? null,
+        amount: r.amount, commissionRate: r.rate, commission: -commission, status: 'returned',
+        flags: { returnNote: `Return ${v.saleDate}; sold ${o.date} (≤${win}d)` },
+      });
+    }
+  }
+
+  // ── 3. Per-promoter summary (verified sales + returned clawbacks) ──
   const byP = new Map<string, PromoterCommission>();
   for (const r of rows) {
-    if (r.status !== 'verified' || !r.promoterId) continue;
+    if (!r.promoterId || (r.status !== 'verified' && r.status !== 'returned')) continue;
     const e = byP.get(r.promoterId) ?? { promoterId: r.promoterId, promoterName: r.salesperson ?? '', verifiedOrders: 0, sales: 0, commission: 0 };
-    e.verifiedOrders += 1; e.sales += r.amount; e.commission += r.commission;
+    if (r.status === 'verified') { e.verifiedOrders += 1; e.sales += r.amount; }
+    e.commission += r.commission;
     byP.set(r.promoterId, e);
   }
   const byPromoter = [...byP.values()].sort((a, b) => b.commission - a.commission);

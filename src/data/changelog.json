@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-06-11T06:15:33.655Z",
+  "generatedAt": "2026-06-25T03:10:35.036Z",
   "entries": [
+    {
+      "hash": "85664870505e3ac831f6c14616d750325f437960",
+      "short": "8566487",
+      "author": "lengwas",
+      "date": "2026-06-11T13:33:19+07:00",
+      "subject": "Commission: orders-based verification view (admin orders × vendor report)"
+    },
     {
       "hash": "3e3d5e69de5f136d4903147d0a56ee8ae2aadcd2",
       "short": "3e3d5e6",
@@ -693,13 +700,6 @@
       "author": "lengwas",
       "date": "2026-03-27T14:05:33+07:00",
       "subject": "Dynamic date range: start from earliest shift in DB"
-    },
-    {
-      "hash": "fab7e06e25047015faef4fd5a37c1bf960fa612a",
-      "short": "fab7e06",
-      "author": "lengwas",
-      "date": "2026-03-27T13:11:45+07:00",
-      "subject": "Keep store colors on today column, highlight header and borders only"
     }
   ]
 }
