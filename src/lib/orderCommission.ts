@@ -41,6 +41,16 @@ export interface OrderFlags {
   returnNote?: string;        // explanation when status === 'returned'
 }
 
+export interface CommissionBonus {
+  name: string | null;
+  skuPattern: string | null;
+  vendor: string | null;        // 'virgin'|'jashanmal'|... ; null = all
+  validFrom: string | null;     // YYYY-MM-DD
+  validTo: string | null;
+  bonusType: 'fixed' | 'percentage';
+  bonusValue: number;
+}
+
 export interface OrderCommissionRow {
   id: string;
   date: string;
@@ -52,10 +62,50 @@ export interface OrderCommissionRow {
   salesperson: string | null;
   promoterId: string | null;
   amount: number;
-  commissionRate: number | null; // percent
-  commission: number;            // negative when status === 'returned' (clawback)
+  commissionRate: number | null; // base percent
+  baseCommission: number;        // amount × rate%
+  bonus: number;                 // additive bonus (AED)
+  bonusNote: string;             // which bonus(es) applied
+  commission: number;            // base + bonus (negative when status === 'returned')
   status: OrderVerifyStatus;
   flags: OrderFlags;
+}
+
+// Vendor inferred from store-code prefix (for bonus.vendor matching)
+const VENDOR_BY_PREFIX: Record<string, string> = { V: 'virgin', J: 'jashanmal', H: 'hamleys', B: 'borders', S: 'sharaf' };
+const vendorOfStore = (storeCode: string | null) =>
+  (storeCode && VENDOR_BY_PREFIX[storeCode[0].toUpperCase()]) || null;
+
+/** Match a bonus's sku_pattern against an order SKU/product (case-insensitive; % = wildcard, else substring). */
+function skuMatches(pattern: string | null, sku: string | null): boolean {
+  if (!pattern) return true;          // no pattern = applies to all SKUs
+  if (!sku) return false;
+  const p = pattern.toUpperCase().trim();
+  const s = sku.toUpperCase();
+  if (p.includes('%')) {
+    const re = new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*') + '$');
+    return re.test(s);
+  }
+  return s.includes(p);
+}
+
+/** Sum the additive bonuses that apply to a verified order line (qty = 1). */
+function bonusFor(
+  sku: string | null, storeCode: string | null, date: string, amount: number, bonuses: CommissionBonus[],
+): { bonus: number; note: string } {
+  let bonus = 0;
+  const notes: string[] = [];
+  const vendor = vendorOfStore(storeCode);
+  for (const b of bonuses) {
+    if (b.validFrom && date < b.validFrom) continue;
+    if (b.validTo && date > b.validTo) continue;
+    if (b.vendor && b.vendor.toLowerCase() !== (vendor || '')) continue;
+    if (!skuMatches(b.skuPattern, sku)) continue;
+    const add = b.bonusType === 'fixed' ? b.bonusValue : amount * (b.bonusValue / 100);
+    bonus += add;
+    notes.push(`${b.name || b.skuPattern || 'bonus'} +${add}`);
+  }
+  return { bonus, note: notes.join('; ') };
 }
 
 // Vendor return lookback window (days) by store-code prefix → vendor.
@@ -115,6 +165,7 @@ export function reconcileOrders(
   country: Country,
   month: string,
   registrySerials: Set<string>,
+  bonuses: CommissionBonus[] = [],
 ): { rows: OrderCommissionRow[]; byPromoter: PromoterCommission[] } {
   const storeByWarehouse = buildStoreByWarehouse(stores, country);
   const promoterByName = new Map(promoters.map(p => [p.name.toLowerCase().trim(), p]));
@@ -164,13 +215,18 @@ export function reconcileOrders(
       if (remaining >= 1) { salePool.set(k, remaining - 1); status = r.promoter ? 'verified' : 'no_promoter'; }
       else status = 'no_vendor';
     }
-    const commission = status === 'verified' && r.rate != null ? r.amount * (r.rate / 100) : 0;
+    const base = status === 'verified' && r.rate != null ? r.amount * (r.rate / 100) : 0;
+    const { bonus, note: bonusNote } = status === 'verified'
+      ? bonusFor(o.sku ?? null, r.storeCode, o.date, r.amount, bonuses)
+      : { bonus: 0, note: '' };
     rows.push({
       id: o.id, date: o.date, orderId: o.orderId,
       storeCode: r.storeCode, storeName: r.store?.name ?? null,
       sku: o.sku ?? null, serialNumber: o.serialNumber ?? null,
       salesperson: o.salesperson ?? null, promoterId: r.promoter?.id ?? null,
-      amount: r.amount, commissionRate: r.rate, commission, status, flags: flagsFor(o),
+      amount: r.amount, commissionRate: r.rate,
+      baseCommission: base, bonus, bonusNote, commission: base + bonus,
+      status, flags: flagsFor(o),
     });
   }
 
@@ -196,13 +252,14 @@ export function reconcileOrders(
       if (age < 0 || age > win) continue; // outside the lookback window
       clawedIds.add(o.id);
       toClaw -= 1;
-      const commission = r.rate != null ? r.amount * (r.rate / 100) : 0;
+      const base = r.rate != null ? r.amount * (r.rate / 100) : 0;
       rows.push({
         id: `${o.id}__ret_${v.saleDate}`, date: v.saleDate, orderId: o.orderId,
         storeCode: r.storeCode, storeName: r.store?.name ?? null,
         sku: o.sku ?? null, serialNumber: o.serialNumber ?? null,
         salesperson: o.salesperson ?? null, promoterId: r.promoter?.id ?? null,
-        amount: r.amount, commissionRate: r.rate, commission: -commission, status: 'returned',
+        amount: r.amount, commissionRate: r.rate,
+        baseCommission: -base, bonus: 0, bonusNote: '', commission: -base, status: 'returned',
         flags: { returnNote: `Return ${v.saleDate}; sold ${o.date} (≤${win}d)` },
       });
     }

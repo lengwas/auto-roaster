@@ -3,6 +3,7 @@ import type { Store, Promoter, Country } from '../types/types';
 import { useOrders } from '../hooks/useOrders';
 import { useVendorLines } from '../hooks/useVendorLines';
 import { useSerialRegistry } from '../hooks/useSerialRegistry';
+import { useCommissionBonuses } from '../hooks/useCommissionBonuses';
 import { reconcileOrders, type OrderVerifyStatus, type OrderCommissionRow } from '../lib/orderCommission';
 
 interface Props { month: string; country: Country; stores: Store[]; promoters: Promoter[]; }
@@ -22,11 +23,12 @@ const OrderCommissionView = ({ month, country, stores, promoters }: Props) => {
   const { orders, loading: ordersLoading } = useOrders(12, country);
   const { lines: vendorLines, loading: vLoading } = useVendorLines(month);
   const registrySerials = useSerialRegistry();
+  const bonuses = useCommissionBonuses();
   const [statusFilter, setStatusFilter] = useState<'all' | OrderVerifyStatus>('all');
 
   const { rows, byPromoter } = useMemo(
-    () => reconcileOrders(orders, vendorLines, stores, promoters, country, month, registrySerials),
-    [orders, vendorLines, stores, promoters, country, month, registrySerials],
+    () => reconcileOrders(orders, vendorLines, stores, promoters, country, month, registrySerials, bonuses),
+    [orders, vendorLines, stores, promoters, country, month, registrySerials, bonuses],
   );
 
   const totals = useMemo(() => ({
@@ -52,6 +54,7 @@ const OrderCommissionView = ({ month, country, stores, promoters }: Props) => {
     if (r.flags.serialUnverified) parts.push('[CHECK] SN not in registry');
     if (r.flags.serialRepeat) parts.push('[CHECK] SN resold');
     if (r.flags.returnNote) parts.push(r.flags.returnNote);
+    if (r.bonus > 0 && r.bonusNote) parts.push(`BONUS ${r.bonusNote}`);
     return parts.join('; ');
   };
 
@@ -159,7 +162,7 @@ const OrderCommissionView = ({ month, country, stores, promoters }: Props) => {
                   <td style={{ padding: 6, textAlign: 'right' }}>{valid ? 1 : ''}</td>
                   <td style={{ padding: 6, textAlign: 'right' }}>{fmt(r.amount)}</td>
                   <td style={{ padding: 6, textAlign: 'right' }}>{valid ? fmt(r.amount) : ''}</td>
-                  <td style={{ padding: 6, textAlign: 'right', fontWeight: 600 }}>{valid && r.commissionRate != null ? `${r.commissionRate}%` : ''}</td>
+                  <td style={{ padding: 6, textAlign: 'right', fontWeight: 600 }}>{valid && r.commissionRate != null ? `${r.commissionRate}%${r.bonus > 0 ? ` +${fmt(r.bonus)}` : ''}` : ''}</td>
                 </tr>
               );
             })}

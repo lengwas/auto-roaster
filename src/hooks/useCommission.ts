@@ -65,7 +65,7 @@ export interface VerificationSummary {
   totalCommission: number;
 }
 
-export function useCommissionData(month: string) {
+export function useCommissionData(month: string, refreshKey: number = 0) {
   const [claims, setClaims] = useState<ClaimWithItems[]>([]);
   const [ledger, setLedger] = useState<CommissionLedgerEntry[]>([]);
   const [rules, setRules] = useState<CommissionRule[]>([]);
@@ -196,7 +196,7 @@ export function useCommissionData(month: string) {
     }
 
     fetchAll();
-  }, [month]);
+  }, [month, refreshKey]);
 
   return { claims, ledger, rules, summary, loading };
 }

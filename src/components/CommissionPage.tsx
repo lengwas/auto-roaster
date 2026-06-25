@@ -23,7 +23,8 @@ interface CommissionPageProps { stores: Store[]; promoters: Promoter[]; country:
 const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [view, setView] = useState<'orders' | 'claims'>('orders');
-  const { claims, ledger, rules, summary, loading } = useCommissionData(month);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { claims, ledger, rules, summary, loading } = useCommissionData(month, refreshKey);
 
   const [expandedClaim, setExpandedClaim] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -80,9 +81,10 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
         body: JSON.stringify({ month }),
       });
       const data = await resp.json();
+      if (!resp.ok) { setActionMsg(`Verification failed: ${data.error || resp.status}`); setVerifyLoading(false); return; }
       setActionMsg(`Verified: ${data.verified}, Disputed: ${data.disputed}, Returns: ${data.returnsProcessed}`);
-      window.location.reload();
-    } catch (e) {
+      setRefreshKey(k => k + 1);
+    } catch {
       setActionMsg('Verification failed');
     }
     setVerifyLoading(false);
@@ -98,9 +100,10 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
         body: JSON.stringify({ month }),
       });
       const data = await resp.json();
+      if (!resp.ok) { setActionMsg(`Calculation failed: ${data.error || resp.status}`); setCalcLoading(false); return; }
       setActionMsg(`Calculated: ${data.calculated}, Total: ${data.totalCommission} AED, Deductions: ${data.deductions}`);
-      window.location.reload();
-    } catch (e) {
+      setRefreshKey(k => k + 1);
+    } catch {
       setActionMsg('Calculation failed');
     }
     setCalcLoading(false);
@@ -135,6 +138,7 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <button
+              type="button"
               onClick={runVerify}
               disabled={verifyLoading}
               style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: 12, opacity: verifyLoading ? 0.6 : 1 }}
@@ -142,6 +146,7 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
               {verifyLoading ? 'Verifying...' : 'Run Verification'}
             </button>
             <button
+              type="button"
               onClick={runCalc}
               disabled={calcLoading}
               style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', cursor: 'pointer', fontSize: 12, opacity: calcLoading ? 0.6 : 1 }}
