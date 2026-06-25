@@ -156,8 +156,6 @@ const SalesPerformancePage = ({
 }: Props) => {
   const [period, setPeriod] = useState<Period>('3m');
   const [view, setView] = useState<View>('performance');
-  const [selectedDows, setSelectedDows] = useState<Set<number>>(new Set());
-  const [statusFilter, setStatusFilter] = useState<'all' | 'completed'>('completed');
   const [activeOnly, setActiveOnly] = useState(true);
   const [tierPanelOpen, setTierPanelOpen] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
@@ -225,11 +223,10 @@ const SalesPerformancePage = ({
     const [fromDate] = getDateRange(months);
     return orders.filter(o => {
       if (o.date < fromDate) return false;
-      if (statusFilter === 'completed' && o.status.toLowerCase() !== 'completed') return false;
-      if (selectedDows.size > 0 && !selectedDows.has(dowOf(o.date))) return false;
+      if (o.status.toLowerCase() !== 'completed') return false; // always completed only
       return true;
     });
-  }, [orders, period, statusFilter, selectedDows]);
+  }, [orders, period]);
 
   // ── store-level stats ────────────────────────────────────────────────────
   const storePerfs = useMemo(() => {
@@ -406,14 +403,6 @@ const SalesPerformancePage = ({
   ]);
 
   // ── handlers ─────────────────────────────────────────────────────────────
-  const toggleDow = (d: number) => {
-    setSelectedDows(prev => {
-      const next = new Set(prev);
-      next.has(d) ? next.delete(d) : next.add(d);
-      return next;
-    });
-  };
-
   const setStoreTier = (code: string, tier: StoreTier | null) => {
     const filtered = storeTiers.filter(t => t.storeCode !== code);
     onStoreTiersChange(tier ? [...filtered, { storeCode: code, tier }] : filtered);
@@ -507,31 +496,6 @@ const SalesPerformancePage = ({
             </div>
           </div>
 
-          {/* DOW filter */}
-          <div className="sp-ctrl-group">
-            <span className="sp-ctrl-label">Day of Week</span>
-            <div className="sp-dow-row">
-              {DAYS.map((d, i) => (
-                <button
-                  key={d}
-                  className={`sp-dow-btn ${selectedDows.has(i) ? 'active' : ''} ${i === 0 || i === 6 ? 'weekend' : ''}`}
-                  onClick={() => toggleDow(i)}
-                >{d}</button>
-              ))}
-              {selectedDows.size > 0 && (
-                <button className="sp-clear-btn" onClick={() => setSelectedDows(new Set())}>Clear</button>
-              )}
-            </div>
-          </div>
-
-          {/* Status */}
-          <div className="sp-ctrl-group">
-            <span className="sp-ctrl-label">Orders</span>
-            <div className="sp-btn-group">
-              <button className={`sp-period-btn ${statusFilter === 'completed' ? 'active' : ''}`} onClick={() => setStatusFilter('completed')}>Completed</button>
-              <button className={`sp-period-btn ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>All</button>
-            </div>
-          </div>
         </div>
 
         <div className="sp-controls-right">

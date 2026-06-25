@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-06-25T03:10:35.036Z",
+  "generatedAt": "2026-06-25T04:20:26.809Z",
   "entries": [
+    {
+      "hash": "87c2031d6ee642f800b9805ff60f6e2819a8d502",
+      "short": "87c2031",
+      "author": "lengwas",
+      "date": "2026-06-25T10:22:45+07:00",
+      "subject": "Orders verify: serial dedup/registry flags + cross-month return clawback"
+    },
     {
       "hash": "85664870505e3ac831f6c14616d750325f437960",
       "short": "8566487",
@@ -693,13 +700,6 @@
       "author": "lengwas",
       "date": "2026-03-27T14:58:40+07:00",
       "subject": "Fix: increase Supabase query limit for fetching all shifts"
-    },
-    {
-      "hash": "dc36898193e57902f9130360df62c22906be4a15",
-      "short": "dc36898",
-      "author": "lengwas",
-      "date": "2026-03-27T14:05:33+07:00",
-      "subject": "Dynamic date range: start from earliest shift in DB"
     }
   ]
 }

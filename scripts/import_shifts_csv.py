@@ -128,8 +128,13 @@ def parse_csv(path: Path) -> tuple[list[tuple[int, str]], list[dict]]:
     with open(path, encoding='utf-8-sig') as f:
         rows = list(csv.reader(f))
 
-    ym_row = rows[0]  # row 1: Y/M
-    d_row  = rows[1]  # row 2: day of month
+    # Find the Y/M header row dynamically (a leading blank row may exist in exports)
+    ym_idx = next(
+        (i for i, r in enumerate(rows) if len(r) > 6 and r[6].strip() == 'Y/M'),
+        0,
+    )
+    ym_row = rows[ym_idx]       # Y/M row
+    d_row  = rows[ym_idx + 1]   # day-of-month row
 
     # Build date → column index map
     dates: list[tuple[int, str]] = []
@@ -149,7 +154,7 @@ def parse_csv(path: Path) -> tuple[list[tuple[int, str]], list[dict]]:
 
     # Collect promoter rows (col 6 = TRUE / FALSE, col 1 = non-empty name)
     promoters: list[dict] = []
-    for r in rows[3:]:   # skip header rows 1–3
+    for r in rows[ym_idx + 3:]:   # skip Y/M, day, and the RANK/Active header row
         if len(r) <= COL_ACTIVE:
             continue
         active = r[COL_ACTIVE].strip().upper()
@@ -173,7 +178,13 @@ def main():
                         help='Import rows on or before this date')
     parser.add_argument('--batch', type=int, default=200,
                         help='Upsert batch size (default: 200)')
+    parser.add_argument('--country', default='UAE',
+                        help='Country: UAE (shifts/promoters) or QA (shifts_qa/promoters_qa)')
     args = parser.parse_args()
+
+    country = args.country.upper()
+    promoters_table = 'promoters' if country == 'UAE' else f'promoters_{country.lower()}'
+    shifts_table = 'shifts' if country == 'UAE' else f'shifts_{country.lower()}'
 
     csv_path = Path(args.file)
     if not csv_path.exists():
@@ -198,15 +209,12 @@ def main():
     sb = create_client(url, key)
 
     # ── Fetch promoters ──────────────────────────────────────────────────────
-    print("Fetching promoters from Supabase…", file=sys.stderr)
-    db_promoters = (
-        sb.from_('promoters')
-          .select('id,name')
-          .eq('country', 'UAE')
-          .execute()
-          .data or []
-    )
-    print(f"  {len(db_promoters)} UAE promoters loaded", file=sys.stderr)
+    print(f"Fetching promoters from {promoters_table}…", file=sys.stderr)
+    promo_query = sb.from_(promoters_table).select('id,name')
+    if country == 'UAE':
+        promo_query = promo_query.eq('country', 'UAE')  # promoters table holds multiple countries
+    db_promoters = promo_query.execute().data or []
+    print(f"  {len(db_promoters)} {country} promoters loaded", file=sys.stderr)
     name_map = build_name_map(db_promoters)
 
     # ── Parse CSV ────────────────────────────────────────────────────────────
@@ -257,7 +265,7 @@ def main():
                 'date':        date_str,
                 'shift_type':  shift_type,
                 'time_range':  time_range,
-                'country':     'UAE',
+                'country':     country,
             })
 
     print(f"\nParsed: {len(records)} valid shift records", file=sys.stderr)
@@ -291,7 +299,7 @@ def main():
 
     for start in range(0, len(records), args.batch):
         batch  = records[start:start + args.batch]
-        result = sb.from_('shifts').upsert(
+        result = sb.from_(shifts_table).upsert(
             batch,
             on_conflict='promoter_id,date'
         ).execute()
