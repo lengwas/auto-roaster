@@ -146,6 +146,25 @@ export interface VendorNet { saleDate: string; storeCode: string | null; sku: st
 const cellKey = (store: string | null, date: string, sku: string | null) =>
   `${store ?? ''}|${date}|${(sku ?? '').toUpperCase()}`;
 
+// Normalize an order's product name to the vendor SKU format ("Airwheel-SE3S - Black" → "SE3S_BK").
+// MUST mirror normalizeSku in scripts/import-vendor-report.mjs / api/lib/vendor-parse.ts so both
+// sides of the (store,date,sku) match key agree. Vendor lines are already normalized.
+const SKU_COLOUR: Record<string, string> = {
+  BLACK: 'BK', SILVER: 'SLV', PINK: 'PK', BLUE: 'BLU',
+  WHITE: 'WH', RED: 'RD', GREEN: 'GN', GREY: 'GRY', GRAY: 'GRY',
+};
+const SKU_MODELS = ['SE3SL', 'SE3MINIT', 'SE3S', 'SQ3S', 'SQ3', 'SR5', 'SR6', 'SE3T'];
+export function normalizeProductSku(desc: string | null | undefined): string {
+  if (!desc) return '';
+  const up = String(desc).toUpperCase();
+  let model: string | null = null;
+  for (const m of SKU_MODELS) { if (up.includes(m)) { model = m; break; } }
+  if (!model) return up.replace(/\s+/g, ' ').trim(); // unknown model → keep (won't match vendor)
+  let colour: string | null = null;
+  for (const [c, a] of Object.entries(SKU_COLOUR)) { if (up.includes(c)) { colour = a; break; } }
+  return model + (colour ? '_' + colour : '');
+}
+
 interface Resolved { store: Store | undefined; storeCode: string | null; promoter: Promoter | undefined; amount: number; rate: number | null; }
 
 /**
@@ -210,7 +229,7 @@ export function reconcileOrders(
     let status: OrderVerifyStatus;
     if (!r.storeCode) status = 'no_store';
     else {
-      const k = cellKey(r.storeCode, o.date, o.sku ?? null);
+      const k = cellKey(r.storeCode, o.date, normalizeProductSku(o.sku));
       const remaining = salePool.get(k) ?? 0;
       if (remaining >= 1) { salePool.set(k, remaining - 1); status = r.promoter ? 'verified' : 'no_promoter'; }
       else status = 'no_vendor';
