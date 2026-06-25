@@ -82,30 +82,32 @@ if (!rows || rows.length < 2) {
   process.exit(0);
 }
 
-// --- Column mapping (0-indexed, A-V) ---
+// --- Column mapping (0-indexed) ---
+// "Flag customer return" was inserted at column D → Name onward shifted +1.
 const COL = {
   DATE: 0,
   SOLD_TIME: 1,
   ORDER_ID: 2,
-  NAME: 3,
-  SERIAL_NUMBER: 4,
-  SKU: 5,
-  PLATFORM: 6,
-  WAREHOUSE: 7,
-  LEAD: 8,
-  NATIONALITY: 9,
-  NOTE: 10,
-  SALESPERSON: 11,
-  PAYMENT_METHOD: 12,
-  TRANSPORTATION: 13,
-  AMOUNT_QAR: 14,
-  AMOUNT_USD: 15,
-  PAID_AMOUNT_AED: 16,
-  PMGY_EXPENSE: 17,
-  DELIVERY_EXPENSE: 18,
-  COMMISSION: 19,
-  COMMENTS: 20,
-  STATUS: 21,
+  FLAG_RETURN: 3,
+  NAME: 4,
+  SERIAL_NUMBER: 5,
+  SKU: 6,
+  PLATFORM: 7,
+  WAREHOUSE: 8,
+  LEAD: 9,
+  NATIONALITY: 10,
+  NOTE: 11,
+  SALESPERSON: 12,
+  PAYMENT_METHOD: 13,
+  TRANSPORTATION: 14,
+  AMOUNT_QAR: 15,
+  AMOUNT_USD: 16,
+  PAID_AMOUNT_AED: 17,
+  PMGY_EXPENSE: 18,
+  DELIVERY_EXPENSE: 19,
+  COMMISSION: 20,
+  COMMENTS: 21,
+  STATUS: 22,
 };
 
 function trimOrNull(val) {

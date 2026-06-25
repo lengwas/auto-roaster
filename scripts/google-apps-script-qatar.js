@@ -61,34 +61,38 @@ function syncQatarOrders() {
     return 0;
   }
 
-  // Column mapping (0-indexed) — match Qatar sheet header order (A-V)
-  // Date | Sold Time | Order ID | Name | Serial Number | SKU | Platform |
-  // Warehouse | Lead | Nationality | Note (Resident / Tourist) | Salesperson |
-  // Payment method | Transportation | Amount QAR | Amount USD |
-  // Paid Amount AED | PMGY Expense | Delivery Expense | Commission | Comments | Status
+  // Column mapping (0-indexed) — Qatar sheet header order (A-W).
+  // NOTE: a "Flag customer return" column was inserted at D, so everything from
+  // Name onward is shifted +1 vs the old layout.
+  // A Date | B Sold Time | C Order ID | D Flag customer return | E Name |
+  // F Serial Number | G SKU | H Platform | I Warehouse | J Lead | K Nationality |
+  // L Note | M Salesperson | N Payment method | O Transportation | P Amount QAR |
+  // Q Amount USD | R Paid Amount AED | S PMGY Expense | T Delivery Expense |
+  // U Commission | V Comments | W Status
   var COL = {
     DATE: 0,
     SOLD_TIME: 1,
     ORDER_ID: 2,
-    NAME: 3,
-    SERIAL_NUMBER: 4,
-    SKU: 5,
-    PLATFORM: 6,
-    WAREHOUSE: 7,
-    LEAD: 8,
-    NATIONALITY: 9,
-    NOTE: 10,
-    SALESPERSON: 11,
-    PAYMENT_METHOD: 12,
-    TRANSPORTATION: 13,
-    AMOUNT_QAR: 14,
-    AMOUNT_USD: 15,
-    PAID_AMOUNT_AED: 16,
-    PMGY_EXPENSE: 17,
-    DELIVERY_EXPENSE: 18,
-    COMMISSION: 19,
-    COMMENTS: 20,
-    STATUS: 21,
+    FLAG_RETURN: 3,
+    NAME: 4,
+    SERIAL_NUMBER: 5,
+    SKU: 6,
+    PLATFORM: 7,
+    WAREHOUSE: 8,
+    LEAD: 9,
+    NATIONALITY: 10,
+    NOTE: 11,
+    SALESPERSON: 12,
+    PAYMENT_METHOD: 13,
+    TRANSPORTATION: 14,
+    AMOUNT_QAR: 15,
+    AMOUNT_USD: 16,
+    PAID_AMOUNT_AED: 17,
+    PMGY_EXPENSE: 18,
+    DELIVERY_EXPENSE: 19,
+    COMMISSION: 20,
+    COMMENTS: 21,
+    STATUS: 22,
   };
 
   var orders = [];
