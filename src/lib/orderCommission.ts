@@ -73,7 +73,7 @@ export interface OrderCommissionRow {
 
 // Vendor inferred from store-code prefix (for bonus.vendor matching)
 const VENDOR_BY_PREFIX: Record<string, string> = { V: 'virgin', J: 'jashanmal', H: 'hamleys', B: 'borders', S: 'sharaf' };
-const vendorOfStore = (storeCode: string | null) =>
+export const vendorOfStore = (storeCode: string | null) =>
   (storeCode && VENDOR_BY_PREFIX[storeCode[0].toUpperCase()]) || null;
 
 /** Match a bonus's sku_pattern against an order SKU/product (case-insensitive; % = wildcard, else substring). */
@@ -125,7 +125,7 @@ export interface PromoterCommission {
   commission: number;
 }
 
-function buildStoreByWarehouse(stores: Store[], country: Country): Map<string, Store> {
+export function buildStoreByWarehouse(stores: Store[], country: Country): Map<string, Store> {
   const codeMap = new Map(stores.map(s => [s.code, s]));
   const m = new Map<string, Store>();
   Object.entries(WAREHOUSE_CODE_MAP[country]).forEach(([wh, code]) => {

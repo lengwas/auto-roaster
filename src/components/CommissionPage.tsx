@@ -4,6 +4,7 @@ import type { ClaimWithItems } from '../hooks/useCommission';
 import type { Store, Promoter, Country } from '../types/types';
 import VendorReportUpload from './VendorReportUpload';
 import VendorReportPreview from './VendorReportPreview';
+import SalesOrderMap from './SalesOrderMap';
 import OrderCommissionView from './OrderCommissionView';
 import './DashboardPage.css';
 
@@ -180,9 +181,7 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
       </>)}
 
       {view === 'salesmap' && (
-        <div style={{ padding: 16, color: '#6b7280', fontSize: 13, border: '1px dashed #d1d5db', borderRadius: 8 }}>
-          Sales Order Map (orders × each vendor's reported qty/price, sorted by date, with overwrite) — building next.
-        </div>
+        <SalesOrderMap month={month} country={country} stores={stores} />
       )}
 
       {view === 'promoter' && (
