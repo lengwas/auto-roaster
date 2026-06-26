@@ -181,7 +181,7 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
       </>)}
 
       {view === 'salesmap' && (
-        <SalesOrderMap month={month} country={country} stores={stores} />
+        <SalesOrderMap month={month} country={country} stores={stores} promoters={promoters} />
       )}
 
       {view === 'promoter' && (
