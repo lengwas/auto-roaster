@@ -106,28 +106,29 @@ const SalesOrderMap = ({ month, country, stores }: Props) => {
       <div style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 10px' }}>
         {rows.length} rows · {vendorOnly > 0 && <span style={{ color: '#be123c', fontWeight: 600 }}>{vendorOnly} vendor-only (no sales order — inserted by date)</span>}
       </div>
-      <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 8 }}>
+      <div style={{ overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: 8 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, whiteSpace: 'nowrap' }}>
-          <thead><tr style={{ background: '#f9fafb', textAlign: 'left' }}>
-            <th style={{ padding: 6 }}>Date</th><th style={{ padding: 6 }}>Sales Order</th>
-            {VENDORS.map(v => <th key={v} style={{ padding: 6, textTransform: 'capitalize' }}>{v}</th>)}
-            <th style={{ padding: 6 }}>Overwrite</th>
+          <thead><tr style={{ background: '#eef2f6' }}>
+            <th style={{ padding: '7px 10px', border: '1px solid #cbd5e1', textAlign: 'left' }}>Date</th>
+            <th style={{ padding: '7px 10px', border: '1px solid #cbd5e1', textAlign: 'left' }}>Sales Order</th>
+            {VENDORS.map(v => <th key={v} style={{ padding: '7px 10px', border: '1px solid #cbd5e1', textAlign: 'center', textTransform: 'capitalize' }}>{v}</th>)}
+            <th style={{ padding: '7px 10px', border: '1px solid #cbd5e1', textAlign: 'left' }}>Overwrite</th>
           </tr></thead>
           <tbody>
             {rows.map(r => (
-              <tr key={r.key} style={{ borderTop: '1px solid #f1f5f9', background: r.kind === 'vendoronly' ? '#fff7f7' : (r.matched ? undefined : '#fffdf5') }}>
-                <td style={{ padding: 6 }}>{r.date}</td>
-                <td style={{ padding: 6 }}>
+              <tr key={r.key} style={{ background: r.kind === 'vendoronly' ? '#fff1f2' : (r.matched ? '#f0fdf4' : '#fffbeb') }}>
+                <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0' }}>{r.date}</td>
+                <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0' }}>
                   {r.kind === 'vendoronly'
                     ? <span style={{ color: '#be123c' }}>⚠ no sales order — {r.storeCode} {r.sku}</span>
                     : <span>{r.storeCode} · {r.sku} · {r.salesperson ?? '—'} · {r.amount != null ? fmt(r.amount) : '—'}</span>}
                 </td>
                 {VENDORS.map(v => (
-                  <td key={v} style={{ padding: 6, textAlign: 'right', color: r.vendor === v ? (r.vendorPrice != null ? '#16a34a' : '#dc2626') : '#e5e7eb' }}>
-                    {r.vendor === v ? (r.vendorPrice != null ? `1 · ${fmt(r.vendorPrice)}` : '✗') : ''}
+                  <td key={v} style={{ padding: '6px 10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: r.vendor === v ? 600 : 400, color: r.vendor === v ? (r.vendorPrice != null ? '#16a34a' : '#dc2626') : '#cbd5e1' }}>
+                    {r.vendor === v ? (r.vendorPrice != null ? `✓ ${fmt(r.vendorPrice)}` : '✗') : '·'}
                   </td>
                 ))}
-                <td style={{ padding: 6 }}>
+                <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0' }}>
                   <input defaultValue={overrides.get(r.key) ?? ''} placeholder="fix…"
                     onBlur={e => { if (e.target.value !== (overrides.get(r.key) ?? '')) saveOverride(r.key, e.target.value); }}
                     style={{ width: 120, fontSize: 12, padding: '2px 6px', border: '1px solid #d1d5db', borderRadius: 4 }} />
