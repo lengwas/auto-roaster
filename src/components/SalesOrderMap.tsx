@@ -19,8 +19,9 @@ interface MapRow {
   vendor: string | null; vendorPrice: number | null;
   kind: 'order' | 'vendoronly' | 'return';
   matched: boolean; shiftType: string | null; shiftMatch: boolean;
-  jotform: boolean | null; autoApprove: boolean;
+  jotform: boolean | null; jotformSerial: string | null; autoApprove: boolean;
 }
+interface ClaimUnit { store: string; sku: string; serial: string | null; }
 
 interface Props { month: string; country: Country; stores: Store[]; promoters: Promoter[]; }
 
@@ -31,7 +32,7 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
   const { shifts } = useShifts(country);
   const [vsales, setVsales] = useState<VLine[]>([]);
   const [vreturns, setVreturns] = useState<VLine[]>([]);
-  const [claimSerials, setClaimSerials] = useState<Set<string>>(new Set());
+  const [claimUnits, setClaimUnits] = useState<ClaimUnit[]>([]);
   const [overrides, setOverrides] = useState<Map<string, Ovr>>(new Map());
   const [loading, setLoading] = useState(true);
 
@@ -45,14 +46,20 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
         .select('date, store_code, sku, vendor, quantity, selling_price, trans_type')
         .gte('date', from).lte('date', to);
       const { data: ov } = await supabase.from('commission_overrides').select('row_key, note, approved');
-      // Jotform claim serials for the month
-      const { data: cl } = await supabase.from('sales_claims').select('id').gte('date', from).lte('date', to);
-      const claimIds = (cl ?? []).map((c: { id: string }) => c.id);
-      const serials = new Set<string>();
+      // Jotform claims for the month (+ items): index by store + sku, keep serial
+      const { data: cl } = await supabase.from('sales_claims').select('id, branch').gte('date', from).lte('date', to);
+      const branchById = new Map<string, string>();
+      (cl ?? []).forEach((c: { id: string; branch: string | null }) => branchById.set(c.id, (c.branch || '').toUpperCase().trim()));
+      const claimIds = [...branchById.keys()];
+      const cUnits: ClaimUnit[] = [];
       for (let i = 0; i < claimIds.length; i += 100) {
         const { data: items } = await supabase.from('sales_claim_items')
-          .select('serial_number').in('claim_id', claimIds.slice(i, i + 100));
-        (items ?? []).forEach((it: { serial_number: string | null }) => { if (it.serial_number) serials.add(String(it.serial_number).toUpperCase().trim()); });
+          .select('claim_id, model, colour, sku, serial_number').in('claim_id', claimIds.slice(i, i + 100));
+        (items ?? []).forEach((it: { claim_id: string; model: string | null; colour: string | null; serial_number: string | null }) => {
+          const store = branchById.get(it.claim_id); if (store == null) return;
+          const sku = normalizeProductSku(`${it.model || ''} ${it.colour || ''}`);
+          cUnits.push({ store, sku, serial: it.serial_number ? String(it.serial_number).toUpperCase().trim() : null });
+        });
       }
       if (cancelled) return;
       const sales: VLine[] = [], returns: VLine[] = [];
@@ -66,7 +73,7 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
         };
         for (let i = 0; i < units; i++) (isReturn ? returns : sales).push({ ...base });
       }
-      setVsales(sales); setVreturns(returns); setClaimSerials(serials);
+      setVsales(sales); setVreturns(returns); setClaimUnits(cUnits);
       setOverrides(new Map((ov ?? []).map((o: { row_key: string; note: string | null; approved: boolean | null }) => [o.row_key, { note: o.note ?? undefined, approved: o.approved }])));
       setLoading(false);
     })();
@@ -86,6 +93,12 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
     for (const v of vsales) {
       const k = `${v.vendor}|${v.storeCode}|${(v.sku || '').toUpperCase()}`;
       (pool.get(k) ?? pool.set(k, []).get(k)!).push(v);
+    }
+    // claim pool by store|sku (monthly), keep serials
+    const claimPool = new Map<string, ClaimUnit[]>();
+    for (const c of claimUnits) {
+      const k = `${c.store}|${c.sku}`;
+      (claimPool.get(k) ?? claimPool.set(k, []).get(k)!).push(c);
     }
 
     const out: MapRow[] = [];
@@ -107,12 +120,17 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
       const shiftType = promoter ? (shiftStore.get(`${promoter.id}|${o.date}`) ?? null) : null;
       const shiftMatch = !!shiftType && !LEAVE.has(shiftType.toLowerCase()) && shiftType === storeCode;
       const serial = o.serialNumber ? o.serialNumber.toUpperCase().trim() : null;
-      const jotform = serial ? claimSerials.has(serial) : null;
+      let jotform: boolean | null = null, jotformSerial: string | null = null;
+      if (storeCode) {
+        const arr = claimPool.get(`${storeCode}|${sku}`);
+        if (arr && arr.length) { const u = arr.shift()!; jotform = true; jotformSerial = u.serial; }
+        else jotform = false;
+      }
       const autoApprove = matched && shiftMatch && jotform === true;
       out.push({
         key: o.id, date: o.date, storeCode, sku, salesperson: o.salesperson ?? null, serial,
         amount: o.amountAed ?? null, vendor, vendorPrice, kind: 'order',
-        matched, shiftType, shiftMatch, jotform, autoApprove,
+        matched, shiftType, shiftMatch, jotform, jotformSerial, autoApprove,
       });
     }
     // vendor-only sale rows (vendor reported a sale, no matching order)
@@ -120,17 +138,17 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
       key: `vendoronly:${u.date}|${u.storeCode}|${u.sku}|${u.vendor}`,
       date: u.date, storeCode: u.storeCode, sku: u.sku, salesperson: null, serial: null,
       amount: null, vendor: u.vendor, vendorPrice: u.price, kind: 'vendoronly',
-      matched: false, shiftType: null, shiftMatch: false, jotform: null, autoApprove: false,
+      matched: false, shiftType: null, shiftMatch: false, jotform: null, jotformSerial: null, autoApprove: false,
     });
     // vendor return rows
     vreturns.forEach((u, i) => out.push({
       key: `return:${u.date}|${u.storeCode}|${u.sku}|${u.vendor}|${i}`,
       date: u.date, storeCode: u.storeCode, sku: u.sku, salesperson: null, serial: null,
       amount: null, vendor: u.vendor, vendorPrice: u.price, kind: 'return',
-      matched: false, shiftType: null, shiftMatch: false, jotform: null, autoApprove: false,
+      matched: false, shiftType: null, shiftMatch: false, jotform: null, jotformSerial: null, autoApprove: false,
     }));
     return out.sort((a, b) => a.date.localeCompare(b.date) || (a.storeCode || '').localeCompare(b.storeCode || ''));
-  }, [orders, shifts, vsales, vreturns, claimSerials, stores, promoters, country, month]);
+  }, [orders, shifts, vsales, vreturns, claimUnits, stores, promoters, country, month]);
 
   const save = async (key: string, patch: Ovr) => {
     const cur = overrides.get(key) ?? {};
@@ -179,15 +197,15 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
                   <td style={cell}>
                     {r.kind === 'return' ? <span style={{ color: '#be123c' }}>↩ RETURN — {r.storeCode} {r.sku} ({r.vendor})</span>
                       : r.kind === 'vendoronly' ? <span style={{ color: '#be123c' }}>⚠ no sales order — {r.storeCode} {r.sku}</span>
-                      : <span>{r.storeCode} · {r.sku} · {r.salesperson ?? '—'} · {r.amount != null ? fmt(r.amount) : '—'}</span>}
+                      : <span>{r.storeCode} · {r.sku} · {r.salesperson ?? '—'} · {r.amount != null ? fmt(r.amount) : '—'}{r.serial ? <span style={{ fontFamily: 'monospace', color: '#6b7280' }}> · SN {r.serial}</span> : ''}</span>}
                   </td>
                   {/* Shift */}
                   <td style={{ ...cell, textAlign: 'center', color: r.kind !== 'order' ? '#cbd5e1' : r.shiftMatch ? '#16a34a' : '#dc2626' }}>
                     {r.kind !== 'order' ? '·' : (r.shiftType ? (r.shiftMatch ? r.shiftType : `⚠ ${r.shiftType}`) : '⚠ no shift')}
                   </td>
                   {/* Jotform */}
-                  <td style={{ ...cell, textAlign: 'center', color: r.kind !== 'order' ? '#cbd5e1' : r.jotform === true ? '#16a34a' : r.jotform === false ? '#dc2626' : '#9ca3af' }}>
-                    {r.kind !== 'order' ? '·' : r.jotform === true ? '✓' : r.jotform === false ? '✗' : '—'}
+                  <td style={{ ...cell, textAlign: 'center', fontFamily: r.jotformSerial ? 'monospace' : undefined, color: r.kind !== 'order' ? '#cbd5e1' : r.jotform === true ? '#16a34a' : r.jotform === false ? '#dc2626' : '#9ca3af' }}>
+                    {r.kind !== 'order' ? '·' : r.jotform === true ? (r.jotformSerial ? `✓ ${r.jotformSerial}` : '✓ (no SN)') : r.jotform === false ? '✗' : '—'}
                   </td>
                   {VENDORS.map(v => (
                     <td key={v} style={{ ...cell, textAlign: 'center', fontWeight: r.vendor === v ? 600 : 400, color: r.vendor === v ? (r.vendorPrice != null ? (r.kind === 'return' ? '#be123c' : '#16a34a') : '#dc2626') : '#cbd5e1' }}>
