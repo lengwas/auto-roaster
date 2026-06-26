@@ -3,6 +3,7 @@ import { useCommissionData } from '../hooks/useCommission';
 import type { ClaimWithItems } from '../hooks/useCommission';
 import type { Store, Promoter, Country } from '../types/types';
 import VendorReportUpload from './VendorReportUpload';
+import VendorReportPreview from './VendorReportPreview';
 import OrderCommissionView from './OrderCommissionView';
 import './DashboardPage.css';
 
@@ -22,7 +23,7 @@ interface CommissionPageProps { stores: Store[]; promoters: Promoter[]; country:
 
 const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [view, setView] = useState<'orders' | 'claims'>('orders');
+  const [view, setView] = useState<'upload' | 'salesmap' | 'promoter' | 'claims'>('upload');
   const [refreshKey, setRefreshKey] = useState(0);
   const { claims, ledger, rules, summary, loading } = useCommissionData(month, refreshKey);
 
@@ -160,20 +161,31 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
         )}
       </div>
 
-      {/* ── Upload vendor monthly report ─────────────────────────── */}
-      <VendorReportUpload month={month} />
-
-      {/* ── View toggle: Orders (admin) vs Jotform claims ────────── */}
+      {/* ── Sub-tabs ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', margin: '12px 0', border: '1px solid #d1d5db', borderRadius: 6, overflow: 'hidden', width: 'fit-content' }}>
-        {(['orders', 'claims'] as const).map(v => (
+        {([
+          ['upload', '1 · Vendor Upload'], ['salesmap', '2 · Sales Order Map'],
+          ['promoter', '3 · Promoter Commission'], ['claims', 'Jotform Claims'],
+        ] as const).map(([v, label]) => (
           <button key={v} onClick={() => setView(v)}
             style={{ border: 'none', padding: '6px 16px', cursor: 'pointer', fontSize: 13, background: view === v ? '#eef2ff' : '#fff', color: view === v ? '#4338ca' : '#6b7280', fontWeight: view === v ? 700 : 400 }}>
-            {v === 'orders' ? 'Orders (admin → vendor)' : 'Jotform Claims'}
+            {label}
           </button>
         ))}
       </div>
 
-      {view === 'orders' && (
+      {view === 'upload' && (<>
+        <VendorReportUpload month={month} />
+        <VendorReportPreview month={month} />
+      </>)}
+
+      {view === 'salesmap' && (
+        <div style={{ padding: 16, color: '#6b7280', fontSize: 13, border: '1px dashed #d1d5db', borderRadius: 8 }}>
+          Sales Order Map (orders × each vendor's reported qty/price, sorted by date, with overwrite) — building next.
+        </div>
+      )}
+
+      {view === 'promoter' && (
         <OrderCommissionView month={month} country={country} stores={stores} promoters={promoters} />
       )}
 
