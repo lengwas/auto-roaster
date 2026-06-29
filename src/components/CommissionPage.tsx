@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useCommissionData } from '../hooks/useCommission';
 import type { ClaimWithItems } from '../hooks/useCommission';
 import type { Store, Promoter, Country } from '../types/types';
+import type { CommissionView } from './NavBar';
 import VendorReportUpload from './VendorReportUpload';
 import VendorReportPreview from './VendorReportPreview';
 import SalesOrderMap from './SalesOrderMap';
@@ -20,11 +21,17 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: '#6b7280',
 };
 
-interface CommissionPageProps { stores: Store[]; promoters: Promoter[]; country: Country; }
+interface CommissionPageProps {
+  stores: Store[];
+  promoters: Promoter[];
+  country: Country;
+  view: CommissionView;
+  onViewChange: (v: CommissionView) => void;
+}
 
-const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => {
+const CommissionPage = ({ stores, promoters, country, view, onViewChange }: CommissionPageProps) => {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [view, setView] = useState<'upload' | 'salesmap' | 'promoter' | 'claims'>('upload');
+  const setView = onViewChange;
   const [refreshKey, setRefreshKey] = useState(0);
   const { claims, ledger, rules, summary, loading } = useCommissionData(month, refreshKey);
 
@@ -167,6 +174,7 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
         {([
           ['upload', '1 · Vendor Upload'], ['salesmap', '2 · Sales Order Map'],
           ['promoter', '3 · Promoter Commission'], ['claims', 'Jotform Claims'],
+          ['returns', 'Return Order'],
         ] as const).map(([v, label]) => (
           <button key={v} onClick={() => setView(v)}
             style={{ border: 'none', padding: '6px 16px', cursor: 'pointer', fontSize: 13, background: view === v ? '#eef2ff' : '#fff', color: view === v ? '#4338ca' : '#6b7280', fontWeight: view === v ? 700 : 400 }}>
@@ -186,6 +194,13 @@ const CommissionPage = ({ stores, promoters, country }: CommissionPageProps) => 
 
       {view === 'promoter' && (
         <OrderCommissionView month={month} country={country} stores={stores} promoters={promoters} />
+      )}
+
+      {view === 'returns' && (
+        <div style={{ padding: '40px 24px', textAlign: 'center', color: '#6b7280', fontSize: 14 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Return Order</h3>
+          <p style={{ lineHeight: 1.6 }}>Return order processing is coming soon.</p>
+        </div>
       )}
 
       {view === 'claims' && (<>

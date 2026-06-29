@@ -12,6 +12,8 @@ import UserGuidePage from './components/UserGuidePage';
 import ChangelogPage from './components/ChangelogPage';
 import CustomerDashboardPage from './components/CustomerDashboardPage';
 import CommissionPage from './components/CommissionPage';
+import InventorySettingPage from './components/InventorySettingPage';
+import { NavBar, type TabKey, type CommissionView } from './components/NavBar';
 import { useAttendance } from './hooks/useAttendance';
 import { getDates, generateStoreCounts } from './data/mockData';
 import { useStores } from './hooks/useStores';
@@ -25,23 +27,6 @@ import { validateShifts } from './lib/shiftValidator';
 import type { StoreTierSetting, PromoterGradeOverride, Country } from './types/types';
 import './App.css';
 
-type TabKey = 'shift' | 'pc-setting' | 'store-setting' | 'sales' | 'dashboard' | 'customers' | 'commission' | 'auto-assign' | 'attendance' | 'db-schema' | 'guide' | 'changelog';
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'shift', label: 'Shift Table' },
-  { key: 'pc-setting', label: 'PC Setting' },
-  { key: 'store-setting', label: 'Store Setting' },
-  { key: 'sales', label: 'Sales Performance' },
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'customers', label: 'Customers' },
-  { key: 'commission', label: 'Commission' },
-  { key: 'auto-assign', label: 'Auto Assign' },
-  { key: 'attendance', label: 'Attendance' },
-  { key: 'db-schema', label: 'Database' },
-  { key: 'guide', label: 'Guide' },
-  { key: 'changelog', label: 'Changelog' },
-];
-
 const COUNTRIES: { code: Country; label: string; flag: string }[] = [
   { code: 'UAE', label: 'UAE', flag: '🇦🇪' },
   { code: 'QA', label: 'Qatar', flag: '🇶🇦' },
@@ -50,6 +35,7 @@ const COUNTRIES: { code: Country; label: string; flag: string }[] = [
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('shift');
+  const [commissionView, setCommissionView] = useState<CommissionView>('upload');
   const [country, setCountry] = useState<Country>(() =>
     (localStorage.getItem('country') as Country) || 'UAE'
   );
@@ -185,17 +171,14 @@ function App() {
         </div>
       </header>
 
-      <nav className="tab-nav">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            className={`tab-btn ${activeTab === tab.key ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      <NavBar
+        activeTab={activeTab}
+        commissionView={commissionView}
+        onSelect={({ tab, commissionView: cv }) => {
+          setActiveTab(tab);
+          if (cv) setCommissionView(cv);
+        }}
+      />
 
       <main className="app-main">
         {shiftsError && (
@@ -307,7 +290,16 @@ function App() {
           />
         )}
         {activeTab === 'customers' && <CustomerDashboardPage />}
-        {activeTab === 'commission' && <CommissionPage stores={stores} promoters={promoters} country={country} />}
+        {activeTab === 'commission' && (
+          <CommissionPage
+            stores={stores}
+            promoters={promoters}
+            country={country}
+            view={commissionView}
+            onViewChange={setCommissionView}
+          />
+        )}
+        {activeTab === 'inventory' && <InventorySettingPage />}
         {activeTab === 'auto-assign' && (
           <AutoAssignPage
             stores={stores}
