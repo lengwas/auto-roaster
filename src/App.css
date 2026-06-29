@@ -48,12 +48,15 @@
 /* Tab Navigation */
 .tab-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 0;
   background: var(--bg-surface);
   border-bottom: 2px solid var(--border-color);
   padding: 0 24px;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  /* overflow must stay visible so group dropdowns aren't clipped */
+  overflow: visible;
+  position: relative;
+  z-index: 30;
 }
 
 .tab-btn {
