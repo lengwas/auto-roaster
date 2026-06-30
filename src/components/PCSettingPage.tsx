@@ -286,7 +286,16 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                   <>
                     <tr key={p.id}>
                       <td className="cell-center">{idx + 1}</td>
-                      <td className="cell-name">{p.name}</td>
+                      <td className="cell-name">
+                        <input
+                          type="text"
+                          className="dayoff-select"
+                          style={{ width: '100%', minWidth: 140, fontWeight: 600 }}
+                          value={p.name}
+                          onChange={e => updatePromoter(p.id, { name: e.target.value })}
+                          title="Promoter name — must match the salesperson name in orders for performance to show"
+                        />
+                      </td>
                       <td className="cell-center">
                         <button
                           className={`status-badge status-badge-btn ${p.active ? 'status-active' : 'status-inactive'}`}
