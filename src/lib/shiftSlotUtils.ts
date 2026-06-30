@@ -68,16 +68,19 @@ export function matchAllShiftSlots(slots: string[], dateStr: string): string[] {
   const plain: string[] = [];
   for (const slot of slots) {
     const { days, time } = parseDayPrefix(slot);
+    const tr = time.trim();
+    if (!tr) continue;
     if (days && days.includes(dayIdx)) {
-      daySpecific.push(time);
-    } else if (!days && time) {
-      plain.push(time);
+      daySpecific.push(tr);
+    } else if (!days) {
+      plain.push(tr);
     }
   }
 
+  // Dedupe (the stored data can contain literal duplicate slots).
   if (daySpecific.length > 0) return [...new Set(daySpecific)];
   if (plain.length > 0) return [...new Set(plain)];
-  return [parseDayPrefix(slots[0]).time];
+  return [parseDayPrefix(slots[0]).time.trim()];
 }
 
 /**

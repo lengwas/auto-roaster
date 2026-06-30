@@ -56,6 +56,7 @@ function App() {
   // Key: `${promoterId}_${date}` → payload to save
   const [pendingChanges, setPendingChanges] = useState<Map<string, { promoterId: string; date: string; type: string; timeRange?: string; note?: string }>>(new Map());
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Reset pending when country changes
   useEffect(() => { setPendingChanges(new Map()); }, [country]);
@@ -114,16 +115,29 @@ function App() {
   const savePendingChanges = useCallback(async () => {
     if (pendingChanges.size === 0) return;
     setSaving(true);
-    const entries = [...pendingChanges.values()];
-    for (const e of entries) {
-      await saveShift(e.promoterId, e.date, e.type, e.timeRange, e.note);
+    setSaveError(null);
+    // Keep any entry that fails to save in the draft buffer so it isn't lost.
+    const failed = new Map<string, { promoterId: string; date: string; type: string; timeRange?: string; note?: string }>();
+    let lastError: string | null = null;
+    for (const [key, e] of pendingChanges.entries()) {
+      const err = await saveShift(e.promoterId, e.date, e.type, e.timeRange, e.note);
+      if (err) {
+        failed.set(key, e);
+        lastError = err;
+      }
     }
-    setPendingChanges(new Map());
+    setPendingChanges(failed);
     setSaving(false);
+    setSaveError(
+      failed.size > 0
+        ? `${failed.size} change${failed.size > 1 ? 's' : ''} failed to save — ${lastError}`
+        : null,
+    );
   }, [pendingChanges, saveShift]);
 
   const discardPendingChanges = useCallback(async () => {
     setPendingChanges(new Map());
+    setSaveError(null);
     await reloadShifts();
   }, [reloadShifts]);
 
@@ -193,11 +207,16 @@ function App() {
         {activeTab === 'shift' && pendingChanges.size > 0 && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12,
-            background: '#fefce8', border: '1px solid #facc15', borderRadius: 8,
+            position: 'sticky', top: 0, zIndex: 60,
+            background: saveError ? '#fef2f2' : '#fefce8',
+            border: `1px solid ${saveError ? '#fca5a5' : '#facc15'}`, borderRadius: 8,
             padding: '8px 16px', margin: '12px 16px 0', fontSize: 13,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
           }}>
-            <span style={{ color: '#a16207', fontWeight: 600 }}>
-              Draft — {pendingChanges.size} unsaved change{pendingChanges.size > 1 ? 's' : ''}
+            <span style={{ color: saveError ? '#b91c1c' : '#a16207', fontWeight: 600 }}>
+              {saveError
+                ? `⚠ ${saveError}`
+                : `Draft — ${pendingChanges.size} unsaved change${pendingChanges.size > 1 ? 's' : ''}`}
             </span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button

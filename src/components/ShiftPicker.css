@@ -30,11 +30,19 @@
   transform: translateX(-50%);
   width: 200px;
   background: var(--bg-surface);
+  /* Explicit color: cells are color-coded and the trigger uses color:inherit,
+     so without this the dropdown text would inherit the cell's (often light)
+     color and become unreadable (white-on-white). */
+  color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   z-index: 50;
   overflow: hidden;
+}
+.shift-picker-item,
+.shift-picker-slot-time {
+  color: var(--text-primary);
 }
 
 .shift-picker-search {

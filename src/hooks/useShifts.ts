@@ -68,13 +68,17 @@ export function useShifts(country: Country = 'UAE') {
     fetchAll();
   }, [fetchAll]);
 
+  /**
+   * Persist a shift change. Returns null on success, or an error message string
+   * on failure so callers can keep the change in the draft buffer and surface it.
+   */
   async function saveShift(
     promoterId: string,
     date: string,
     shiftType: string,
     timeRange?: string,
     note?: string,
-  ) {
+  ): Promise<string | null> {
     console.log(`[saveShift] ${shiftType} ${timeRange} for ${promoterId} on ${date} → ${t('shifts', country)}`);
 
     if (!shiftType) {
@@ -83,9 +87,12 @@ export function useShifts(country: Country = 'UAE') {
         .delete()
         .eq('promoter_id', promoterId)
         .eq('date', date);
-      if (delErr) console.error('[saveShift] Delete failed:', delErr);
+      if (delErr) {
+        console.error('[saveShift] Delete failed:', delErr);
+        return delErr.message;
+      }
       setShifts(prev => prev.filter(s => !(s.promoterId === promoterId && s.date === date)));
-      return;
+      return null;
     }
 
     const payload = { promoter_id: promoterId, date, shift_type: shiftType, time_range: timeRange ?? null, note: note ?? null };
@@ -105,9 +112,10 @@ export function useShifts(country: Country = 'UAE') {
         const filtered = prev.filter(s => !(s.promoterId === promoterId && s.date === date));
         return [...filtered, updated];
       });
-    } else if (error) {
-      console.error('[saveShift] Failed:', error);
+      return null;
     }
+    console.error('[saveShift] Failed:', error);
+    return error?.message ?? 'Unknown error saving shift';
   }
 
   return { shifts, setShifts, saveShift, reload: fetchAll, loading, error, earliestDate };
