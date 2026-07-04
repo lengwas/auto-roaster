@@ -89,8 +89,15 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
     const shiftStore = new Map<string, string>(); // promoterId|date -> store type
     for (const s of shifts) shiftStore.set(`${s.promoterId}|${s.date}`, s.type);
 
+    // Scope vendor lines to the current country. UAE/QA store codes never
+    // overlap, so a line's store_code cleanly identifies its country; lines for
+    // another country (or with no mapped store) are excluded from this view.
+    const countryStoreCodes = new Set(stores.map(s => s.code));
+    const inCountry = (v: VLine) => v.storeCode != null && countryStoreCodes.has(v.storeCode);
+
     const pool = new Map<string, VLine[]>();
     for (const v of vsales) {
+      if (!inCountry(v)) continue;
       const k = `${v.vendor}|${v.storeCode}|${(v.sku || '').toUpperCase()}`;
       (pool.get(k) ?? pool.set(k, []).get(k)!).push(v);
     }
@@ -140,8 +147,8 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
       amount: null, vendor: u.vendor, vendorPrice: u.price, kind: 'vendoronly',
       matched: false, shiftType: null, shiftMatch: false, jotform: null, jotformSerial: null, autoApprove: false,
     });
-    // vendor return rows
-    vreturns.forEach((u, i) => out.push({
+    // vendor return rows (current country only)
+    vreturns.filter(inCountry).forEach((u, i) => out.push({
       key: `return:${u.date}|${u.storeCode}|${u.sku}|${u.vendor}|${i}`,
       date: u.date, storeCode: u.storeCode, sku: u.sku, salesperson: null, serial: null,
       amount: null, vendor: u.vendor, vendorPrice: u.price, kind: 'return',
