@@ -33,7 +33,7 @@ const CommissionPage = ({ stores, promoters, country, view, onViewChange }: Comm
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const setView = onViewChange;
   const [refreshKey, setRefreshKey] = useState(0);
-  const { claims, ledger, rules, summary, loading } = useCommissionData(month, refreshKey);
+  const { claims, ledger, rules, summary, loading } = useCommissionData(month, refreshKey, country);
 
   const [expandedClaim, setExpandedClaim] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');

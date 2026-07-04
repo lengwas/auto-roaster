@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import type { Country } from '../types/types';
+
+// Qatar store codes (mirrors stores_qa). Claims/ledger are stored in a shared
+// table with no country column, but branch/store codes never overlap between
+// countries, so a Qatar branch code identifies a Qatar claim; anything else
+// (incl. branches with no store row like SDM/BME) is treated as UAE.
+const QA_STORE_CODES = new Set(['KMQ', 'KLM', 'RKT', 'KVD', 'LGF', 'VDF', 'VLM', 'VMQ', 'ORI', 'VVD', 'VVG']);
+const branchCountry = (code: string | null | undefined): Country =>
+  code && QA_STORE_CODES.has(code.toUpperCase().trim()) ? 'QA' : 'UAE';
 
 export interface CommissionLedgerEntry {
   id: string;
@@ -65,7 +74,7 @@ export interface VerificationSummary {
   totalCommission: number;
 }
 
-export function useCommissionData(month: string, refreshKey: number = 0) {
+export function useCommissionData(month: string, refreshKey: number = 0, country: Country = 'UAE') {
   const [claims, setClaims] = useState<ClaimWithItems[]>([]);
   const [ledger, setLedger] = useState<CommissionLedgerEntry[]>([]);
   const [rules, setRules] = useState<CommissionRule[]>([]);
@@ -88,8 +97,11 @@ export function useCommissionData(month: string, refreshKey: number = 0) {
         .lte('date', toDate)
         .order('date', { ascending: false });
 
+      // Scope to the selected country (branch code identifies the country).
+      const scopedClaims = (claimsData ?? []).filter(c => branchCountry(c.branch) === country);
+
       // Fetch all items for these claims
-      const claimIds = (claimsData ?? []).map(c => c.id);
+      const claimIds = scopedClaims.map(c => c.id);
       let itemsData: Record<string, unknown>[] = [];
       if (claimIds.length > 0) {
         // Batch fetch in chunks of 100
@@ -112,7 +124,7 @@ export function useCommissionData(month: string, refreshKey: number = 0) {
         itemsByClaim.set(cid, list);
       }
 
-      const mapped: ClaimWithItems[] = (claimsData ?? []).map(c => ({
+      const mapped: ClaimWithItems[] = scopedClaims.map(c => ({
         id: c.id,
         submissionId: String(c.submission_id),
         uniqueId: c.unique_id ? String(c.unique_id) : null,
@@ -135,12 +147,13 @@ export function useCommissionData(month: string, refreshKey: number = 0) {
       }));
       setClaims(mapped);
 
-      // Fetch ledger
-      const { data: ledgerData } = await supabase
+      // Fetch ledger (scope to the country by store_code)
+      const { data: ledgerRaw } = await supabase
         .from('commission_ledger')
         .select('*')
         .eq('month', month)
         .order('date', { ascending: false });
+      const ledgerData = (ledgerRaw ?? []).filter(l => branchCountry(l.store_code as string | null) === country);
 
       setLedger((ledgerData ?? []).map(l => ({
         id: String(l.id),
@@ -196,7 +209,7 @@ export function useCommissionData(month: string, refreshKey: number = 0) {
     }
 
     fetchAll();
-  }, [month, refreshKey]);
+  }, [month, refreshKey, country]);
 
   return { claims, ledger, rules, summary, loading };
 }

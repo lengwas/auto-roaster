@@ -1,6 +1,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin } from './lib/supabase-admin.js';
 
+// ── Country routing ───────────────────────────────────────────────────
+// Qatar has its own Jotform + its own Lark group. Any other form is UAE.
+const QATAR_FORM_ID = '253372088269466';
+
+// Qatar branch label (as chosen in the QA form) → our store_code, so claims
+// store the same code convention as UAE (branch codes never overlap across
+// countries, which is how the app tells which country a claim belongs to).
+const QA_BRANCH_MAP: Record<string, string> = {
+  'virgin vendome': 'VVD',
+  'virgin place vendome': 'VVD',
+  'virgin dfc': 'VDF',
+  'virgin doha festival city': 'VDF',
+  'virgin villagio': 'VVG',
+  'virgin mall of qatar': 'VMQ',
+  'virgin landmark': 'VLM',
+};
+
+function mapQatarBranch(branch: string | null): string {
+  if (!branch) return '';
+  return QA_BRANCH_MAP[branch.toLowerCase().trim()] || branch;
+}
+
 // ── Serial number OCR prompt ──────────────────────────────────────────
 const SERIAL_OCR_PROMPT = `Extract the serial number from this luggage/suitcase product image.
 
@@ -368,6 +390,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ error: 'Invalid submission data', keys: Object.keys(body) });
   }
 
+  // Route by form: Qatar form → QA (map branch label → store code, own Lark group).
+  const formId = String(body.formID || body.formId || body.form_id || '');
+  const country: 'UAE' | 'QA' = formId === QATAR_FORM_ID ? 'QA' : 'UAE';
+  if (country === 'QA') parsed.branch = mapQatarBranch(parsed.branch);
+  console.log(`[jotform-webhook] form=${formId} country=${country} branch=${parsed.branch}`);
+
   if (!parsed.date || !parsed.promoterName) {
     console.log('[jotform-webhook] Missing required fields:', { date: parsed.date, promoter: parsed.promoterName });
     // Still log raw payload for debugging
@@ -518,7 +546,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── 4. Send Lark notification with images ──────────────────────────
-  const larkUrl = process.env.LARK_WEBHOOK_URL;
+  // Qatar posts to its own group; if its URL isn't configured we skip rather
+  // than leak Qatar sales into the UAE group.
+  const larkUrl = country === 'QA' ? process.env.LARK_WEBHOOK_URL_QA : process.env.LARK_WEBHOOK_URL;
   if (larkUrl) {
     // Upload images to Lark if App credentials are available
     const larkAppId = process.env.LARK_APP_ID;
