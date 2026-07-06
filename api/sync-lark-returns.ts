@@ -100,7 +100,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { error } = await supabaseAdmin.from('returned_serials').upsert(payload.slice(i, i + BATCH), { onConflict: 'serial_number' });
       if (error) throw new Error(`upsert: ${error.message}`);
     }
-    return res.status(200).json({ records: records.length, returnedSerials: payload.length, skippedNoSerial: noSerial });
+
+    // Richer `returns` table for the Return Order view — Return/Refund cases
+    // keyed by lark_record_id (keeps serial-less returns), tagged by country.
+    const QA = new Set(['KMQ', 'KLM', 'RKT', 'KVD', 'LGF', 'VDF', 'VLM', 'VMQ', 'ORI', 'VVD', 'VVG']);
+    const toDate = (v: unknown): string | null => {
+      const n = typeof v === 'number' ? v : Number(flat(v));
+      if (!n) return null;
+      const d = new Date(n);
+      return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
+    };
+    const returnRows = records
+      .filter(r => flat(r.fields['Request type']).trim() === 'Return / Refund')
+      .map(r => {
+        const f = r.fields;
+        const store = flat(f['Store|Location']).toUpperCase().trim() || null;
+        return {
+          lark_record_id: r.record_id,
+          num: flat(f['Num']) || null,
+          request_type: flat(f['Request type']) || null,
+          type: flat(f['Type']) || null,
+          status: flat(f['Status']) || null,
+          serial_number: flat(f['SN']).toUpperCase().replace(/[\s-]/g, '') || null,
+          model: flat(f['Models']) || null,
+          store_code: store,
+          country: store && QA.has(store) ? 'QA' : 'UAE',
+          staff_name: flat(f['Staff name']) || null,
+          request_date: toDate(f['Request date']),
+          reason: flat(f['Reason']) || null,
+          note: flat(f['Note']) || null,
+          condition: flat(f['Condition']) || null,
+          solution: flat(f['Solution']) || null,
+          raw: f,
+          synced_at: new Date().toISOString(),
+        };
+      });
+    let returnsUpserted = 0;
+    let returnsError: string | null = null;
+    for (let i = 0; i < returnRows.length; i += BATCH) {
+      const { error } = await supabaseAdmin.from('returns').upsert(returnRows.slice(i, i + BATCH), { onConflict: 'lark_record_id' });
+      if (error) { returnsError = error.message; break; } // table may not exist yet — don't fail the serial sync
+      returnsUpserted += Math.min(BATCH, returnRows.length - i);
+    }
+
+    return res.status(200).json({
+      records: records.length, returnedSerials: payload.length, skippedNoSerial: noSerial,
+      returns: returnsUpserted, returnsTotal: returnRows.length, returnsError,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[sync-lark-returns]', msg);

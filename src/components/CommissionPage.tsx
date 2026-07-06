@@ -7,6 +7,7 @@ import VendorReportUpload from './VendorReportUpload';
 import VendorReportPreview from './VendorReportPreview';
 import SalesOrderMap from './SalesOrderMap';
 import OrderCommissionView from './OrderCommissionView';
+import ReturnsView from './ReturnsView';
 import './DashboardPage.css';
 
 function fmtMoney(n: number): string {
@@ -196,12 +197,7 @@ const CommissionPage = ({ stores, promoters, country, view, onViewChange }: Comm
         <OrderCommissionView month={month} country={country} stores={stores} promoters={promoters} />
       )}
 
-      {view === 'returns' && (
-        <div style={{ padding: '40px 24px', textAlign: 'center', color: '#6b7280', fontSize: 14 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Return Order</h3>
-          <p style={{ lineHeight: 1.6 }}>Return order processing is coming soon.</p>
-        </div>
-      )}
+      {view === 'returns' && <ReturnsView country={country} />}
 
       {view === 'claims' && (<>
       {/* ── KPIs ─────────────────────────────────────────────────── */}
