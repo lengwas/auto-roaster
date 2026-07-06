@@ -223,21 +223,31 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
     return null;
   };
 
-  // Parse date: {year, month, day} → YYYY-MM-DD
+  // Parse date + time. Field ids differ per form (UAE q12_date, Qatar q17_date17),
+  // so scan for any date-shaped object rather than hardcoding the key.
   let dateStr: string | null = null;
-  const dateObj = raw.q12_date;
-  if (dateObj && typeof dateObj === 'object' && dateObj.year) {
-    const y = String(dateObj.year);
-    const m = String(dateObj.month).padStart(2, '0');
-    const d = String(dateObj.day).padStart(2, '0');
-    dateStr = `${y}-${m}-${d}`;
-  }
-
-  // Parse time: {timeInput, hourSelect, minuteSelect} → HH:MM
   let timeStr: string | null = null;
-  const timeObj = raw.q6_time;
-  if (timeObj && typeof timeObj === 'object') {
-    timeStr = String(timeObj.timeInput || `${timeObj.hourSelect}:${timeObj.minuteSelect}`);
+  for (const v of Object.values(raw)) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const o = v as Record<string, unknown>;
+      if (o.year && o.month && o.day) {
+        dateStr = `${o.year}-${String(o.month).padStart(2, '0')}-${String(o.day).padStart(2, '0')}`;
+        if (o.timeInput || o.hour) timeStr = String(o.timeInput || `${o.hour}:${o.min}`);
+        break;
+      }
+    }
+  }
+  // Fallback: a standalone time field (timeInput / hourSelect)
+  if (!timeStr) {
+    for (const v of Object.values(raw)) {
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        const o = v as Record<string, unknown>;
+        if (o.timeInput || o.hourSelect) {
+          timeStr = String(o.timeInput || `${o.hourSelect}:${o.minuteSelect}`);
+          break;
+        }
+      }
+    }
   }
 
   // Parse product list: JSON array or text
@@ -296,14 +306,14 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
         const v = raw[key];
         const s = typeof v === 'string' ? v.trim() : '';
         // Match AE-XXXXXX pattern
-        if (/^AE-\d+$/.test(s)) return s;
+        if (/^[A-Z]{2}-\d+$/.test(s)) return s;
         // Check nested value
         if (v && typeof v === 'object' && !Array.isArray(v)) {
           const nested = String((v as Record<string, unknown>).value ?? (v as Record<string, unknown>).answer ?? '').trim();
-          if (/^AE-\d+$/.test(nested)) return nested;
+          if (/^[A-Z]{2}-\d+$/.test(nested)) return nested;
         }
       }
-      return str('q15_unique') || str('q15_autoincrement') || str('q15') || findByKeyword(raw, 'unique', 'autoincrement', 'AE-');
+      return str('q15_uniqueId') || str('q15_unique') || str('q15_autoincrement') || str('q15') || findByKeyword(raw, 'unique', 'autoincrement', 'AE-', 'QA-');
     })(),
     date: dateStr,
     time: timeStr,
@@ -311,7 +321,7 @@ function parseJotformPayload(body: Record<string, unknown>): ParsedSubmission | 
     branch: str('q4_typeA4'),
     customerGender: str('q5_typeA5'),
     nationality: str('q7_nationality'),
-    visaType: str('q8_visaType'),
+    visaType: str('q8_visaType') || str('q8_nationality8'),
     ageRange: str('q9_typeA9'),
     groupType,
     numberOfLuggage,
@@ -396,7 +406,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (country === 'QA') parsed.branch = mapQatarBranch(parsed.branch);
   console.log(`[jotform-webhook] form=${formId} country=${country} branch=${parsed.branch}`);
 
-  if (!parsed.date || !parsed.promoterName) {
+  // Purchase-date is optional on the form; default to submission day so a blank
+  // date never blocks OCR + the Lark notification. Only a missing promoter is fatal.
+  if (!parsed.date) parsed.date = new Date().toISOString().split('T')[0];
+
+  if (!parsed.promoterName) {
     console.log('[jotform-webhook] Missing required fields:', { date: parsed.date, promoter: parsed.promoterName });
     // Still log raw payload for debugging
     await supabaseAdmin.from('sales_claims').upsert({
