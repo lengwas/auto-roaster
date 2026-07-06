@@ -104,7 +104,8 @@ interface PromoterRow {
   name: string;
   totalSales: number;
   orderCount: number;
-  workDays: number;
+  workDays: number;   // distinct days with a sale (used for daily-avg / PI)
+  shiftDays: number;  // distinct days actually on shift (from the roster)
   dailyAvg: number;
   pi: number;         // weighted overall performance index
   autoGrade: PromoterGrade;
@@ -265,6 +266,20 @@ const SalesPerformancePage = ({
 
   // ── per-promoter stats ───────────────────────────────────────────────────
   const promoterRows = useMemo(() => {
+    // Distinct days each promoter was actually on shift (roster), within the
+    // selected period. Excludes off/leave codes — "days on shift", not sales days.
+    const SHIFT_LEAVE = new Set(['off', 'al', 'sl', 'lop', 'air', 'ph', 'do', '-', '']);
+    const [shiftFrom] = getDateRange(periodToMonths(period));
+    const shiftDaysBy = new Map<string, Set<string>>();
+    for (const s of shifts) {
+      if (s.date < shiftFrom) continue;
+      const t = (s.type ?? '').toLowerCase().trim();
+      if (!t || SHIFT_LEAVE.has(t)) continue;
+      if (!shiftDaysBy.has(s.promoterId)) shiftDaysBy.set(s.promoterId, new Set());
+      shiftDaysBy.get(s.promoterId)!.add(s.date);
+    }
+    const shiftDaysOf = (pid: string) => shiftDaysBy.get(pid)?.size ?? 0;
+
     // Accumulate: promoterId → storeCode → { sales, orders, dateSet }
     const acc = new Map<string, Map<string, { sales: number; orders: number; dateSet: Set<string> }>>();
 
@@ -311,6 +326,7 @@ const SalesPerformancePage = ({
           totalSales: 0,
           orderCount: 0,
           workDays: 0,
+          shiftDays: shiftDaysOf(promoter.id),
           dailyAvg: 0,
           pi: 0,
           autoGrade: 'D',
@@ -371,6 +387,7 @@ const SalesPerformancePage = ({
         totalSales,
         orderCount: totalOrders,
         workDays: totalWorkDays,
+        shiftDays: shiftDaysOf(promoter.id),
         dailyAvg: totalWorkDays > 0 ? totalSales / totalWorkDays : 0,
         pi: overallPI,
         autoGrade,
@@ -392,14 +409,14 @@ const SalesPerformancePage = ({
       else if (sortKey === 'dailyAvg') { va = a.dailyAvg; vb = b.dailyAvg; }
       else if (sortKey === 'pi') { va = a.pi; vb = b.pi; }
       else if (sortKey === 'orders') { va = a.orderCount; vb = b.orderCount; }
-      else if (sortKey === 'days') { va = a.workDays; vb = b.workDays; }
+      else if (sortKey === 'days') { va = a.shiftDays; vb = b.shiftDays; }
       return sortDesc ? vb - va : va - vb;
     });
 
     return rows;
   }, [
     filteredOrders, promoters, storeByWarehouse, storeByCode, promoterByName,
-    storePerfs, tierMap, overrideMap, activeOnly, sortKey, sortDesc,
+    storePerfs, tierMap, overrideMap, activeOnly, sortKey, sortDesc, shifts, period,
   ]);
 
   // ── handlers ─────────────────────────────────────────────────────────────
@@ -737,11 +754,11 @@ const SalesPerformancePage = ({
                     <th className="sp-th-name sp-sortable" onClick={() => handleSort('name')}>Name{sortIcon('name')}</th>
                     <th className="sp-th-grade sp-sortable" onClick={() => handleSort('grade')}>Grade{sortIcon('grade')}</th>
                     <th className="sp-th-override">Override</th>
-                    <th className="sp-sortable" onClick={() => handleSort('totalSales')}>Total {currencyLabel}{sortIcon('totalSales')}</th>
-                    <th className="sp-sortable" onClick={() => handleSort('dailyAvg')}>Daily Avg{sortIcon('dailyAvg')}</th>
-                    <th className="sp-sortable" onClick={() => handleSort('pi')}>Perf. Index{sortIcon('pi')}</th>
-                    <th className="sp-sortable" onClick={() => handleSort('orders')}>Orders{sortIcon('orders')}</th>
-                    <th className="sp-sortable" onClick={() => handleSort('days')}>Days{sortIcon('days')}</th>
+                    <th className="sp-sortable sp-th-c" onClick={() => handleSort('totalSales')}>Total {currencyLabel}{sortIcon('totalSales')}</th>
+                    <th className="sp-sortable sp-th-c" onClick={() => handleSort('dailyAvg')}>Daily Avg{sortIcon('dailyAvg')}</th>
+                    <th className="sp-sortable sp-th-c" onClick={() => handleSort('pi')}>Perf. Index{sortIcon('pi')}</th>
+                    <th className="sp-sortable sp-th-c" onClick={() => handleSort('orders')}>Orders{sortIcon('orders')}</th>
+                    <th className="sp-sortable sp-th-c" onClick={() => handleSort('days')}>Days{sortIcon('days')}</th>
                     <th>Stores</th>
                   </tr>
                 </thead>
@@ -790,7 +807,7 @@ const SalesPerformancePage = ({
                             )}
                           </td>
                           <td className="sp-td-num">{noData ? '—' : row.orderCount}</td>
-                          <td className="sp-td-num">{noData ? '—' : row.workDays}</td>
+                          <td className="sp-td-num">{row.shiftDays}</td>
                           <td className="sp-td-stores">
                             {row.storePerfs.slice(0, 3).map(sp => {
                               const allowed = GRADE_ALLOWED_TIERS[row.effectiveGrade];

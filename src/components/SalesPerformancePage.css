@@ -516,7 +516,9 @@
 .sp-row-misfit:hover td { background: #fee2e2; }
 .sp-row-nodata td { opacity: 0.5; }
 
-.sp-td-num { text-align: right; font-variant-numeric: tabular-nums; }
+.sp-td-num { text-align: center; font-variant-numeric: tabular-nums; }
+.sp-th-c { text-align: center; }
+.sp-td-grade, .sp-td-override, .sp-th-grade, .sp-th-override { text-align: center; }
 .sp-td-name {
   display: flex;
   align-items: center;
