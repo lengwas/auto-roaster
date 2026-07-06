@@ -33,9 +33,32 @@ const COUNTRIES: { code: Country; label: string; flag: string }[] = [
   { code: 'TH', label: 'Thailand', flag: '🇹🇭' },
 ];
 
+const VALID_TABS = new Set<TabKey>(['shift', 'auto-assign', 'sales', 'dashboard', 'customers', 'commission', 'pc-setting', 'store-setting', 'inventory', 'db-schema', 'attendance', 'guide', 'changelog']);
+const VALID_CV = new Set<CommissionView>(['upload', 'salesmap', 'promoter', 'claims', 'returns']);
+
+/** Read the current page from the URL hash, e.g. "#commission/returns". */
+function readHash(): { tab: TabKey; cv: CommissionView } {
+  const [t, sub] = decodeURIComponent(window.location.hash.replace(/^#/, '')).split('/');
+  return {
+    tab: VALID_TABS.has(t as TabKey) ? (t as TabKey) : 'shift',
+    cv: VALID_CV.has(sub as CommissionView) ? (sub as CommissionView) : 'upload',
+  };
+}
+
 function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>('shift');
-  const [commissionView, setCommissionView] = useState<CommissionView>('upload');
+  const [activeTab, setActiveTab] = useState<TabKey>(() => readHash().tab);
+  const [commissionView, setCommissionView] = useState<CommissionView>(() => readHash().cv);
+
+  // Keep the URL hash in sync so a refresh (and back/forward) restores the page.
+  useEffect(() => {
+    const hash = activeTab === 'commission' ? `commission/${commissionView}` : activeTab;
+    if (window.location.hash.replace(/^#/, '') !== hash) window.location.hash = hash;
+  }, [activeTab, commissionView]);
+  useEffect(() => {
+    const onHash = () => { const { tab, cv } = readHash(); setActiveTab(tab); setCommissionView(cv); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   const [country, setCountry] = useState<Country>(() =>
     (localStorage.getItem('country') as Country) || 'UAE'
   );
