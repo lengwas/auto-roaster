@@ -17,11 +17,15 @@ interface MapRow {
   key: string; date: string; storeCode: string | null; sku: string | null;
   salesperson: string | null; serial: string | null; amount: number | null;
   vendor: string | null; vendorPrice: number | null;
-  kind: 'order' | 'vendoronly' | 'return';
+  kind: 'order' | 'vendoronly' | 'return' | 'larkreturn';
   matched: boolean; shiftType: string | null; shiftMatch: boolean;
   jotform: boolean | null; jotformSerial: string | null; autoApprove: boolean;
+  returned?: boolean;        // order row whose serial was later returned
+  returnReason?: string;     // larkreturn row: the reason/note
+  model?: string;            // larkreturn row: product model
 }
 interface ClaimUnit { store: string; sku: string; serial: string | null; }
+interface LarkReturn { date: string | null; storeCode: string | null; serial: string | null; model: string | null; staff: string | null; reason: string | null; num: string | null; }
 
 interface Props { month: string; country: Country; stores: Store[]; promoters: Promoter[]; }
 
@@ -32,6 +36,7 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
   const { shifts } = useShifts(country);
   const [vsales, setVsales] = useState<VLine[]>([]);
   const [vreturns, setVreturns] = useState<VLine[]>([]);
+  const [larkReturns, setLarkReturns] = useState<LarkReturn[]>([]);
   const [claimUnits, setClaimUnits] = useState<ClaimUnit[]>([]);
   const [overrides, setOverrides] = useState<Map<string, Ovr>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -61,7 +66,20 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
           cUnits.push({ store, sku, serial: it.serial_number ? String(it.serial_number).toUpperCase().trim() : null });
         });
       }
+      // Lark returns for this country (for return rows + flagging returned sales)
+      const { data: rr } = await supabase.from('returns')
+        .select('serial_number, request_date, store_code, model, staff_name, reason, num')
+        .eq('country', country);
       if (cancelled) return;
+      setLarkReturns((rr ?? []).map((r: Record<string, unknown>) => ({
+        date: r.request_date ? String(r.request_date).split('T')[0] : null,
+        storeCode: r.store_code ? String(r.store_code) : null,
+        serial: r.serial_number ? String(r.serial_number) : null,
+        model: r.model ? String(r.model) : null,
+        staff: r.staff_name ? String(r.staff_name) : null,
+        reason: r.reason ? String(r.reason) : null,
+        num: r.num ? String(r.num) : null,
+      })));
       const sales: VLine[] = [], returns: VLine[] = [];
       for (const r of (v ?? [])) {
         const isReturn = String(r.trans_type || '').toLowerCase() === 'return' || Number(r.quantity || 0) < 0;
@@ -78,7 +96,7 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [month]);
+  }, [month, country]);
 
   const rows = useMemo<MapRow[]>(() => {
     const storeByWh = buildStoreByWarehouse(stores, country);
@@ -107,6 +125,9 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
       const k = `${c.store}|${c.sku}`;
       (claimPool.get(k) ?? claimPool.set(k, []).get(k)!).push(c);
     }
+
+    const normSN = (s: string | null) => (s || '').toUpperCase().replace(/[\s-]/g, '').trim();
+    const returnedSerials = new Set(larkReturns.map(r => normSN(r.serial)).filter(Boolean));
 
     const out: MapRow[] = [];
     const monthOrders = orders
@@ -138,6 +159,7 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
         key: o.id, date: o.date, storeCode, sku, salesperson: o.salesperson ?? null, serial,
         amount: o.amountAed ?? null, vendor, vendorPrice, kind: 'order',
         matched, shiftType, shiftMatch, jotform, jotformSerial, autoApprove,
+        returned: !!(serial && returnedSerials.has(normSN(serial))),
       });
     }
     // vendor-only sale rows (vendor reported a sale, no matching order)
@@ -154,8 +176,16 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
       amount: null, vendor: u.vendor, vendorPrice: u.price, kind: 'return',
       matched: false, shiftType: null, shiftMatch: false, jotform: null, jotformSerial: null, autoApprove: false,
     }));
+    // Lark return rows reported this month (from the returns table)
+    larkReturns.filter(r => (r.date || '').startsWith(month)).forEach((r, i) => out.push({
+      key: `larkret:${r.num || ''}:${r.serial || i}`,
+      date: r.date || `${month}-01`, storeCode: r.storeCode, sku: null, salesperson: r.staff, serial: r.serial,
+      amount: null, vendor: null, vendorPrice: null, kind: 'larkreturn',
+      matched: false, shiftType: null, shiftMatch: false, jotform: null, jotformSerial: null, autoApprove: false,
+      returnReason: r.reason || undefined, model: r.model || undefined,
+    }));
     return out.sort((a, b) => a.date.localeCompare(b.date) || (a.storeCode || '').localeCompare(b.storeCode || ''));
-  }, [orders, shifts, vsales, vreturns, claimUnits, stores, promoters, country, month]);
+  }, [orders, shifts, vsales, vreturns, larkReturns, claimUnits, stores, promoters, country, month]);
 
   const save = async (key: string, patch: Ovr) => {
     const cur = overrides.get(key) ?? {};
@@ -169,6 +199,7 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
   const counts = useMemo(() => ({
     vendorOnly: rows.filter(r => r.kind === 'vendoronly').length,
     returns: rows.filter(r => r.kind === 'return').length,
+    larkReturns: rows.filter(r => r.kind === 'larkreturn').length,
     flagged: rows.filter(r => r.kind === 'order' && !r.autoApprove && (overrides.get(r.key)?.approved == null)).length,
   }), [rows, overrides]);
 
@@ -182,7 +213,8 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
         <span>{rows.length} rows</span>
         {counts.flagged > 0 && <span style={{ color: '#b45309', fontWeight: 600 }}>⚠ {counts.flagged} need review</span>}
         {counts.vendorOnly > 0 && <span style={{ color: '#be123c' }}>{counts.vendorOnly} vendor-only</span>}
-        {counts.returns > 0 && <span style={{ color: '#be123c' }}>{counts.returns} returns</span>}
+        {counts.returns > 0 && <span style={{ color: '#be123c' }}>{counts.returns} vendor returns</span>}
+        {counts.larkReturns > 0 && <span style={{ color: '#be123c', fontWeight: 600 }}>↩ {counts.larkReturns} returns</span>}
       </div>
       <div style={{ overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: 8 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, whiteSpace: 'nowrap' }}>
@@ -196,15 +228,16 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
               const ov = overrides.get(r.key);
               const approved = ov?.approved != null ? ov.approved : r.autoApprove;
               const needsReview = r.kind === 'order' && !r.autoApprove && ov?.approved == null;
-              const bg = r.kind === 'return' ? '#fee2e2' : r.kind === 'vendoronly' ? '#fff1f2' : needsReview ? '#fffbeb' : (approved ? '#f0fdf4' : '#fff');
+              const bg = (r.kind === 'return' || r.kind === 'larkreturn') ? '#fee2e2' : r.kind === 'vendoronly' ? '#fff1f2' : r.returned ? '#fef2f2' : needsReview ? '#fffbeb' : (approved ? '#f0fdf4' : '#fff');
               const cell = { padding: '6px 10px', border: '1px solid #e2e8f0' } as const;
               return (
                 <tr key={r.key} style={{ background: bg }}>
                   <td style={cell}>{r.date}</td>
                   <td style={cell}>
                     {r.kind === 'return' ? <span style={{ color: '#be123c' }}>↩ RETURN — {r.storeCode} {r.sku} ({r.vendor})</span>
+                      : r.kind === 'larkreturn' ? <span style={{ color: '#be123c' }}>↩ RETURN — {r.storeCode} · {r.model ?? '—'}{r.serial ? <span style={{ fontFamily: 'monospace' }}> · SN {r.serial}</span> : ''}{r.salesperson ? ` · ${r.salesperson}` : ''}{r.returnReason ? <span style={{ color: '#9ca3af' }}> · {r.returnReason}</span> : ''}</span>
                       : r.kind === 'vendoronly' ? <span style={{ color: '#be123c' }}>⚠ no sales order — {r.storeCode} {r.sku}</span>
-                      : <span>{r.storeCode} · {r.sku} · {r.salesperson ?? '—'} · {r.amount != null ? fmt(r.amount) : '—'}{r.serial ? <span style={{ fontFamily: 'monospace', color: '#6b7280' }}> · SN {r.serial}</span> : ''}</span>}
+                      : <span>{r.storeCode} · {r.sku} · {r.salesperson ?? '—'} · {r.amount != null ? fmt(r.amount) : '—'}{r.serial ? <span style={{ fontFamily: 'monospace', color: '#6b7280' }}> · SN {r.serial}</span> : ''}{r.returned ? <span style={{ color: '#be123c', fontWeight: 600 }}> · ↩ returned</span> : ''}</span>}
                   </td>
                   {/* Shift */}
                   <td style={{ ...cell, textAlign: 'center', color: r.kind !== 'order' ? '#cbd5e1' : r.shiftMatch ? '#16a34a' : '#dc2626' }}>
