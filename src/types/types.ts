@@ -29,6 +29,21 @@ export interface Promoter {
   commissionRate?: number;
   /** Daily salary (per working day), in local currency */
   dailySalary?: number;
+  // ── HR / staff-master fields ──
+  nickname?: string;
+  contact?: string;
+  email?: string;
+  nationality?: string;
+  trainer?: string;
+  /** Active | Resign | Failed | Office */
+  status?: string;
+  startDate?: string;   // YYYY-MM-DD
+  lastDate?: string;    // YYYY-MM-DD (last working day, if left)
+  uniformSize?: string;
+  lastShirtDate?: string;
+  reasonForLeaving?: string;
+  removedFromChatgroups?: boolean;
+  additionalComments?: string;
 }
 
 export type ShiftType = string; // store code or 'LOP' | 'Off' | 'SL'

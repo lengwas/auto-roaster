@@ -375,6 +375,42 @@ const PCSettingPage = ({ promoters, stores, storePreferences, onPreferencesChang
                     {isExpanded && (
                       <tr key={`${p.id}-expand`} className="expand-row">
                         <td colSpan={9}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', margin: '4px 0 8px' }}>Staff details</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10, marginBottom: 14 }}>
+                            {([
+                              ['Nickname', 'nickname', 'text'], ['Contact', 'contact', 'text'], ['Email', 'email', 'text'],
+                              ['Nationality', 'nationality', 'text'], ['Trainer', 'trainer', 'text'], ['Uniform size', 'uniformSize', 'text'],
+                              ['Start date', 'startDate', 'date'], ['Last date', 'lastDate', 'date'], ['Last shirt date', 'lastShirtDate', 'date'],
+                            ] as const).map(([label, key, type]) => (
+                              <label key={key} style={{ fontSize: 11, color: '#6b7280', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                {label}
+                                <input type={type} value={(p[key] as string) ?? ''}
+                                  onChange={e => updatePromoter(p.id, { [key]: e.target.value })}
+                                  style={{ padding: '4px 6px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12 }} />
+                              </label>
+                            ))}
+                            <label style={{ fontSize: 11, color: '#6b7280', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              Status
+                              <select value={p.status ?? ''} onChange={e => updatePromoter(p.id, { status: e.target.value })}
+                                style={{ padding: '4px 6px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12 }}>
+                                <option value="">—</option><option>Active</option><option>Resign</option><option>Failed</option><option>Office</option>
+                              </select>
+                            </label>
+                            <label style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-end', paddingBottom: 6 }}>
+                              <input type="checkbox" checked={!!p.removedFromChatgroups}
+                                onChange={e => updatePromoter(p.id, { removedFromChatgroups: e.target.checked })} />
+                              Removed from chatgroups
+                            </label>
+                            {(['reasonForLeaving', 'additionalComments'] as const).map(key => (
+                              <label key={key} style={{ gridColumn: '1 / -1', fontSize: 11, color: '#6b7280', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                {key === 'reasonForLeaving' ? 'Reason for leaving' : 'Additional comments'}
+                                <textarea value={p[key] ?? ''} rows={2}
+                                  onChange={e => updatePromoter(p.id, { [key]: e.target.value })}
+                                  style={{ padding: '4px 6px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, resize: 'vertical' }} />
+                              </label>
+                            ))}
+                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', margin: '4px 0 8px' }}>Store preferences</div>
                           <div className="pref-grid">
                             {activeStores.map(store => {
                               const pref = getPref(p.id, store.code);

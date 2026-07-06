@@ -14,6 +14,19 @@ function mapRow(row: Record<string, unknown>): Promoter {
     role: (row.role === 'admin' ? 'admin' : 'promoter'),
     commissionRate: row.commission_rate != null ? Number(row.commission_rate) : 0.5,
     dailySalary: row.daily_salary != null ? Number(row.daily_salary) : 0,
+    nickname: row.nickname ? String(row.nickname) : undefined,
+    contact: row.contact ? String(row.contact) : undefined,
+    email: row.email ? String(row.email) : undefined,
+    nationality: row.nationality ? String(row.nationality) : undefined,
+    trainer: row.trainer ? String(row.trainer) : undefined,
+    status: row.status ? String(row.status) : undefined,
+    startDate: row.start_date ? String(row.start_date).split('T')[0] : undefined,
+    lastDate: row.last_date ? String(row.last_date).split('T')[0] : undefined,
+    uniformSize: row.uniform_size ? String(row.uniform_size) : undefined,
+    lastShirtDate: row.last_shirt_date ? String(row.last_shirt_date).split('T')[0] : undefined,
+    reasonForLeaving: row.reason_for_leaving ? String(row.reason_for_leaving) : undefined,
+    removedFromChatgroups: row.removed_from_chatgroups != null ? Boolean(row.removed_from_chatgroups) : undefined,
+    additionalComments: row.additional_comments ? String(row.additional_comments) : undefined,
   };
 }
 
@@ -41,6 +54,10 @@ export function usePromoters(country: Country = 'UAE') {
   async function savePromoter(p: Promoter): Promise<string | null> {
     // Try with all columns, then progressively remove optional ones
     const payloads: Record<string, unknown>[] = [
+      { active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays, role: p.role, commission_rate: p.commissionRate ?? 0.5, daily_salary: p.dailySalary ?? 0,
+        nickname: p.nickname ?? null, contact: p.contact ?? null, email: p.email ?? null, nationality: p.nationality ?? null, trainer: p.trainer ?? null, status: p.status ?? null,
+        start_date: p.startDate || null, last_date: p.lastDate || null, uniform_size: p.uniformSize ?? null, last_shirt_date: p.lastShirtDate || null,
+        reason_for_leaving: p.reasonForLeaving ?? null, removed_from_chatgroups: p.removedFromChatgroups ?? null, additional_comments: p.additionalComments ?? null },
       { active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays, role: p.role, commission_rate: p.commissionRate ?? 0.5, daily_salary: p.dailySalary ?? 0 },
       { active: p.active, name: p.name, stores_label: p.storesLabel, day_off: p.workingDays, role: p.role },
       { active: p.active, name: p.name, day_off: p.workingDays, role: p.role },
