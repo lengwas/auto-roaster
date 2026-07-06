@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import type { Order, Country, Store, Promoter } from '../types/types';
 import {
-  getWarehouseMap, getStoreCodeFromOrder, parseVendorModel, getMallName,
+  getWarehouseMap, getStoreCodeFromOrder, vendorFromWarehouse, modelFromSku, getMallName,
   groupBy, sumAmount, countOrders, toYearMonth,
   detectBranchAnomalies, nMonthsAgo, thisMonth, monthToStart, monthToEnd,
 } from '../lib/ordersAnalytics';
@@ -88,12 +88,13 @@ const DashboardPage = ({ orders, stores, promoters, country, loading }: Props) =
   const enriched = useMemo<EnrichedOrder[]>(() => {
     return orders.map(o => {
       const storeCode = getStoreCodeFromOrder(o, warehouseMap);
-      const { vendor, model } = parseVendorModel(o.name);
+      // Vendor comes from the warehouse (retail chain), model from the sku —
+      // the `name` field holds customer/notes, not product data.
       return {
         ...o,
         _storeCode: storeCode,
-        _vendor: vendor,
-        _model: model,
+        _vendor: vendorFromWarehouse(o.warehouse),
+        _model: modelFromSku(o.sku),
         _mall: storeCode ? getMallName(storeCode, country) : 'Unknown',
         _month: toYearMonth(o.date),
       };

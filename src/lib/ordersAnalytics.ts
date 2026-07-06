@@ -67,6 +67,28 @@ export function parseVendorModel(name?: string | null): { vendor: string; model:
   return { vendor, model };
 }
 
+// Warehouse code prefix → retail vendor. The order's `warehouse` looks like
+// "VIR - VVD" / "KDZ - KVD"; the prefix before the dash is the vendor.
+const WAREHOUSE_VENDOR: Record<string, string> = {
+  VIR: 'Virgin', JSM: 'Jashanmal', JAS: 'Jashanmal', HAM: 'Hamleys', BOR: 'Borders',
+  SHA: 'Sharaf', KDZ: 'Kiddyzone', RON: 'Rondvill', FNC: 'FNAC', LUL: 'LuLu',
+  ALA: 'Alanees', ZGA: 'Zgames', AIR: 'Airwheel (direct)', AMZ: 'Amazon',
+  COC: 'COC', GWC: 'GWC', YUS: 'Yusen',
+};
+
+/** Retail vendor from an order's warehouse field ("VIR - VVD" → "Virgin"). */
+export function vendorFromWarehouse(warehouse?: string | null): string {
+  if (!warehouse) return 'Unknown';
+  const code = warehouse.split(/\s*-\s*/)[0].trim().toUpperCase();
+  return WAREHOUSE_VENDOR[code] || code || 'Unknown';
+}
+
+/** Product model from an order's sku ("Airwheel-SE3S - Pink" → "SE3S"). */
+export function modelFromSku(sku?: string | null): string {
+  if (!sku) return 'Unknown';
+  return parseVendorModel(sku).model;
+}
+
 // ── Mall derivation ─────────────────────────────────────────────────────────
 
 /** Last 2 chars of a store code (uppercase). Matches the same-mall heuristic
