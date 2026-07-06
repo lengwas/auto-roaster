@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import type { Country } from '../types/types';
 
 const VENDORS = ['virgin', 'jashanmal', 'sharaf', 'hamleys', 'borders'] as const;
 const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
+// Qatar store codes (mirrors stores_qa) — used to scope the preview to the
+// current country since codes never overlap between countries.
+const QA_STORE_CODES = new Set(['KMQ', 'KLM', 'RKT', 'KVD', 'LGF', 'VDF', 'VLM', 'VMQ', 'ORI', 'VVD', 'VVG']);
+const countryOf = (code: string | null): Country =>
+  code && QA_STORE_CODES.has(code.toUpperCase().trim()) ? 'QA' : 'UAE';
+
 interface Line { date: string; storeCode: string | null; sku: string | null; quantity: number; sellingPrice: number | null; isReturn: boolean; }
 
 /** After uploading a vendor report, preview what it says was sold per day × store × sku. */
-const VendorReportPreview = ({ month }: { month: string }) => {
+const VendorReportPreview = ({ month, country }: { month: string; country: Country }) => {
   const [vendor, setVendor] = useState<string>('virgin');
   const [lines, setLines] = useState<Line[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,18 +33,20 @@ const VendorReportPreview = ({ month }: { month: string }) => {
         .order('date').order('store_code');
       if (cancelled) return;
       if (error) { console.warn('[VendorReportPreview]', error.message); setLines([]); }
-      else setLines((data ?? []).map(r => ({
-        date: String(r.date).split('T')[0],
-        storeCode: r.store_code ? String(r.store_code) : null,
-        sku: r.sku ? String(r.sku) : null,
-        quantity: Number(r.quantity || 0),
-        sellingPrice: r.selling_price != null ? Number(r.selling_price) : null,
-        isReturn: String(r.trans_type || '').toLowerCase() === 'return',
-      })));
+      else setLines((data ?? [])
+        .filter(r => countryOf(r.store_code ? String(r.store_code) : null) === country)
+        .map(r => ({
+          date: String(r.date).split('T')[0],
+          storeCode: r.store_code ? String(r.store_code) : null,
+          sku: r.sku ? String(r.sku) : null,
+          quantity: Number(r.quantity || 0),
+          sellingPrice: r.selling_price != null ? Number(r.selling_price) : null,
+          isReturn: String(r.trans_type || '').toLowerCase() === 'return',
+        })));
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [vendor, month]);
+  }, [vendor, month, country]);
 
   // Explode a "qty N" line into N rows of 1 unit each (vendor sells 3 → 3 rows).
   const exploded = useMemo(() => lines.flatMap(l => {

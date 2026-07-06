@@ -184,8 +184,8 @@ const CommissionPage = ({ stores, promoters, country, view, onViewChange }: Comm
       </div>
 
       {view === 'upload' && (<>
-        <VendorReportUpload month={month} />
-        <VendorReportPreview month={month} />
+        <VendorReportUpload month={month} country={country} />
+        <VendorReportPreview month={month} country={country} />
       </>)}
 
       {view === 'salesmap' && (

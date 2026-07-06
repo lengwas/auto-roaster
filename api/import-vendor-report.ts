@@ -16,10 +16,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { storagePath, vendor, month, fileName } = (req.body || {}) as {
-    storagePath?: string; vendor?: string; month?: string; fileName?: string;
+    storagePath?: string; vendor?: string; month?: string; fileName?: string; country?: string;
   };
   if (!storagePath || !vendor) return res.status(400).json({ error: 'storagePath and vendor are required' });
   if (!isVendor(vendor)) return res.status(400).json({ error: `Unknown vendor "${vendor}" (virgin|jashanmal|hamleys)` });
+
+  // A vendor (e.g. Virgin) can report in more than one country via different
+  // distributors. Store codes never overlap across countries, so we scope the
+  // idempotent replace to the country of the file being uploaded.
+  const QA_STORE_CODES = new Set(['KMQ', 'KLM', 'RKT', 'KVD', 'LGF', 'VDF', 'VLM', 'VMQ', 'ORI', 'VVD', 'VVG']);
+  const countryOf = (code: string | null | undefined) =>
+    code && QA_STORE_CODES.has(String(code).toUpperCase().trim()) ? 'QA' : 'UAE';
 
   try {
     // 1. Download the uploaded file from Storage
@@ -43,11 +50,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const returns = lines.filter(l => l.trans_type === 'return').length;
     const unmappedStores = [...new Set(lines.filter(l => !l.store_code && l.vendor_store_id).map(l => l.vendor_store_id))];
 
-    // 4. Idempotent replace: drop existing rows for this vendor + month(s)
+    // 4. Idempotent replace — scoped to this file's country so uploading e.g.
+    //    Qatar Virgin doesn't wipe UAE Virgin for the same month. The country is
+    //    derived from the parsed store codes (self-correcting regardless of which
+    //    country view the upload was triggered from).
+    const fileCountry = lines.some(l => countryOf(l.store_code) === 'QA' && l.store_code) ? 'QA' : 'UAE';
     if (months.length > 0) {
-      const { error: delErr } = await supabaseAdmin
-        .from('vendor_report_lines').delete().eq('vendor', vendor).in('report_month', months);
-      if (delErr) throw new Error(`clear existing: ${delErr.message}`);
+      const { data: existing, error: selErr } = await supabaseAdmin
+        .from('vendor_report_lines').select('id, store_code').eq('vendor', vendor).in('report_month', months);
+      if (selErr) throw new Error(`read existing: ${selErr.message}`);
+      const delIds = (existing || []).filter(r => countryOf(r.store_code) === fileCountry).map(r => r.id);
+      for (let i = 0; i < delIds.length; i += 500) {
+        const { error: delErr } = await supabaseAdmin
+          .from('vendor_report_lines').delete().in('id', delIds.slice(i, i + 500));
+        if (delErr) throw new Error(`clear existing: ${delErr.message}`);
+      }
     }
 
     // 5. Insert in batches
@@ -64,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       unmapped_stores: unmappedStores,
     });
 
-    return res.status(200).json({ rows: lines.length, sales, returns, months, unmappedStores });
+    return res.status(200).json({ rows: lines.length, sales, returns, months, unmappedStores, country: fileCountry });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[import-vendor-report]', msg);
