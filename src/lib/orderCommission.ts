@@ -183,6 +183,7 @@ export function reconcileOrders(
   month: string,
   registrySerials: Set<string>,
   bonuses: CommissionBonus[] = [],
+  returns: { serialNumber: string | null; returnedDate: string | null }[] = [],
 ): { rows: OrderCommissionRow[]; byPromoter: PromoterCommission[] } {
   const storeByWarehouse = buildStoreByWarehouse(stores, country);
   const promoterByName = new Map(promoters.map(p => [p.name.toLowerCase().trim(), p]));
@@ -250,8 +251,45 @@ export function reconcileOrders(
     });
   }
 
-  // ── 2. Cross-month return clawback (vendor returns carry no serial) ──
   const clawedIds = new Set<string>();
+
+  // ── 2a. Serial-based return clawback (Lark returns table) ──
+  // A return logged this month claws back the most recent sale of that exact
+  // serial (on/before the return date). More precise than the vendor-line
+  // heuristic below, so it runs first and marks the order as clawed.
+  const normSN = (s: string | null | undefined) => (s || '').toUpperCase().replace(/[\s-]/g, '').trim();
+  const ordersBySerial = new Map<string, { o: Order; r: Resolved }[]>();
+  for (const o of allOrders) {
+    if (EXCLUDED_STATUS.has(o.status.toLowerCase())) continue;
+    const s = normSN(o.serialNumber);
+    if (!s) continue;
+    (ordersBySerial.get(s) ?? ordersBySerial.set(s, []).get(s)!).push({ o, r: resolve(o) });
+  }
+  for (const arr of ordersBySerial.values()) arr.sort((a, b) => b.o.date.localeCompare(a.o.date)); // most recent first
+
+  for (const ret of returns) {
+    const s = normSN(ret.serialNumber);
+    if (!s) continue;
+    // clawback lands in the month the return was reported
+    if (ret.returnedDate && !ret.returnedDate.startsWith(month)) continue;
+    const hit = (ordersBySerial.get(s) ?? []).find(
+      ({ o }) => !clawedIds.has(o.id) && (!ret.returnedDate || o.date <= ret.returnedDate),
+    );
+    if (!hit) continue;
+    clawedIds.add(hit.o.id);
+    const base = hit.r.rate != null ? hit.r.amount * (hit.r.rate / 100) : 0;
+    rows.push({
+      id: `${hit.o.id}__larkret_${ret.returnedDate || ''}`, date: ret.returnedDate || hit.o.date, orderId: hit.o.orderId,
+      storeCode: hit.r.storeCode, storeName: hit.r.store?.name ?? null,
+      sku: hit.o.sku ?? null, serialNumber: hit.o.serialNumber ?? null,
+      salesperson: hit.o.salesperson ?? null, promoterId: hit.r.promoter?.id ?? null,
+      amount: hit.r.amount, commissionRate: hit.r.rate,
+      baseCommission: -base, bonus: 0, bonusNote: '', commission: -base, status: 'returned',
+      flags: { returnNote: `Return ${ret.returnedDate || '?'} (SN ${s}); sold ${hit.o.date}` },
+    });
+  }
+
+  // ── 2b. Cross-month return clawback (vendor returns carry no serial) ──
   const soldByStore = new Map<string, { o: Order; r: Resolved }[]>();
   for (const o of allOrders) {
     if (EXCLUDED_STATUS.has(o.status.toLowerCase())) continue;

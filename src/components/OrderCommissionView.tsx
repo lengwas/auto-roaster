@@ -4,6 +4,7 @@ import { useOrders } from '../hooks/useOrders';
 import { useVendorLines } from '../hooks/useVendorLines';
 import { useSerialRegistry } from '../hooks/useSerialRegistry';
 import { useCommissionBonuses } from '../hooks/useCommissionBonuses';
+import { useReturns } from '../hooks/useReturns';
 import { reconcileOrders, type OrderVerifyStatus, type OrderCommissionRow } from '../lib/orderCommission';
 
 interface Props { month: string; country: Country; stores: Store[]; promoters: Promoter[]; }
@@ -24,11 +25,12 @@ const OrderCommissionView = ({ month, country, stores, promoters }: Props) => {
   const { lines: vendorLines, loading: vLoading } = useVendorLines(month);
   const registrySerials = useSerialRegistry();
   const bonuses = useCommissionBonuses();
+  const returns = useReturns(country);
   const [statusFilter, setStatusFilter] = useState<'all' | OrderVerifyStatus>('all');
 
   const { rows, byPromoter } = useMemo(
-    () => reconcileOrders(orders, vendorLines, stores, promoters, country, month, registrySerials, bonuses),
-    [orders, vendorLines, stores, promoters, country, month, registrySerials, bonuses],
+    () => reconcileOrders(orders, vendorLines, stores, promoters, country, month, registrySerials, bonuses, returns),
+    [orders, vendorLines, stores, promoters, country, month, registrySerials, bonuses, returns],
   );
 
   const totals = useMemo(() => ({
