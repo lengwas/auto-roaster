@@ -19,6 +19,7 @@ interface ReturnRow {
 }
 
 const cell = { padding: '6px 10px', border: '1px solid #e2e8f0', verticalAlign: 'top' } as const;
+const trunc = (s: string, n = 70) => (s.length > n ? s.slice(0, n).trimEnd() + '…' : s);
 
 /** Return / Refund cases synced from the Lark Base, scoped to the current country. */
 const ReturnsView = ({ country }: { country: Country }) => {
@@ -87,7 +88,7 @@ const ReturnsView = ({ country }: { country: Country }) => {
                   <td style={cell}>{r.staff_name ?? '—'}</td>
                   <td style={cell}>{r.type ?? '—'}</td>
                   <td style={{ ...cell, whiteSpace: 'nowrap', color: (r.status ?? '').toLowerCase().includes('pending') ? '#b45309' : '#16a34a' }}>{r.status ?? '—'}</td>
-                  <td style={{ ...cell, minWidth: 240, color: '#374151' }}>{detail || '—'}</td>
+                  <td style={{ ...cell, maxWidth: 320, color: '#374151', whiteSpace: 'normal' }} title={detail || undefined}>{detail ? trunc(detail) : '—'}</td>
                 </tr>
               );
             })}

@@ -235,7 +235,7 @@ const SalesOrderMap = ({ month, country, stores, promoters }: Props) => {
                   <td style={cell}>{r.date}</td>
                   <td style={cell}>
                     {r.kind === 'return' ? <span style={{ color: '#be123c' }}>↩ RETURN — {r.storeCode} {r.sku} ({r.vendor})</span>
-                      : r.kind === 'larkreturn' ? <span style={{ color: '#be123c' }}>↩ RETURN — {r.storeCode} · {r.model ?? '—'}{r.serial ? <span style={{ fontFamily: 'monospace' }}> · SN {r.serial}</span> : ''}{r.salesperson ? ` · ${r.salesperson}` : ''}{r.returnReason ? <span style={{ color: '#9ca3af' }}> · {r.returnReason}</span> : ''}</span>
+                      : r.kind === 'larkreturn' ? <span style={{ color: '#be123c' }}>↩ RETURN — {r.storeCode} · {r.model ?? '—'}{r.serial ? <span style={{ fontFamily: 'monospace' }}> · SN {r.serial}</span> : ''}{r.salesperson ? ` · ${r.salesperson}` : ''}{r.returnReason ? <span style={{ color: '#9ca3af' }} title={r.returnReason}> · {r.returnReason.length > 45 ? r.returnReason.slice(0, 45).trimEnd() + '…' : r.returnReason}</span> : ''}</span>
                       : r.kind === 'vendoronly' ? <span style={{ color: '#be123c' }}>⚠ no sales order — {r.storeCode} {r.sku}</span>
                       : <span>{r.storeCode} · {r.sku} · {r.salesperson ?? '—'} · {r.amount != null ? fmt(r.amount) : '—'}{r.serial ? <span style={{ fontFamily: 'monospace', color: '#6b7280' }}> · SN {r.serial}</span> : ''}{r.returned ? <span style={{ color: '#be123c', fontWeight: 600 }}> · ↩ returned</span> : ''}</span>}
                   </td>
